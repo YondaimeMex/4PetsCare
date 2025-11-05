@@ -1,43 +1,37 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Image} from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import Home from './screens/Home';
+import Perfil from './screens/Perfil';
+import RegistroMascota from './screens/RegistroMascota';
+import Mascotas from './screens/Mascotas';
+import ConfirmacionVacuna from './screens/ConfirmacionVacuna';
+import VacunaRegistrada from './screens/VacunaRegistrada';
+import Calendario from './screens/Calendario';
+import Consejos from './screens/Consejos';
+import Emergencias from './screens/Emergencias';
+import RegistroVeterinaria from './screens/RegistroVeterinaria';
+import ProgramarCita from './screens/ProgramarCita';
+import ChatBot from './screens/ChatBot';
+
+const Stack = createNativeStackNavigator();
 
 export default function App() {
   return (
-    <>  
-    <Image
-        source={{
-          uri: "https://cdn.rafled.com/anime-icons/images/2015efbc2da8c6bb3e6f709ec9a1354cfa68a8c2f4a9f12dbd78c5eee49eb94c.jpg",
-        }}
-        style={styles.image}
-      />
-
-      <Image
-        source={{
-          uri: "https://i1.sndcdn.com/artworks-000147503915-rk15y4-t500x500.jpg",
-        }}
-        style={styles.yondaime}
-      />
-    </>
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Home" component={Home} />
+        <Stack.Screen name="Perfil" component={Perfil} />
+        <Stack.Screen name="RegistroMascota" component={RegistroMascota} />
+        <Stack.Screen name="Mascotas" component={Mascotas} />
+        <Stack.Screen name="ConfirmacionVacuna" component={ConfirmacionVacuna} />
+        <Stack.Screen name="VacunaRegistrada" component={VacunaRegistrada} />
+        <Stack.Screen name="Calendario" component={Calendario} />
+        <Stack.Screen name="Consejos" component={Consejos} />
+        <Stack.Screen name="Emergencias"  component={Emergencias} />
+        <Stack.Screen name="RegistroVeterinaria" component={RegistroVeterinaria} />
+        <Stack.Screen name="ProgramarCita" component={ProgramarCita} />
+        <Stack.Screen name="ChatBot" component={ChatBot} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  image: {
-    width: 200,
-    height: 200,
-    borderRadius:10,
-    margin: 90,
-  },
-  yondaime: {
-    width: 200,
-    height: 200,
-    borderRadius:10,
-    margin: 90,
-  }
-});
