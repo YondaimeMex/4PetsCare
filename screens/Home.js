@@ -67,12 +67,12 @@ export default function HomeScreen() {
 
                 {/* Íconos de notificaciones y perfil */}
                 <View style={styles.headerRight}>
-                    <TouchableOpacity style={[styles.floatingBtn, styles.headerIcon]} onPress={toggleNotifications}>
+                    <TouchableOpacity style={[styles.headerIcon]} onPress={toggleNotifications}>
                         <Ionicons name="notifications" size={32} color="black" />
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.floatingBtn, styles.headerIcon]}
+                        style={[styles.headerIcon]}
                         onPress={() => navigation.navigate('Perfil')}
                     >
                         <Ionicons name="person-circle-outline" size={32} color="black" />

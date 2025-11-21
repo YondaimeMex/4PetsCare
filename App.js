@@ -12,6 +12,8 @@ import Emergencias from './screens/Emergencias';
 import RegistroVeterinaria from './screens/RegistroVeterinaria';
 import ProgramarCita from './screens/ProgramarCita';
 import ChatBot from './screens/ChatBot';
+import PerfilMascotaStack from "./screens/PerfilMascotaStack";
+
 
 const Stack = createNativeStackNavigator();
 
@@ -27,10 +29,13 @@ export default function App() {
         <Stack.Screen name="VacunaRegistrada" component={VacunaRegistrada} />
         <Stack.Screen name="Calendario" component={Calendario} />
         <Stack.Screen name="Consejos" component={Consejos} />
-        <Stack.Screen name="Emergencias"  component={Emergencias} />
+        <Stack.Screen name="Emergencias" component={Emergencias} />
         <Stack.Screen name="RegistroVeterinaria" component={RegistroVeterinaria} />
         <Stack.Screen name="ProgramarCita" component={ProgramarCita} />
         <Stack.Screen name="ChatBot" component={ChatBot} />
+       
+        <Stack.Screen name="PerfilMascotaStack" component={PerfilMascotaStack} />
+
       </Stack.Navigator>
     </NavigationContainer>
   );
