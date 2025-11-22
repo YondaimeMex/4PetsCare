@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-
+const bcrypt = require('bcryptjs');
 const pool = require('./db');
 const authMiddleware = require('./middleware/authMiddleware');
 
