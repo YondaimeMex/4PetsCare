@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# key de la API para el chatbot
+.env
+ai-backend/.env
