@@ -90,9 +90,6 @@ export default function Login() {
         // Si llegamos aquí, el login fue correcto
         // data.token → JWT
         // data.user  → { id, nombre, email, telefono }
-
-        // Más adelante podemos guardar el token en AsyncStorage
-        // por ahora solo logueamos al usuario en la app:
         console.log('Usuario logueado:', data.user);
         setIsLoggedIn(true);
     } catch (error) {

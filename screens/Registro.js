@@ -5,7 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 
-// 👇 Usa tu IP local y puerto del backend
+// IP local y puerto del backend
 const API_BASE_URL = "http://192.168.18.69:3000";
 
 export default function Registro() {
