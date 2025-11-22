@@ -16,6 +16,8 @@ import Emergencias from './screens/Emergencias';
 import RegistroVeterinaria from './screens/RegistroVeterinaria';
 import ProgramarCita from './screens/ProgramarCita';
 import ChatBot from './screens/ChatBot';
+import PerfilMascotaStack from "./screens/PerfilMascotaStack";
+
 
 export const AuthContext = createContext();
 
@@ -82,6 +84,7 @@ export default function App() {
               <Stack.Screen name="Perfil" component={Perfil} />
               <Stack.Screen name="RegistroMascota" component={RegistroMascota} />
               <Stack.Screen name="Mascotas" component={Mascotas} />
+              <Stack.Screen name="PerfilMascotaStack" component={PerfilMascotaStack}/>
               <Stack.Screen name="ConfirmacionVacuna" component={ConfirmacionVacuna} />
               <Stack.Screen name="VacunaRegistrada" component={VacunaRegistrada} />
               <Stack.Screen name="Calendario" component={Calendario} />

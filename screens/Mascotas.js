@@ -91,7 +91,10 @@ export default function Mascotas() {
             {/* Contenedor desplazable con las tarjetas de mascotas */}
             <ScrollView contentContainerStyle={styles.scrollContent} style={styles.scrollContainer}>
                 {/* Tarjeta de la mascota 1 */}
-                <View style={styles.card}>
+                <TouchableOpacity
+                    onPress={() => navigation.navigate('PerfilMascotaStack')}
+                    style={styles.card}
+                >
                     <Text style={styles.detailTitle}>Mascota: "Toby"</Text>
 
                     <View style={styles.detailRow}>
@@ -129,10 +132,13 @@ export default function Mascotas() {
                         <FontAwesome5 name="syringe" size={18} color="#007BFF" />
                         <Ionicons name="checkmark-circle" size={18} color="#4CAF50" style={{ marginLeft: 5 }} />
                     </TouchableOpacity>
-                </View>
+                </TouchableOpacity>
 
                 {/* Tarjeta de la mascota 2 */}
-                <View style={styles.card}>
+                <TouchableOpacity
+                    style={styles.card}
+                    onPress={() => navigation.navigate('PerfilMascotaStack')}
+                >
                     <Text style={styles.detailTitle}>Mascota: "Gerardo"</Text>
 
                     <View style={styles.detailRow}>
@@ -170,8 +176,11 @@ export default function Mascotas() {
                         <FontAwesome5 name="syringe" size={18} color="#007BFF" />
                         <Ionicons name="checkmark-circle" size={18} color="#4CAF50" style={{ marginLeft: 5 }} />
                     </TouchableOpacity>
-                </View>
+                </TouchableOpacity>
+
+                
             </ScrollView>
+
 
             {/* Botón flotante para agregar nueva mascota o cita */}
             <TouchableOpacity
@@ -409,6 +418,18 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 4.65,
         zIndex: 15,
+    },
+     floatingBtn: {
+        backgroundColor: '#fff',
+        padding: 18,
+        borderRadius: 50,
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        borderWidth: 1,
+        borderColor: '#ccc'
     },
 });
 
