@@ -92,7 +92,7 @@ export default function Mascotas() {
             <ScrollView contentContainerStyle={styles.scrollContent} style={styles.scrollContainer}>
                 {/* Tarjeta de la mascota 1 */}
                 <TouchableOpacity
-
+                    onPress={() => navigation.navigate('PerfilMascotaStack')}
                     style={styles.card}
                 >
                     <Text style={styles.detailTitle}>Mascota: "Toby"</Text>
@@ -137,7 +137,7 @@ export default function Mascotas() {
                 {/* Tarjeta de la mascota 2 */}
                 <TouchableOpacity
                     style={styles.card}
-                    onPress={() => navigation.navigate('PerfilMascota')}
+                    onPress={() => navigation.navigate('PerfilMascotaStack')}
                 >
                     <Text style={styles.detailTitle}>Mascota: "Gerardo"</Text>
 
@@ -178,47 +178,7 @@ export default function Mascotas() {
                     </TouchableOpacity>
                 </TouchableOpacity>
 
-                {/* Tarjeta con boton */}
-                <TouchableOpacity
-                    style={styles.card}
-                    onPress={() => navigation.navigate('PerfilMascotaStack')} // Navegación a perfil mascota
-                >
-                    <Text style={styles.detailTitle}>Mascota: "Ziggy"</Text>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Edad:</Text>
-                        <Text style={styles.detailValue}>1 año</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Peso:</Text>
-                        <Text style={styles.detailValue}>10 kg</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Raza:</Text>
-                        <Text style={styles.detailValue}>Siames</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Mascota:</Text>
-                        <Text style={styles.detailValue}>Domestico (Perro)</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Prox Vacuna:</Text>
-                        <Text style={styles.detailValue}>FeLV</Text>
-                    </View>
-                    {/* Imagen del gato */}
-                    <Image
-                        source={{ uri: 'https://images.pexels.com/photos/46505/swiss-shepherd-dog-dog-pet-portrait-46505.jpeg' }}
-                        style={styles.petImage}
-                    />
-
-                    {/* Botón para confirmar vacuna */}
-                    <TouchableOpacity
-                        style={styles.vaccineButton}
-                        onPress={() => navigation.navigate('ConfirmacionVacuna')}
-                    >
-                        <FontAwesome5 name="syringe" size={18} color="#007BFF" />
-                        <Ionicons name="checkmark-circle" size={18} color="#4CAF50" style={{ marginLeft: 5 }} />
-                    </TouchableOpacity>
-                </TouchableOpacity>
+                
             </ScrollView>
 
 
@@ -458,6 +418,18 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 4.65,
         zIndex: 15,
+    },
+     floatingBtn: {
+        backgroundColor: '#fff',
+        padding: 18,
+        borderRadius: 50,
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        borderWidth: 1,
+        borderColor: '#ccc'
     },
 });
 

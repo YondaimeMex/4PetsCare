@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Image } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { TextInput, Provider as PaperProvider, MD3LightTheme } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
+import { KeyboardAvoidingView } from "react-native";
 
 
 const customTheme = {
@@ -22,16 +23,16 @@ export default function PetProfileScreen() {
     const [isEditable, setIsEditable] = useState(false);
     const [image, setImage] = useState(null);
 
-    const [nombre, setNombre] = useState("Firulais");
-    const [raza, setRaza] = useState("Labrador");
-    const [edad, setEdad] = useState("3 años");
-    const [peso, setPeso] = useState("25 kg");
+    const [nombre, setNombre] = useState("Toby");
+    const [raza, setRaza] = useState("Husky");
+    const [edad, setEdad] = useState("2 años");
+    const [peso, setPeso] = useState("30 kg");
 
     const toggleEdit = () => setIsEditable(!isEditable);
 
     const handleSave = () => {
         setIsEditable(false);
-        Alert.alert(" Cambios guardados", "Los datos de la mascota se actualizaron correctamente.");
+        Alert.alert(" Cambios guardados  ✅", "Los datos de la mascota se actualizaron correctamente.");
     };
 
     // Elegir o tomar foto
@@ -79,110 +80,109 @@ export default function PetProfileScreen() {
     };
 
     return (
+
         <PaperProvider theme={customTheme}>
-            <ScrollView contentContainerStyle={styles.container}>
-                {/* Encabezado */}
-                <View style={styles.header}>
-                    {/*<TouchableOpacity>
-                        <Ionicons name="arrow-back" size={24} color="black" />
-                    </TouchableOpacity>*/}
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+            >
+                <ScrollView contentContainerStyle={styles.container}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {/* Encabezado */}
+                    <View style={styles.header}>
 
-                    <Text style={styles.title}>Perfil de Mascota</Text>
+                        <Text style={styles.title}>Perfil de Mascota</Text>
 
-                    <TouchableOpacity onPress={isEditable ? handleSave : toggleEdit}>
-                        <Ionicons
-                            name={isEditable ? "checkmark-outline" : "create-outline"}
-                            size={24}
-                            color={isEditable ? "#007700ff" : "black"}
-                        />
-                    </TouchableOpacity>
-                </View>
-
-                {/* Tabs */}
-                <View style={styles.tabs}>
-                    <TouchableOpacity style={styles.tab} onPress={() => navigation.navigate("Salud")}>
-                        <Text>Salud</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.tab} onPress={() => navigation.navigate("Actividades")}>
-                        <Text>Actividades</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.tab} onPress={() =>navigation.navigate("Alimentacion")}>
-                        <Text>Alimentación</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Imagen de perfil */}
-                <View style={styles.profileImageContainer}>
-                    <View style={styles.profileCircle}>
-                        {image ? (
-                            <Image source={{ uri: image }} style={styles.profileImage} />
-                        ) : (
-                            <Ionicons name="person-outline" size={70} color="#C0C0C0" />
-                        )}
-
-                        {/* Botón cámara */}
-                        <TouchableOpacity style={styles.cameraButton} onPress={pickImage}>
-                            <Ionicons name="camera-outline" size={18} color="#030303ff" />
+                        <TouchableOpacity onPress={isEditable ? handleSave : toggleEdit}>
+                            <Ionicons
+                                name={isEditable ? "checkmark-outline" : "create-outline"}
+                                size={28}
+                                color={isEditable ? "#007700ff" : "black"}
+                            />
                         </TouchableOpacity>
                     </View>
-                    <Text style={styles.petName}>{nombre}</Text>
-                </View>
 
-                {/* Info general */}
-                <View style={styles.infoSection}>
-                    <Text style={styles.sectionTitle}>Información general</Text>
+                    {/* Tabs */}
+                    <View style={styles.tabs}>
+                        <TouchableOpacity style={styles.tab} onPress={() => navigation.navigate("Salud")}>
+                            <Text style={styles.tabText}>Salud</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.tab} onPress={() => navigation.navigate("Actividades")}>
+                            <Text style={styles.tabText}>Actividades</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.tab} onPress={() => navigation.navigate("Alimentacion")}>
+                            <Text style={styles.tabText}>Alimentación</Text>
+                        </TouchableOpacity>
+                    </View>
 
-                    <TextInput
-                        label="Nombre"
-                        value={nombre}
-                        onChangeText={setNombre}
-                        mode="outlined"
-                        editable={isEditable}
-                        style={styles.input}
-                    />
+                    {/* Imagen de perfil */}
+                    <View style={styles.profileImageContainer}>
+                        <View style={styles.profileCircle}>
+                            {image ? (
+                                <Image source={{ uri: image }} style={styles.profileImage} />
+                            ) : (
+                                <Ionicons name="person-outline" size={70} color="#C0C0C0" />
+                            )}
+                            {/*Activa boton de camara en modo edicion*/}
+                            {isEditable && (
+                                <TouchableOpacity TouchableOpacity style={styles.cameraButton} onPress={pickImage}>
+                                    <Ionicons name="camera-outline" size={20} color="#333030ff" />
+                                </TouchableOpacity>
+                            )}
 
-                    <TextInput
-                        label="Raza"
-                        value={raza}
-                        onChangeText={setRaza}
-                        mode="outlined"
-                        editable={isEditable}
-                        style={styles.input}
-                    />
+                        </View>
+                        <Text style={styles.petName}>{nombre}</Text>
+                    </View>
 
-                    <TextInput
-                        label="Edad"
-                        value={edad}
-                        onChangeText={setEdad}
-                        mode="outlined"
-                        editable={isEditable}
-                        style={styles.input}
-                    />
+                    {/* Info general */}
+                    <View style={styles.infoSection}>
+                        <Text style={styles.sectionTitle}>Información general</Text>
 
-                    <TextInput
-                        label="Peso"
-                        value={peso}
-                        onChangeText={setPeso}
-                        mode="outlined"
-                        editable={isEditable}
-                        style={styles.input}
-                    />
+                        <TextInput
+                            label="Nombre"
+                            value={nombre}
+                            onChangeText={setNombre}
+                            mode="outlined"
+                            editable={isEditable}
+                            style={styles.input}
+                        />
 
-                    <TouchableOpacity
-                        style={[
-                            styles.saveButton,
-                            { backgroundColor: isEditable ? "black" : "#CCC" },
-                        ]}
-                        disabled={!isEditable}
-                        onPress={handleSave}
-                    >
-                        <Text style={styles.saveButtonText}>
-                            {isEditable ? "Guardar cambios" : ""}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            </ScrollView>
-        </PaperProvider>
+                        <TextInput
+                            label="Raza"
+                            value={raza}
+                            onChangeText={setRaza}
+                            mode="outlined"
+                            editable={isEditable}
+                            style={styles.input}
+                        />
+
+                        <TextInput
+                            label="Edad"
+                            value={edad}
+                            onChangeText={setEdad}
+                            mode="outlined"
+                            editable={isEditable}
+                            style={styles.input}
+                        />
+
+                        <TextInput
+                            label="Peso"
+                            value={peso}
+                            onChangeText={setPeso}
+                            mode="outlined"
+                            editable={isEditable}
+                            style={styles.input}
+                        />
+                        {isEditable && (
+                            <TouchableOpacity style={[styles.saveButton]} onPress={handleSave}>
+                                <Text style={styles.saveButtonText}>Guardar cambios</Text>
+                            </TouchableOpacity>)}
+
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </PaperProvider >
     );
 }
 
@@ -196,11 +196,14 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
         marginBottom: 25,
+        borderBottomWidth: 1,
+        borderColor: "#dbd6d6ff",
     },
     title: {
-        fontSize: 20,
+        fontSize: 24,
         fontWeight: "600",
         marginTop: 15,
+        marginBottom: 10,
     },
     tabs: {
         flexDirection: "row",
@@ -209,11 +212,16 @@ const styles = StyleSheet.create({
     },
     tab: {
         borderWidth: 1,
-        borderColor: "#D1D1D1",
+        borderColor: "#4CAF50",
         borderRadius: 20,
         paddingVertical: 6,
         paddingHorizontal: 15,
-        backgroundColor: "#fff",
+        backgroundColor: "#d0f6c8ff",
+        gap: 1,
+    },
+    tabText: {
+        fontSize: 16,
+        fontWeight: "500",
     },
     profileImageContainer: {
         alignItems: "center",
@@ -224,7 +232,7 @@ const styles = StyleSheet.create({
         height: 130,
         borderRadius: 60,
         borderWidth: 1,
-        borderColor: "#DDD",
+        borderColor: "#b5b2b2ff",
         alignItems: "center",
         justifyContent: "center",
         position: "relative",
@@ -252,28 +260,32 @@ const styles = StyleSheet.create({
         fontWeight: "500",
     },
     infoSection: {
-        borderTopWidth: 1,
-        borderTopColor: "#EEE",
+        borderTopWidth: 2,
+        borderTopColor: "#33a84eff",
         paddingTop: 20,
     },
     sectionTitle: {
         fontWeight: "600",
         fontSize: 18,
-        marginBottom: 10,
+        marginBottom: 15,
     },
     input: {
-        marginBottom: 12,
+        marginBottom: 14,
         backgroundColor: "#fff",
+        fontSize: 18,
     },
     saveButton: {
         borderRadius: 25,
         paddingVertical: 10,
         alignItems: "center",
-        marginTop: 10,
+        marginTop: 15,
+        backgroundColor: "#4BCF5C"
     },
     saveButtonText: {
         color: "white",
         fontWeight: "bold",
+        padding: 5,
+        fontSize: 16,
     },
 });
 

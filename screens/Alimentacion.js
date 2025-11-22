@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Image, Platform, Alert, } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Image, Platform, Alert, KeyboardAvoidingView } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
@@ -39,8 +39,8 @@ export default function Alimentacion() {
     );
   };
 
-  const guardarCambios = () => {
-    console.log("Recordatorios guardados:", recordatorios);
+  const handleSave = () => {
+    setIsEditable(false);
     alert("Cambios guardados ✅");
   };
 
@@ -99,134 +99,181 @@ export default function Alimentacion() {
     }
   };
 
+  const [isEditable, setIsEditable] = useState(false);
+  const toggleEdit = () => setIsEditable(!isEditable);
+
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Alimentación</Text>
-      <Text style={styles.subtitle}>Planificador de comidas 🍽️</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <ScrollView 
+      style={styles.container}
+      keyboardShouldPersistTaps="handled"
+      >
+        {/* Encabezado */}
+        <View style={styles.header}>
 
-      <View style={styles.section}>
-        {/* Menú lateral */}
-        <View style={styles.menu}>
-          {recordatorios.map((rec) => (
-            <TouchableOpacity
-              key={rec.id}
-              style={[
-                styles.item,
-                recordatorioActivo === rec.id && styles.itemActivo,
-              ]}
-              onPress={() => setRecordatorioActivo(rec.id)}
-            >
-              <Text
-                style={
-                  recordatorioActivo === rec.id
-                    ? styles.itemTextActivo
-                    : styles.itemText
-                }
-              >
-                Recordatorio {rec.id}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          <Text style={styles.title}>Alimentación</Text>
 
-          <TouchableOpacity style={styles.btnAdd} onPress={agregarRecordatorio}>
-            <Text style={styles.btnAddText}>＋</Text>
+          <TouchableOpacity onPress={isEditable ? handleSave : toggleEdit}>
+            <Ionicons
+              name={isEditable ? "checkmark-outline" : "create-outline"}
+              size={28}
+              color={isEditable ? "#007700ff" : "black"}
+            />
           </TouchableOpacity>
         </View>
 
-        {/* Formulario */}
-        <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="Alimentos"
-            value={recordatorioSeleccionado.alimentos}
-            onChangeText={(t) => actualizarCampo("alimentos", t)}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Porción"
-            value={recordatorioSeleccionado.porcion}
-            onChangeText={(t) => actualizarCampo("porcion", t)}
-          />
+        <Text style={styles.subtitle}>Planificador de comidas</Text>
+        {/* Rutinas */}
+        <View style={styles.section}>
+          <View style={styles.menu}>
+            {recordatorios.map((rec) => (
+              <TouchableOpacity
+                key={rec.id}
+                style={[
+                  styles.item,
+                  recordatorioActivo === rec.id && styles.itemActivo,
+                ]}
+                onPress={() => setRecordatorioActivo(rec.id)}
+              >
+                <Text
+                  style={
+                    recordatorioActivo === rec.id
+                      ? styles.itemTextActivo
+                      : styles.itemText
+                  }
+                >
+                  Recordatorio {rec.id}
+                </Text>
+              </TouchableOpacity>
+            ))}
 
-          <TouchableOpacity
-            style={styles.input}
-            onPress={() => setMostrarPicker(true)}
-          >
-            <Text style={{ color: "#888" }}>
-              Horario programado: {formatearHora(recordatorioSeleccionado.hora)}
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.btnAdd} onPress={agregarRecordatorio}>
+              <Text style={styles.btnAddText}>＋</Text>
+            </TouchableOpacity>
+          </View>
 
-          {mostrarPicker && (
-            <DateTimePicker
-              value={recordatorioSeleccionado.hora}
-              mode="time"
-              is24Hour={true}
-              display="default"
-              onChange={onChangeHora}
+          {/* Formulario */}
+          <View style={styles.form}>
+            <TextInput
+              style={styles.input}
+              placeholder="Alimentos"
+              value={recordatorioSeleccionado.alimentos}
+              editable={isEditable}
+              onChangeText={(t) => actualizarCampo("alimentos", t)}
             />
-          )}
+            <TextInput
+              style={styles.input}
+              placeholder="Porción"
+              value={recordatorioSeleccionado.porcion}
+              editable={isEditable}
+              onChangeText={(t) => actualizarCampo("porcion", t)}
+            />
 
-          <View style={styles.rowButtons}>
-            <TouchableOpacity style={styles.btnDelete} onPress={borrarRecordatorio}>
-              <Text style={styles.btnDeleteText}><Ionicons name="trash-outline" size={20} color="#000" /></Text>
+            <TouchableOpacity
+              style={styles.input}
+              onPress={() => setMostrarPicker(true)}
+            >
+              <Text style={{ color: "#888", fontSize:18, }}>
+                Horario programado: {formatearHora(recordatorioSeleccionado.hora)}
+              </Text>
             </TouchableOpacity>
 
+            {mostrarPicker && (
+              <DateTimePicker
+                value={recordatorioSeleccionado.hora}
+                mode="time"
+                is24Hour={true}
+                display="default"
+                editable={isEditable}
+                onChange={onChangeHora}
+              />
+            )}
+
+            <View style={styles.rowButtons}>
+              <TouchableOpacity style={styles.btnDelete} onPress={borrarRecordatorio}>
+                <Text style={styles.btnDeleteText}><Ionicons name="trash-outline" size={20} color="#000" /></Text>
+              </TouchableOpacity>
+            </View>
 
           </View>
         </View>
-      </View>
 
-      {/* Sección de alimentos recomendados */}
-      <Text style={[styles.subtitle, { marginTop: 20 }]}>
-        Alimentos recomendados
-      </Text>
-      <View style={styles.grid}>
-        {imagenes.map((img, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.card}
-            onPress={() => seleccionarImagen(index)}
-          >
-            {img ? (
-              <Image source={{ uri: img }} style={styles.image} />
-            ) : (
-              <>
-                <Text style={{ textAlign: "center", color: "#aaa" }}>📷</Text>
-                <View style={styles.btnCard}>
-                  <Text style={styles.btnCardText}>Agregar</Text>
-                </View>
-              </>
-            )}
+        {/* Sección de alimentos recomendados */}
+        <Text style={[styles.subtitle, { marginTop: 20 }]}>
+          Alimentos recomendados
+        </Text>
+        <View style={styles.grid}>
+          {imagenes.map((img, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.card}
+              onPress={() => seleccionarImagen(index)}
+            >
+              {img ? (
+                <Image source={{ uri: img }} style={styles.image} />
+              ) : (
+                <>
+                  <Text style={{ textAlign: "center", color: "#aaa" }}>📷</Text>
+                  <View style={styles.btnCard}>
+                    <Text style={styles.btnCardText}>Agregar</Text>
+                  </View>
+                </>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+        {isEditable && (
+          <TouchableOpacity style={styles.btnSaveSmall} onPress={handleSave}>
+            <Text style={styles.btnSaveSmallText}>Guardar cambios</Text>
           </TouchableOpacity>
-        ))}
-      </View>
+        )}
 
-      <TouchableOpacity style={styles.btnSaveSmall} onPress={guardarCambios}>
-        <Text style={styles.btnSaveSmallText}>Guardar cambios</Text>
-      </TouchableOpacity>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fafafa", padding: 20 },
-  title: { fontSize: 22, fontWeight: "bold", textAlign: "center" },
-  subtitle: { fontSize: 16, fontWeight: "600", marginVertical: 10 },
-  section: {
+  container: { flex: 1, backgroundColor: "#fafafa", padding: 20, padingTop:20, },
+  header: {
     flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 25,
+    borderBottomWidth:1,
+    borderColor:"#dbd6d6ff",
+  },
+  title: {
+    fontSize: 24, fontWeight: "bold", textAlign: "left", marginTop:10, marginBottom:10,
+  },
+  subtitle: {
+    fontSize: 18, fontWeight: "600", marginVertical: 10
+  },
+  section: {
+    flexDirection: "column",
     backgroundColor: "#fff",
     borderRadius: 12,
     padding: 10,
     elevation: 2,
   },
-  menu: { width: "35%", borderRightWidth: 1, borderRightColor: "#ddd" },
+  menu: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-around",
+    marginBottom: 10,          // separarlo del contenido
+    borderBottomWidth: 1,      // en vez de borderRight <- ahora es una línea horizontal
+    borderBottomColor: "#ddd",
+    paddingBottom: 8,
+  },
   item: { padding: 8, borderRadius: 8, marginVertical: 4 },
-  itemActivo: { backgroundColor: "#eee" },
+  itemActivo: { backgroundColor: "#dafcc7ff" },
   itemText: { color: "#333" },
   itemTextActivo: { color: "#000", fontWeight: "bold" },
-  btnAdd: { alignItems: "center", marginTop: 10 },
-  btnAddText: { fontSize: 22, color: "#888" },
+  btnAdd: { alignItems: "center", marginTop: 10, },
+  btnAddText: { fontSize: 22, color:"#ff0202ff", fontWeight:"bold", },
   form: { flex: 1, paddingLeft: 15 },
   input: {
     borderWidth: 1,
@@ -235,10 +282,11 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 10,
     backgroundColor: "#fff",
+    fontSize: 18,
   },
   rowButtons: { flexDirection: "row", justifyContent: "space-between" },
   btnDelete: {
-    backgroundColor: "#ddd",
+    backgroundColor: "#ffffffff",
     borderRadius: 50,
     padding: 12,
     width: 50,
@@ -246,11 +294,11 @@ const styles = StyleSheet.create({
   },
   btnDeleteText: { fontSize: 16 },
   btnSaveSmall: {
-    backgroundColor: "#000",
-    borderRadius: 20,
-    paddingHorizontal: 100,
-    paddingVertical: 10,
-    //justifyContent: "center",
+    backgroundColor: "#4BCF5C",
+    borderRadius: 25,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginVertical: 30,
   },
   btnSaveSmallText: { color: "#fff", fontWeight: "600" },
   grid: {

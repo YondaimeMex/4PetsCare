@@ -67,12 +67,12 @@ export default function HomeScreen() {
 
                 {/* Íconos de notificaciones y perfil */}
                 <View style={styles.headerRight}>
-                    <TouchableOpacity style={[styles.headerIcon]} onPress={toggleNotifications}>
-                        <Ionicons name="notifications" size={32} color="black" />
+                    <TouchableOpacity style={[styles.floatingBtn, styles.headerIcon]} onPress={toggleNotifications}>
+                        <Ionicons name="notifications" size={32} color="#ffc70eff" />
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.headerIcon]}
+                        style={[styles.floatingBtn, styles.headerIcon]}
                         onPress={() => navigation.navigate('Perfil')}
                     >
                         <Ionicons name="person-circle-outline" size={32} color="black" />
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
         paddingVertical: 50,
         paddingHorizontal: 10,
         borderBottomWidth: 1,
-        borderBottomColor: '#eee',
+        borderBottomColor: '#c0c0c0ff',
     },
     menuItemText: {
         fontSize: 18,
@@ -257,10 +257,12 @@ const styles = StyleSheet.create({
         color: '#333',
     },
     card: {
-        backgroundColor: '#e0e0e0',
         padding: 20,
         borderRadius: 10,
         marginBottom: 20,
+        borderWidth: 1,
+        borderColor: "#4CAF50",
+        backgroundColor:"#fff",
     },
     title: {
         fontWeight: 'bold',
@@ -272,8 +274,12 @@ const styles = StyleSheet.create({
         padding: 18,
         borderRadius: 50,
         elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
         borderWidth: 1,
-        borderColor: '#ccc',
+        borderColor: '#ccc'
     },
     floatingBtnLeft: {
         position: 'absolute',

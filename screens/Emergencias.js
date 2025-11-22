@@ -82,6 +82,7 @@ export default function Emergencias() {
 
             {/* Contenido principal con información de veterinarias */}
             <View style={styles.content}>
+                <Text style={styles.headerText}>Veterinarias en caso de emergencia:</Text>
                 <View style={styles.card}>
                     <Text style={styles.title}>Emergencias</Text>
                     <Text style={styles.subtitle}>Veterinaria 1: "Luz"</Text>
@@ -250,11 +251,18 @@ const styles = StyleSheet.create({
         marginLeft: 15,
         color: '#333',
     },
+    headerText:{
+        fontSize:20,
+        marginBottom:20,
+        fontWeight: "bold",
+    },
     card: {
-        backgroundColor: '#e0e0e0',
+        backgroundColor: '#ffffffff',
         padding: 20,
         borderRadius: 10,
         marginBottom: 20,
+        borderWidth: 2,
+        borderColor: '#ee4a52'
     },
     title: {
         fontWeight: 'bold',
