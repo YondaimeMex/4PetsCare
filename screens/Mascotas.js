@@ -1,209 +1,219 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
-import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
+// Mascotas.js
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, Alert } from 'react-native';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { useNavigation } from '@react-navigation/native';
-import React, { useState } from 'react';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Importar el servicio de notificaciones
+import NotificationService from './Notificaciones';
 // Componente para mostrar cada notificación
-const NotificationItem = ({ text }) => (
+const NotificationItem = ({ text, date }) => (
     <View style={notificationStyles.notificationItem}>
         <View style={notificationStyles.bullet} />
-        <Text style={notificationStyles.notificationText}>{text}</Text>
+        <Text style={notificationStyles.notificationText}>{text} {"\n"}<Text style={{ fontSize: 12, color: '#555' }}>{date}</Text></Text>
     </View>
 );
 
-// Lista de notificaciones de ejemplo
-const notificationsData = [
-    '¡Se acerca el día de la cita! ¿Ya tienes todo preparado?',
-    '¡Campaña de vacunacion!, el día 30 de Octubre',
-    'Recordatorio: Próxima dosis de medicamento.',
-    'Hola'
-];
-
 export default function Mascotas() {
     const navigation = useNavigation();
+    const isFocused = useIsFocused();
 
-    // Estado para abrir o cerrar el menú lateral
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-    // Estado para abrir o cerrar las notificaciones
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-
-    // Determina si se debe mostrar el fondo oscuro
+    const [listaMascotas, setListaMascotas] = useState([]);
+    const [notificaciones, setNotificaciones] = useState([]);
     const isOverlayVisible = isMenuOpen || isNotificationsOpen;
 
-    // Alternar menú
     const toggleMenu = () => {
         const newState = !isMenuOpen;
         setIsMenuOpen(newState);
         if (newState) setIsNotificationsOpen(false);
     };
 
-    // Alternar notificaciones
-    const toggleNotifications = () => {
+    const toggleNotifications = async () => {
         const newState = !isNotificationsOpen;
         setIsNotificationsOpen(newState);
         if (newState) setIsMenuOpen(false);
+
+        // Cargar las notificaciones guardadas al abrir el panel
+        if (newState) {
+            const allNotifications = await NotificationService.getNotifications();
+            setNotificaciones(allNotifications);
+        }
     };
 
-    // Cerrar todo al presionar fuera
     const handleOverlayClick = () => {
         if (isMenuOpen) setIsMenuOpen(false);
         if (isNotificationsOpen) setIsNotificationsOpen(false);
     };
 
-    // Función para navegar a otra pantalla
-    const navigateTo = (screenName, params = {}) => {
-        if (isMenuOpen) setIsMenuOpen(false);
+    const loadMascotas = async () => {
         try {
-            navigation.navigate(screenName, params);
+            const raw = await AsyncStorage.getItem('@mascotas');
+            const arr = raw ? JSON.parse(raw) : [];
+            setListaMascotas(arr);
         } catch (err) {
-            console.warn('Navigation error:', err);
+            console.error('loadMascotas error:', err);
+            Alert.alert('Error', 'No se pudieron cargar las mascotas.');
         }
     };
+
+    const deleteMascota = async (id) => {
+        try {
+            const raw = await AsyncStorage.getItem('@mascotas');
+            const arr = raw ? JSON.parse(raw) : [];
+            const filtered = arr.filter(m => m.id !== id);
+            await AsyncStorage.setItem('@mascotas', JSON.stringify(filtered));
+            setListaMascotas(filtered);
+        } catch (err) {
+            console.error('deleteMascota error:', err);
+            Alert.alert('Error', 'No se pudo eliminar la mascota.');
+        }
+    };
+
+    useEffect(() => {
+        if (isFocused) loadMascotas();
+    }, [isFocused]);
+
+    // Diccionario centralizado de imágenes por especie
+    const IMAGES = {
+        default: 'https://images.pexels.com/photos/662417/pexels-photo-662417.jpeg',
+        perro: 'https://images.pexels.com/photos/1805164/pexels-photo-1805164.jpeg',
+        gato: 'https://images.pexels.com/photos/127028/pexels-photo-127028.jpeg',
+        ave: 'https://images.pexels.com/photos/6279041/pexels-photo-6279041.jpeg',
+        acuatico: 'https://images.pexels.com/photos/128756/pexels-photo-128756.jpeg',
+        reptil: 'https://images.pexels.com/photos/735174/pexels-photo-735174.jpeg',
+        fallback: 'https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg'
+    };
+
+    const getImageForEspecie = (m) => {
+        // Si ya viene con imagen, la devuelve directamente
+        if (m?.image) return m.image;
+
+        // Normaliza especie a minúsculas
+        const especie = m?.especie?.toLowerCase() || '';
+        if (!especie) return IMAGES.default;
+
+        // Caso especial: "domestico" → aleatorio entre perro y gato
+        if (especie.includes('domestico')) {
+            const domesticOptions = [IMAGES.perro, IMAGES.gato];
+            return domesticOptions[Math.floor(Math.random() * domesticOptions.length)];
+        }
+
+        // Chequeos específicos
+        if (especie.includes('perro') || especie.includes('dog')) return IMAGES.perro;
+        if (especie.includes('gato') || especie.includes('cat')) return IMAGES.gato;
+        if (especie.includes('ave')) return IMAGES.ave;
+        if (especie.includes('acuatico')) return IMAGES.acuatico;
+        if (especie.includes('reptil') || especie.includes('reptiles')) return IMAGES.reptil;
+
+        // Si no coincide con nada, usa fallback
+        return IMAGES.fallback;
+    };
+
 
     return (
         <View style={styles.fullScreenContainer}>
             <StatusBar style="auto" />
 
-            {/* Encabezado con menú, notificaciones y perfil */}
             <View style={styles.header}>
-                {/* Botón menú */}
                 <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
                     <MaterialIcons name="menu" size={32} color="black" />
                 </TouchableOpacity>
 
-                {/* Botones de notificación y perfil */}
                 <View style={styles.headerRight}>
                     <TouchableOpacity style={styles.headerIcon} onPress={toggleNotifications}>
                         <Ionicons name="notifications" size={32} color="black" />
                     </TouchableOpacity>
 
-                    <TouchableOpacity
-                        style={styles.headerIcon}
-                        onPress={() => navigation.navigate('Perfil')}
-                    >
+                    <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('Perfil')}>
                         <Ionicons name="person-circle-outline" size={32} color="black" />
                     </TouchableOpacity>
                 </View>
             </View>
 
-            {/* Contenedor desplazable con las tarjetas de mascotas */}
             <ScrollView contentContainerStyle={styles.scrollContent} style={styles.scrollContainer}>
-                {/* Tarjeta de la mascota 1 */}
-                <TouchableOpacity
-                    onPress={() => navigation.navigate('PerfilMascotaStack')}
-                    style={styles.card}
-                >
-                    <Text style={styles.detailTitle}>Mascota: "Toby"</Text>
+                {listaMascotas.length === 0 ? (
+                    <View style={{ padding: 30, alignItems: 'center' }}>
+                        <Text style={{ fontSize: 18, marginBottom: 12 }}>No tienes mascotas registradas.</Text>
+                        <TouchableOpacity style={[styles.saveButton, { width: 180 }]} onPress={() => navigation.navigate('RegistroMascota')}>
+                            <Text style={styles.saveButtonText}>Agregar Mascota</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    listaMascotas.map((m) => (
+                        <TouchableOpacity
+                            key={m.id}
+                            onPress={() => navigation.navigate('PerfilMascotaStack', { mascota: m })}
+                            style={styles.card}
+                        >
+                            <Text style={styles.detailTitle}>Mascota: "{m.nombre}"</Text>
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailLabel}>Edad:</Text>
+                                <Text style={styles.detailValue}>{m.edad || '-'}</Text>
+                            </View>
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailLabel}>Peso:</Text>
+                                <Text style={styles.detailValue}>{m.peso ? `${m.peso} kg` : '-'}</Text>
+                            </View>
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailLabel}>Raza:</Text>
+                                <Text style={styles.detailValue}>{m.raza || '-'}</Text>
+                            </View>
+                            <View style={styles.detailRow}>
+                                <Text style={styles.detailLabel}>Mascota:</Text>
+                                <Text style={styles.detailValue}>{m.especie || '-'}</Text>
+                            </View>
 
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Edad:</Text>
-                        <Text style={styles.detailValue}>2 años</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Peso:</Text>
-                        <Text style={styles.detailValue}>30 kg</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Raza:</Text>
-                        <Text style={styles.detailValue}>Husky</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Mascota:</Text>
-                        <Text style={styles.detailValue}>Domestico (Perro)</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Prox Vacuna:</Text>
-                        <Text style={styles.detailValue}>Moquillo</Text>
-                    </View>
+                            <Image
+                                source={{ uri: getImageForEspecie(m) }}
+                                style={styles.petImage}
+                            />
 
-                    {/* Imagen del perro */}
-                    <Image
-                        source={{ uri: 'https://images.pexels.com/photos/46505/swiss-shepherd-dog-dog-pet-portrait-46505.jpeg' }}
-                        style={styles.petImage}
-                    />
+                            <TouchableOpacity
+                                style={[styles.vaccineButton, { right: 15, left: undefined }]}
+                                onPress={() => {
+                                    Alert.alert(
+                                        'Eliminar',
+                                        `¿Eliminar a ${m.nombre}?`,
+                                        [
+                                            { text: 'Cancelar', style: 'cancel' },
+                                            { text: 'Eliminar', style: 'destructive', onPress: () => deleteMascota(m.id) }
+                                        ]
+                                    );
+                                }}
+                            >
+                                <Ionicons name="trash" size={18} color="#FF3B30" />
+                            </TouchableOpacity>
 
-                    {/* Botón para confirmar vacuna */}
-                    <TouchableOpacity
-                        style={styles.vaccineButton}
-                        onPress={() => navigation.navigate('ConfirmacionVacuna')}
-                    >
-                        <FontAwesome5 name="syringe" size={18} color="#007BFF" />
-                        <Ionicons name="checkmark-circle" size={18} color="#4CAF50" style={{ marginLeft: 5 }} />
-                    </TouchableOpacity>
-                </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.vacunaButton}
+                                onPress={() => navigation.navigate('ConfirmacionVacuna', { mascota: m })}
+                            >
+                                <Ionicons name="medkit" size={18} color="#007BFF" />
+                                <Text style={styles.vacunaButtonText}>Vacuna</Text>
+                            </TouchableOpacity>
 
-                {/* Tarjeta de la mascota 2 */}
-                <TouchableOpacity
-                    style={styles.card}
-                    onPress={() => navigation.navigate('PerfilMascotaStack')}
-                >
-                    <Text style={styles.detailTitle}>Mascota: "Gerardo"</Text>
-
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Edad:</Text>
-                        <Text style={styles.detailValue}>1 año</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Peso:</Text>
-                        <Text style={styles.detailValue}>10 kg</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Raza:</Text>
-                        <Text style={styles.detailValue}>Siames</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Mascota:</Text>
-                        <Text style={styles.detailValue}>Domestico (Gato)</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Prox Vacuna:</Text>
-                        <Text style={styles.detailValue}>FeLV</Text>
-                    </View>
-
-                    {/* Imagen del gato */}
-                    <Image
-                        source={{ uri: 'https://images.pexels.com/photos/1208938/pexels-photo-1208938.jpeg' }}
-                        style={styles.petImage}
-                    />
-
-                    {/* Botón para confirmar vacuna */}
-                    <TouchableOpacity
-                        style={styles.vaccineButton}
-                        onPress={() => navigation.navigate('ConfirmacionVacuna')}
-                    >
-                        <FontAwesome5 name="syringe" size={18} color="#007BFF" />
-                        <Ionicons name="checkmark-circle" size={18} color="#4CAF50" style={{ marginLeft: 5 }} />
-                    </TouchableOpacity>
-                </TouchableOpacity>
-
-                
+                        </TouchableOpacity>
+                    ))
+                )}
             </ScrollView>
 
-
-            {/* Botón flotante para agregar nueva mascota o cita */}
-            <TouchableOpacity
-                style={styles.floatingAddButton}
-                onPress={() => navigation.navigate('ProgramarCita')}
-            >
+            <TouchableOpacity style={styles.floatingAddButton} onPress={() => navigation.navigate('RegistroMascota')}>
                 <MaterialIcons name="add" size={30} color="white" />
             </TouchableOpacity>
 
-            {/* Fondo oscuro al abrir menú o notificaciones */}
+             <TouchableOpacity style={styles.floatingAddButton2} onPress={() => navigation.navigate('ProgramarCita')}>
+                <MaterialIcons name="edit-calendar" size={30} color="white" />
+            </TouchableOpacity>
+
             {isOverlayVisible && (
-                <TouchableOpacity
-                    style={styles.overlay}
-                    activeOpacity={1}
-                    onPress={handleOverlayClick}
-                />
+                <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={handleOverlayClick} />
             )}
 
-            {/* Menú lateral */}
-            <View style={[
-                styles.sideMenu,
-                { transform: [{ translateX: isMenuOpen ? 0 : -280 }] }
-            ]}>
+            <View style={[styles.sideMenu, { transform: [{ translateX: isMenuOpen ? 0 : -280 }] }]}>
                 <View style={styles.menuHeader}>
                     <Text style={styles.menuTitle}>Menú</Text>
                     <TouchableOpacity onPress={toggleMenu}>
@@ -211,11 +221,7 @@ export default function Mascotas() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Opciones del menú */}
-                <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => navigation.navigate('Home')}
-                >
+                <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Home')}>
                     <Ionicons name="home" size={24} color="black" />
                     <Text style={styles.menuItemText}>Inicio</Text>
                 </TouchableOpacity>
@@ -223,30 +229,26 @@ export default function Mascotas() {
                     <Ionicons name="paw-outline" size={30} color="#4BCF5C" />
                     <Text style={styles.menuItemText}>Mascotas</Text>
                 </TouchableOpacity>
-
                 <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Calendario')}>
                     <Ionicons name="calendar-number" size={30} color="#007AFF" />
                     <Text style={styles.menuItemText}>Calendario</Text>
                 </TouchableOpacity>
-
                 <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Consejos')}>
                     <MaterialIcons name="tips-and-updates" size={30} color="#FF9500" />
                     <Text style={styles.menuItemText}>Consejos</Text>
                 </TouchableOpacity>
-
                 <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Emergencias')}>
                     <MaterialIcons name="emergency" size={30} color="#FF3B30" />
                     <Text style={styles.menuItemText}>Emergencias</Text>
                 </TouchableOpacity>
             </View>
 
-            {/* Panel de notificaciones */}
             {isNotificationsOpen && (
                 <View style={notificationStyles.notificationsContainer}>
                     <Text style={notificationStyles.headerText}>Notificaciones</Text>
                     <ScrollView style={notificationStyles.list}>
-                        {notificationsData.map((text, index) => (
-                            <NotificationItem key={index} text={text} />
+                        {notificaciones.map((n, index) => (
+                            <NotificationItem key={index} text={n.text} date={n.date} />
                         ))}
                     </ScrollView>
                 </View>
@@ -340,12 +342,6 @@ const styles = StyleSheet.create({
         marginLeft: 15,
         color: '#333',
     },
-    menuFooter: {
-        marginTop: 'auto',
-        paddingTop: 10,
-        borderTopWidth: 1,
-        borderTopColor: '#eee',
-    },
     card: {
         backgroundColor: '#fff',
         padding: 25,
@@ -382,7 +378,7 @@ const styles = StyleSheet.create({
         flexShrink: 1,
     },
     petImage: {
-        width: 150,
+        width: 100,
         height: 150,
         borderRadius: 8,
         marginTop: 20,
@@ -419,18 +415,62 @@ const styles = StyleSheet.create({
         shadowRadius: 4.65,
         zIndex: 15,
     },
-     floatingBtn: {
-        backgroundColor: '#fff',
-        padding: 18,
-        borderRadius: 50,
-        elevation: 3,
+    floatingAddButton2: {
+        position: 'absolute',
+        bottom: 30,
+        left: 30,
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: '#4CAF50',
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4.65,
+        zIndex: 15,
+    },
+    saveButton: {
+        backgroundColor: '#4CAF50',
+        padding: 15,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginTop: 20,
+        width: '90%',
+        elevation: 5,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-        borderWidth: 1,
-        borderColor: '#ccc'
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
     },
+    saveButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    vacunaButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'absolute',
+        bottom: 15,
+        left: 15,
+        backgroundColor: '#E8F1FF',
+        paddingVertical: 10,
+        paddingHorizontal: 10,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#77A6F7',
+        elevation: 3,
+    },
+    vacunaButtonText: {
+        color: '#007BFF',
+        fontWeight: '600',
+        marginLeft: 6,
+        fontSize: 14,
+    }
 });
 
 const notificationStyles = StyleSheet.create({

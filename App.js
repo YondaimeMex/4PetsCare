@@ -17,8 +17,7 @@ import RegistroVeterinaria from './screens/RegistroVeterinaria';
 import ProgramarCita from './screens/ProgramarCita';
 import ChatBot from './screens/ChatBot';
 import PerfilMascotaStack from "./screens/PerfilMascotaStack";
-
-
+import NotificationService from './screens/Notificaciones';
 export const AuthContext = createContext();
 
 const Stack = createNativeStackNavigator();
