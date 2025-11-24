@@ -18,8 +18,35 @@ const NotificationItem = ({ text, date }) => (
     </View>
 );
 
+// Componente para mostrar detalles de vacunas
+const VacunaDetailItem = ({ vacuna, onEdit, onDelete }) => (
+    <View style={styles.vacunaDetailCard}>
+        <FontAwesome5 name="syringe" size={16} color="green" style={{ marginRight: 10 }} />
+        <View style={{ flex: 1 }}>
+            <Text style={styles.vacunaTextTitle}>Vacuna Aplicada</Text>
+            <Text style={styles.vacunaText}>{vacuna.veterinaria} - {vacuna.usuario}</Text>
+        </View>
+        <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity
+                style={[styles.actionButton, styles.editButton]}
+                onPress={() => onEdit(vacuna)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+                <MaterialIcons name="edit" size={18} color="#4BCF5C" />
+            </TouchableOpacity>
+            <TouchableOpacity
+                style={[styles.actionButton, styles.deleteButtonStyle]}
+                onPress={() => onDelete(vacuna)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+                <MaterialIcons name="delete" size={18} color="#FF3B30" />
+            </TouchableOpacity>
+        </View>
+    </View>
+);
+
 // Componente para mostrar los detalles de la cita
-const CitaDetailItem = ({ cita, onDelete }) => (
+const CitaDetailItem = ({ cita, onEdit, onDelete }) => (
     <View style={styles.detailCard}>
         <Ionicons name="paw" size={20} color="#007AFF" style={{ marginRight: 10 }} />
         <View style={{ flex: 1 }}>
@@ -27,12 +54,22 @@ const CitaDetailItem = ({ cita, onDelete }) => (
             <Text style={styles.detailText}>Usuario: {cita.usuario}</Text>
             <Text style={styles.detailText}>Veterinaria: {cita.veterinaria}</Text>
         </View>
-        <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => onDelete(cita)}
-        >
-            <MaterialIcons name="delete" size={24} color="#FF3B30" />
-        </TouchableOpacity>
+        <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity
+                style={[styles.actionButton, styles.editButton]}
+                onPress={() => onEdit(cita)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+                <MaterialIcons name="edit" size={20} color="#007AFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+                style={[styles.actionButton, styles.deleteButtonStyle]}
+                onPress={() => onDelete(cita)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+                <MaterialIcons name="delete" size={20} color="#FF3B30" />
+            </TouchableOpacity>
+        </View>
     </View>
 );
 
@@ -98,7 +135,58 @@ export default function Calendario() {
         );
     };
 
-    // --- CARGAR DATOS ---
+    // --- LÓGICA DE EDICIÓN DE CITA ---
+    const editCita = (citaToEdit) => {
+        navigation.navigate('EditarCita', { cita: citaToEdit });
+    };
+
+    // --- LÓGICA DE ELIMINACIÓN DE VACUNA ---
+    const deleteVacuna = async (vacunaToDelete) => {
+        Alert.alert(
+            "Confirmar Eliminación",
+            `¿Estás seguro de que quieres eliminar el registro de vacuna en ${vacunaToDelete.veterinaria}?`,
+            [
+                { text: "Cancelar", style: "cancel" },
+                {
+                    text: "Eliminar",
+                    onPress: async () => {
+                        try {
+                            const citasRaw = await AsyncStorage.getItem('@citas');
+                            const citas = citasRaw ? JSON.parse(citasRaw) : [];
+
+                            const updatedCitas = citas.filter(c =>
+                                !(c.fecha === vacunaToDelete.fecha &&
+                                    c.usuario === vacunaToDelete.usuario &&
+                                    c.veterinaria === vacunaToDelete.veterinaria &&
+                                    (c.tipo === 'Vacuna' || c.veterinaria === 'Vacuna Registrada'))
+                            );
+
+                            await AsyncStorage.setItem('@citas', JSON.stringify(updatedCitas));
+                            await loadCalendarData();
+
+                            if (selectedDate === vacunaToDelete.fecha) {
+                                const newEventsForSelectedDay = FIXED_CAMPANAS
+                                    .filter(c => c.fecha === selectedDate)
+                                    .concat(updatedCitas.filter(c => c.fecha === selectedDate && (c.tipo === 'Cita' || c.tipo === 'Vacuna')));
+                                setSelectedDayEvents(newEventsForSelectedDay);
+                            }
+                            Alert.alert("Éxito", "Vacuna eliminada correctamente.");
+
+                        } catch (error) {
+                            console.error("Error al eliminar vacuna:", error);
+                            Alert.alert("Error", "No se pudo eliminar la vacuna.");
+                        }
+                    },
+                    style: "destructive"
+                }
+            ]
+        );
+    };
+
+    // --- LÓGICA DE EDICIÓN DE VACUNA ---
+    const editVacuna = (vacunaToEdit) => {
+        navigation.navigate('EditarVacuna', { vacuna: vacunaToEdit });
+    };    // --- CARGAR DATOS ---
     const loadCalendarData = async () => {
         try {
             console.log('Cargando datos del calendario...');
@@ -306,6 +394,7 @@ export default function Calendario() {
                                             <CitaDetailItem
                                                 key={`${event.id}-${index}`}
                                                 cita={event}
+                                                onEdit={editCita}
                                                 onDelete={deleteCita}
                                             />
                                         );
@@ -318,13 +407,12 @@ export default function Calendario() {
                                         );
                                     } else if (event.tipo === 'vacuna') {
                                         return (
-                                            <View key={`vacuna-${index}`} style={styles.vacunaCard}>
-                                                <FontAwesome5 name="syringe" size={16} color="green" style={{ marginRight: 10 }} />
-                                                <View style={{ flex: 1 }}>
-                                                    <Text style={styles.vacunaTextTitle}>Vacuna Aplicada</Text>
-                                                    <Text style={styles.vacunaText}>{event.veterinaria} - {event.usuario}</Text>
-                                                </View>
-                                            </View>
+                                            <VacunaDetailItem
+                                                key={`vacuna-${index}`}
+                                                vacuna={event}
+                                                onEdit={editVacuna}
+                                                onDelete={deleteVacuna}
+                                            />
                                         );
                                     }
                                     return null;
@@ -555,9 +643,36 @@ const styles = StyleSheet.create({
         borderLeftWidth: 5,
         borderLeftColor: 'green',
     },
+    vacunaDetailCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#E8F5E9',
+        padding: 15,
+        borderRadius: 8,
+        marginBottom: 10,
+        borderLeftWidth: 5,
+        borderLeftColor: 'green',
+    },
     deleteButton: {
         padding: 5,
         marginLeft: 10,
+    },
+    actionButtonsContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    actionButton: {
+        padding: 8,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    editButton: {
+        backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    },
+    deleteButtonStyle: {
+        backgroundColor: 'rgba(255, 59, 48, 0.1)',
     },
 
     // --- Textos de Detalles ---
