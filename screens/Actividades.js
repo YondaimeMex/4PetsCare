@@ -1,29 +1,29 @@
-import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export default function Actividades() {
-  const [rutinas, setRutinas] = useState([
-    { id: 1, nombre: "Rutina 1", tiempo: "" },
-  ]);
+export default function Actividades({ route }) {
+  const mascotaId = route.params?.mascotaId;
+
+  const [rutinas, setRutinas] = useState([{ id: 1, nombre: "Rutina 1", tiempo: "" }]);
   const [rutinaActiva, setRutinaActiva] = useState(1);
   const [cosasEvitar, setCosasEvitar] = useState("");
   const [isEditable, setIsEditable] = useState(false);
 
   const agregarRutina = () => {
     const nuevaRutina = {
-      id: rutinas.length + 1,
+      id: Date.now(), // ID REAL único por rutina
       nombre: `Rutina ${rutinas.length + 1}`,
       tiempo: "",
     };
+
     setRutinas([...rutinas, nuevaRutina]);
     setRutinaActiva(nuevaRutina.id);
   };
 
-
-
   const borrarRutina = () => {
-    if (rutinas.length === 1) return; // No borrar si solo hay una
+    if (rutinas.length === 1) return;
     const nuevas = rutinas.filter((r) => r.id !== rutinaActiva);
     setRutinas(nuevas);
     setRutinaActiva(nuevas[0].id);
@@ -37,11 +37,52 @@ export default function Actividades() {
     );
   };
 
-  const toggleEdit = () => setIsEditable(!isEditable);
-  const handleSave = () => {
+  const handleSave = async () => {
+    await guardarDatos();
     setIsEditable(false);
-    alert("Cambios guardados ✅");
   };
+
+  const guardarDatos = async () => {
+    try {
+      const data = {
+        rutinas,
+        rutinaActiva,
+        cosasEvitar,
+      };
+
+      await AsyncStorage.setItem(
+        `@actividades_mascota_${mascotaId}`,
+        JSON.stringify(data)
+      );
+
+      Alert.alert("Cambios guardados", "La información ha sido actualizada.");
+      console.log("Datos guardados ✔");
+
+    } catch (e) {
+      console.log("Error guardando datos:", e);
+      Alert.alert("Error", "No se pudieron guardar los cambios.");
+    }
+  };
+
+  useEffect(() => {
+    const cargarDatos = async () => {
+      try {
+        const json = await AsyncStorage.getItem(`@actividades_mascota_${mascotaId}`);
+        if (json) {
+          const data = JSON.parse(json);
+          setRutinas(data.rutinas || []);
+          setRutinaActiva(data.rutinaActiva || 1);
+          setCosasEvitar(data.cosasEvitar || "");
+        }
+      } catch (e) {
+        console.log("Error cargando datos:", e);
+      }
+    };
+
+    if (mascotaId) {
+      cargarDatos();
+    }
+  }, [mascotaId]);
 
   const rutinaSeleccionada = rutinas.find((r) => r.id === rutinaActiva);
 
@@ -50,23 +91,17 @@ export default function Actividades() {
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView
-        style={styles.container}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/*Encabezado*/}
+      <ScrollView style={styles.container}>
+
+        {/* Encabezado */}
         <View style={styles.header}>
           <Text style={styles.title}>Actividades</Text>
-          <TouchableOpacity onPress={isEditable ? handleSave : toggleEdit}>
-            <Ionicons
-              name={isEditable ? "checkmark-outline" : "create-outline"}
-              size={30}
-              color={isEditable ? "#007700ff" : "black"}
-            />
+          <TouchableOpacity onPress={() => setIsEditable(!isEditable)}>
+            <Ionicons name={isEditable ? "close" : "create-outline"} size={30} color="black" />
           </TouchableOpacity>
         </View>
 
-        {/*Seccion rutinas*/}
+        {/* Rutinas */}
         <Text style={styles.subtitle}>Rutinas</Text>
         <View style={styles.rutinaSection}>
           <View style={styles.rutinaMenu}>
@@ -79,23 +114,17 @@ export default function Actividades() {
                 ]}
                 onPress={() => setRutinaActiva(rutina.id)}
               >
-                <Text
-                  style={
-                    rutinaActiva === rutina.id
-                      ? styles.rutinaTextActiva
-                      : styles.rutinaText
-                  }
-                >
+                <Text style={rutinaActiva === rutina.id ? styles.rutinaTextActiva : styles.rutinaText}>
                   {rutina.nombre}
                 </Text>
               </TouchableOpacity>
             ))}
+
             {isEditable && (
               <TouchableOpacity style={styles.btnAdd} onPress={agregarRutina}>
                 <Text style={styles.btnAddText}>＋</Text>
               </TouchableOpacity>
             )}
-
           </View>
 
           <View style={styles.form}>
@@ -114,38 +143,41 @@ export default function Actividades() {
               editable={isEditable}
               onChangeText={(text) => actualizarCampo("tiempo", text)}
             />
+
             {isEditable && (
               <View style={styles.rowButtons}>
                 <TouchableOpacity style={styles.btnDelete} onPress={borrarRutina}>
-                  <Text style={styles.btnDeleteText}><Ionicons name="trash-outline" size={20} color="#000" /></Text>
+                  <Ionicons name="trash-outline" size={20} color="white" />
                 </TouchableOpacity>
               </View>
             )}
-
           </View>
         </View>
 
+        {/* Cosas a evitar */}
         <View style={styles.section}>
           <Text style={styles.subtitle}>Cosas para evitar</Text>
+
           <TextInput
             style={styles.textArea}
             multiline
             placeholder="Escribe tu lista..."
-            editable={isEditable}
             value={cosasEvitar}
+            editable={isEditable}
             onChangeText={setCosasEvitar}
           />
+
           {isEditable && (
             <TouchableOpacity style={styles.btnSave} onPress={handleSave}>
               <Text style={styles.btnSaveText}>Guardar cambios</Text>
-            </TouchableOpacity>)}
+            </TouchableOpacity>
+          )}
         </View>
-
-
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -172,6 +204,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     marginVertical: 5,
+    marginBottom:15,
   },
   rutinaSection: {
     flexDirection: "column",
@@ -184,10 +217,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-around",
-    marginBottom: 10,          // separarlo del contenido
-    borderBottomWidth: 1,      // en vez de borderRight <- ahora es una línea horizontal
-    borderBottomColor: "#ddd",
+    marginBottom: 20,
     paddingBottom: 8,
+    borderBottomWidth:1,
+    borderBottomColor: "#ddd",
   },
   rutinaItem: {
     padding: 8,
@@ -195,7 +228,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   rutinaActiva: {
-    backgroundColor: "#dafcc7ff",
+    backgroundColor: "#00ccff9e",
   },
   rutinaText: {
     color: "#333",
@@ -212,7 +245,7 @@ const styles = StyleSheet.create({
   },
   btnAddText: {
     fontSize: 20,
-    color: "#ff0202ff",
+    color: "#00ccffff",
     fontWeight: "bold",
   },
   form: {
@@ -228,19 +261,16 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     backgroundColor: "#fff",
     fontSize: 16,
-
+    marginBottom: 20,
   },
   btnDelete: {
-    backgroundColor: "#ffffffff",
-    borderRadius: 50,
-    padding: 12,
-    width: 50,
+    backgroundColor: "#e74c3c",
+    padding: 10,
+    borderRadius: 25,
     alignItems: "center",
+    marginTop: 5,
+    alignSelf: "flex-end",
   },
-  //{/*} btnDeleteText: {
-  //color: "white",
-  //fontWeight: "600",
-  //},
   section: {
     marginTop: 20,
   },
@@ -255,7 +285,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start"
   },
   btnSave: {
-    backgroundColor: "#4BCF5C",
+    backgroundColor: "#006affff",
     borderRadius: 25,
     paddingVertical: 12,
     alignItems: "center",

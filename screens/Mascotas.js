@@ -20,6 +20,25 @@ export default function Mascotas() {
     const navigation = useNavigation();
     const isFocused = useIsFocused();
 
+    // Función que carga la mascota desde AsyncStorage
+    {/*const cargarMascota = async () => {
+        try {
+            const data = await AsyncStorage.getItem("mascota");
+            if (data) {
+                setMascota(JSON.parse(data)); // ← actualiza el estado
+            }
+        } catch (error) {
+            console.log("Error cargando mascota:", error);
+        }
+    };
+
+    // Se ejecuta cada vez que entras a la pantalla
+    useEffect(() => {
+        if (isFocused) {
+            cargarMascota();
+        }
+    }, [isFocused]);*/}
+//
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [listaMascotas, setListaMascotas] = useState([]);
@@ -146,7 +165,13 @@ export default function Mascotas() {
                     listaMascotas.map((m) => (
                         <TouchableOpacity
                             key={m.id}
-                            onPress={() => navigation.navigate('PerfilMascotaStack', { mascota: m })}
+                            onPress={() =>
+                                navigation.navigate("PerfilMascotaStack", {
+                                    screen: "PerfilMascota",
+                                    params: { mascota: m }
+                                })
+                            }
+
                             style={styles.card}
                         >
                             <Text style={styles.detailTitle}>Mascota: "{m.nombre}"</Text>
@@ -193,7 +218,7 @@ export default function Mascotas() {
                                 onPress={() => navigation.navigate('ConfirmacionVacuna', { mascota: m })}
                             >
                                 <Ionicons name="medkit" size={18} color="#007BFF" />
-                                <Text style={styles.vacunaButtonText}>Vacuna</Text>
+
                             </TouchableOpacity>
 
                         </TouchableOpacity>
@@ -205,7 +230,7 @@ export default function Mascotas() {
                 <MaterialIcons name="add" size={30} color="white" />
             </TouchableOpacity>
 
-             <TouchableOpacity style={styles.floatingAddButton2} onPress={() => navigation.navigate('ProgramarCita')}>
+            <TouchableOpacity style={styles.floatingAddButton2} onPress={() => navigation.navigate('ProgramarCita')}>
                 <MaterialIcons name="edit-calendar" size={30} color="white" />
             </TouchableOpacity>
 

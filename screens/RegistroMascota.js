@@ -6,6 +6,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
+
 
 // ----------------------------------------------------------------------------
 // saveMascotaToDB: guarda en AsyncStorage local (clave: @mascotas).
@@ -16,7 +19,7 @@ export async function saveMascotaToDB(mascota) {
         const raw = await AsyncStorage.getItem('@mascotas');
         const actuales = raw ? JSON.parse(raw) : [];
 
-        const nueva = { id: Date.now(), ...mascota };
+        const nueva = { id: uuidv4(), ...mascota };
 
         const updated = [nueva, ...actuales];
 
