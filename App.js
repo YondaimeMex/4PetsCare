@@ -17,6 +17,8 @@ import RegistroVeterinaria from './screens/RegistroVeterinaria';
 import ProgramarCita from './screens/ProgramarCita';
 import ChatBot from './screens/ChatBot';
 import PerfilMascotaStack from "./screens/PerfilMascotaStack";
+import EditarCita from './screens/EditarCita';
+import EditarVacuna from './screens/EditarVacuna';
 import NotificationService from './screens/Notificaciones';
 export const AuthContext = createContext();
 
@@ -83,7 +85,7 @@ export default function App() {
               <Stack.Screen name="Perfil" component={Perfil} />
               <Stack.Screen name="RegistroMascota" component={RegistroMascota} />
               <Stack.Screen name="Mascotas" component={Mascotas} />
-              <Stack.Screen name="PerfilMascotaStack" component={PerfilMascotaStack}/>
+              <Stack.Screen name="PerfilMascotaStack" component={PerfilMascotaStack} />
               <Stack.Screen name="ConfirmacionVacuna" component={ConfirmacionVacuna} />
               <Stack.Screen name="VacunaRegistrada" component={VacunaRegistrada} />
               <Stack.Screen name="Calendario" component={Calendario} />
@@ -91,6 +93,8 @@ export default function App() {
               <Stack.Screen name="Emergencias" component={Emergencias} />
               <Stack.Screen name="RegistroVeterinaria" component={RegistroVeterinaria} />
               <Stack.Screen name="ProgramarCita" component={ProgramarCita} />
+              <Stack.Screen name="EditarCita" component={EditarCita} />
+              <Stack.Screen name="EditarVacuna" component={EditarVacuna} />
               <Stack.Screen name="ChatBot" component={ChatBot} />
             </Stack.Group>
           )}

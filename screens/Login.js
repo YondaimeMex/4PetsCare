@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useContext } from 'react';
 import React from 'react';
 import { AuthContext } from '../App';
 
+    const API_BASE_URL = "http://192.168.18.69:3000";
 export default function Login() {
     const navigation = useNavigation();
     const { setIsLoggedIn } = useContext(AuthContext);
@@ -45,57 +46,66 @@ export default function Login() {
 
     // Manejar inicio de sesión
     const handleLogin = async () => {
-        // Resetear errores
-        setErrors({ email: '', password: '' });
+    // Resetear errores
+    setErrors({ email: '', password: '' });
 
-        // Validar campos
-        let hasErrors = false;
-        if (!email.trim()) {
-            setErrors(prev => ({ ...prev, email: 'El correo es obligatorio' }));
-            hasErrors = true;
-        } else if (!isValidEmail(email)) {
-            setErrors(prev => ({ ...prev, email: 'Formato de correo inválido' }));
-            hasErrors = true;
+    // Validar campos (igual que ya lo tenías)
+    let hasErrors = false;
+    if (!email.trim()) {
+        setErrors(prev => ({ ...prev, email: 'El correo es obligatorio' }));
+        hasErrors = true;
+    } else if (!isValidEmail(email)) {
+        setErrors(prev => ({ ...prev, email: 'Formato de correo inválido' }));
+        hasErrors = true;
+    }
+
+    if (!password) {
+        setErrors(prev => ({ ...prev, password: 'La contraseña es obligatoria' }));
+        hasErrors = true;
+    } else if (password.length < 6) {
+        setErrors(prev => ({ ...prev, password: 'Mínimo 6 caracteres' }));
+        hasErrors = true;
+    }
+
+    if (hasErrors) return;
+
+    setLoading(true);
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, password }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            Alert.alert('Error', data.message || 'Credenciales inválidas');
+            return;
         }
 
-        if (!password) {
-            setErrors(prev => ({ ...prev, password: 'La contraseña es obligatoria' }));
-            hasErrors = true;
-        } else if (password.length < 6) {
-            setErrors(prev => ({ ...prev, password: 'Mínimo 6 caracteres' }));
-            hasErrors = true;
-        }
+        // Si llegamos aquí, el login fue correcto
+        // data.token → JWT
+        // data.user  → { id, nombre, email, telefono }
+        console.log('Usuario logueado:', data.user);
+        setIsLoggedIn(true);
+    } catch (error) {
+        console.error(error);
+        Alert.alert('Error', 'No se pudo conectar con el servidor');
+    } finally {
+        setLoading(false);
+    }
+};
 
-        if (hasErrors) return;
-
-        // Simular proceso de login
-        setLoading(true);
-        try {
-            // Aquí iría la llamada a tu API de autenticación
-            // const response = await authAPI.login(email, password);
-
-            // Simulación de delay
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
-            // Éxito - actualizar el estado de autenticación
-            setIsLoggedIn(true);
-
-        } catch (error) {
-            Alert.alert('Error', 'Credenciales inválidas. Por favor, inténtalo de nuevo.');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     // Navegar a registro
     const handleRegister = () => {
         navigation.navigate('Registro');
     };
 
-    // Acceso rápido como invitado
-    const handleGuestAccess = () => {
-        setIsLoggedIn(true);
-    };
 
     return (
         <View style={styles.container}>
@@ -250,15 +260,7 @@ export default function Login() {
                             </View>
                         </TouchableOpacity>
 
-                        {/* Botón de acceso como invitado */}
-                        <TouchableOpacity
-                            style={styles.guestButton}
-                            onPress={handleGuestAccess}
-                            disabled={loading}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.guestButtonText}>Continuar como invitado</Text>
-                        </TouchableOpacity>
+
 
                         {/* Pie de página */}
                         <View style={styles.footer}>

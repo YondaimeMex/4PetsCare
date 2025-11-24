@@ -1,14 +1,15 @@
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, KeyboardAvoidingView, Platform, Animated, ActivityIndicator } from 'react-native';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
-import { useState, useEffect, useRef, useContext } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import React from 'react';
-import { AuthContext } from '../App';
+
+// IP local y puerto del backend
+const API_BASE_URL = "http://192.168.18.69:3000";
 
 export default function Registro() {
     const navigation = useNavigation();
-    const { setIsLoggedIn } = useContext(AuthContext);
 
     // Estados del formulario
     const [username, setUsername] = useState('');
@@ -51,7 +52,7 @@ export default function Registro() {
         return password.length >= 6;
     };
 
-    // Manejar registro
+    // Manejar registro (conectado a la API)
     const handleRegister = async () => {
         // Resetear errores
         setErrors({ username: '', email: '', password: '', confirmPassword: '' });
@@ -97,20 +98,49 @@ export default function Registro() {
 
         if (hasErrors) return;
 
-        // Simular proceso de registro
+        // Llamada real a la API de registro
         setLoading(true);
         try {
-            // Aquí iría la llamada a tu API de registro
-            // const response = await authAPI.register({ username, email, password });
+            const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    nombre: username.trim(), // el backend espera "nombre"
+                    email: email.trim(),
+                    password: password,
+                    // telefono: puedes agregar un campo en el formulario si lo necesitas
+                }),
+            });
 
-            // Simulación de delay
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            const data = await response.json();
 
-            // Éxito - actualizar el estado de autenticación
-            setIsLoggedIn(true);
+            if (!response.ok) {
+                Alert.alert('Error', data.message || 'No se pudo completar el registro.');
+                return;
+            }
 
+            // Registro exitoso
+            Alert.alert(
+                'Registro exitoso',
+                'Tu cuenta ha sido creada. Ahora puedes iniciar sesión.',
+                [
+                    {
+                        text: 'Ir a Login',
+                        onPress: () => navigation.goBack(),
+                    },
+                ]
+            );
+
+            // Opcional: limpiar campos
+            setUsername('');
+            setEmail('');
+            setPassword('');
+            setConfirmPassword('');
         } catch (error) {
-            Alert.alert('Error', 'No se pudo completar el registro. Por favor, inténtalo de nuevo.');
+            console.error(error);
+            Alert.alert('Error', 'No se pudo conectar con el servidor.');
         } finally {
             setLoading(false);
         }

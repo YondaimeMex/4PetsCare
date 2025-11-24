@@ -1,8 +1,8 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, TextInput } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useState } from 'react';
 import React from 'react';
 import { Calendar } from 'react-native-calendars';
@@ -20,12 +20,17 @@ const NotificationItem = ({ text }) => (
 
 export default function ConfirmacionVacuna() {
     const navigation = useNavigation();
+    const route = useRoute();
+    const { mascota } = route.params || {};
 
     // Estados del menú, notificaciones y calendario
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState('');
     const [notificaciones, setNotificaciones] = useState([]);
+    const [veterinarias, setVeterinarias] = useState([]);
+    const [selectedVeterinaria, setSelectedVeterinaria] = useState('');
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
 
     // Abre o cierra el menú lateral
@@ -59,20 +64,42 @@ export default function ConfirmacionVacuna() {
         if (isNotificationsOpen) toggleNotifications();
     };
 
+    // Cargar veterinarias
+    const loadVeterinarias = async () => {
+        try {
+            const jsonValue = await AsyncStorage.getItem('@veterinarias');
+            const data = jsonValue != null ? JSON.parse(jsonValue) : [];
+            data.sort((a, b) => a.label.localeCompare(b.label));
+            setVeterinarias(data);
+        } catch (error) {
+            console.error("Error cargando veterinarias", error);
+        }
+    };
+
+    // Cargar veterinarias al montar el componente
+    React.useEffect(() => {
+        loadVeterinarias();
+    }, []);
+
     const handleSave = async () => {
         if (!selectedDate) {
             Alert.alert("Error", "Selecciona la fecha en que la vacuna fue aplicada.");
             return false;
         }
 
+        if (!selectedVeterinaria) {
+            Alert.alert("Error", "Selecciona la veterinaria donde se aplicó la vacuna.");
+            return false;
+        }
+
         const fechaAplicada = selectedDate;
-        
+
         const newCita = {
             id: Date.now(), // ID único
             fecha: fechaAplicada,
             tipo: 'Vacuna',
-            veterinaria: 'Vacuna Registrada', // Nombre de la vacuna/cita
-            usuario: 'Mi Mascota', // Nombre de la mascota
+            veterinaria: selectedVeterinaria, // Nombre de la veterinaria seleccionada
+            usuario: mascota?.nombre || 'Mi Mascota', // Nombre de la mascota
         };
 
         try {
@@ -143,6 +170,53 @@ export default function ConfirmacionVacuna() {
                 {selectedDate ? (
                     <Text style={styles.dateText}>Fecha elegida: {selectedDate}</Text>
                 ) : null}
+
+                {/* Seleccionar Veterinaria */}
+                <View style={[styles.card, { zIndex: 100 }]}>
+                    <Text style={styles.label}>Seleccione la veterinaria</Text>
+
+                    <TouchableOpacity style={styles.dropdownTrigger} onPress={() => setIsDropdownOpen(!isDropdownOpen)}>
+                        <TextInput
+                            style={styles.dropdownInputText}
+                            value={selectedVeterinaria}
+                            placeholder="Elige una veterinaria"
+                            placeholderTextColor="#999"
+                            editable={false}
+                            pointerEvents="none"
+                        />
+                        <MaterialIcons
+                            name={isDropdownOpen ? "arrow-drop-up" : "arrow-drop-down"}
+                            size={24}
+                            color="#333"
+                        />
+                    </TouchableOpacity>
+
+                    {/* Lista desplegable */}
+                    {isDropdownOpen && (
+                        <View style={styles.dropdownList}>
+                            {veterinarias.length === 0 ? (
+                                <View style={styles.emptyStateBox}>
+                                    <Text style={styles.emptyStateText}>No hay veterinarias guardadas.</Text>
+                                </View>
+                            ) : (
+                                <>
+                                    {veterinarias.map((option, index) => (
+                                        <TouchableOpacity
+                                            key={index}
+                                            style={styles.dropdownItem}
+                                            onPress={() => {
+                                                setSelectedVeterinaria(option.label);
+                                                setIsDropdownOpen(false);
+                                            }}
+                                        >
+                                            <Text style={styles.dropdownItemText}>{option.label}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </>
+                            )}
+                        </View>
+                    )}
+                </View>
 
                 {/* Botón para confirmar vacuna */}
                 <TouchableOpacity
@@ -368,6 +442,55 @@ const styles = StyleSheet.create({
         shadowOpacity: 0,
         borderWidth: 0,
     },
+    label: {
+        fontSize: 16,
+        color: '#555',
+        marginBottom: 8,
+        fontWeight: '600'
+    },
+    dropdownTrigger: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f9f9f9',
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+        borderRadius: 8,
+        height: 50,
+        paddingHorizontal: 10
+    },
+    dropdownInputText: {
+        flex: 1,
+        fontSize: 16,
+        color: '#333'
+    },
+    dropdownList: {
+        marginTop: 5,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+        borderRadius: 8,
+        backgroundColor: '#fff',
+        overflow: 'hidden',
+        elevation: 4
+    },
+    dropdownItem: {
+        padding: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0'
+    },
+    dropdownItemText: {
+        fontSize: 16,
+        color: '#333'
+    },
+    emptyStateBox: {
+        padding: 20,
+        alignItems: 'center',
+        backgroundColor: '#fdfdfd'
+    },
+    emptyStateText: {
+        color: '#888',
+        marginBottom: 12,
+        fontSize: 14
+    }
 });
 
 const notificationStyles = StyleSheet.create({
