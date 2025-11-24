@@ -1,8 +1,9 @@
 import {
-    View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Platform,
-    KeyboardAvoidingView, SafeAreaView
+    View, Text, TouchableOpacity, StyleSheet, ScrollView,
+    TextInput, Platform, KeyboardAvoidingView, SafeAreaView
 } from 'react-native';
-import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
@@ -11,60 +12,36 @@ import axios from "axios";
 import Markdown from "react-native-markdown-display";
 
 /*------------------------------------------------------------
-Componente individual para mostrar notificaciones
-------------------------------------------------------------*/
-const NotificationItem = ({ text }) => (
-    <View style={notificationStyles.notificationItem}>
-        <View style={notificationStyles.bullet} />
-        <Text style={notificationStyles.notificationText}>{text}</Text>
-    </View>
-);
-
-/*------------------------------------------------------------
-Notificaciones de ejemplo
-------------------------------------------------------------*/
-const notificationsData = [
-    '¡Se acerca el día de la cita! ¿Ya tienes todo preparado?',
-    '¡Campaña de vacunacion!, el día 30 de Octubre',
-    'Recordatorio: Próxima dosis de medicamento.',
-];
-
-/*------------------------------------------------------------
 Pantalla principal del ChatBot
 ------------------------------------------------------------*/
 export default function ChatBot() {
+
     const navigation = useNavigation();
     let scrollViewRef = null;
 
+    /*--------------------------------------------------------
+    Estados de la interfaz
+    --------------------------------------------------------*/
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [message, setMessage] = useState('');
     const [chatMessages, setChatMessages] = useState([]);
 
     /*--------------------------------------------------------
-    Control de menús (hamburguesa y notificaciones)
+    Control del menú lateral (hamburguesa)
     --------------------------------------------------------*/
     const toggleMenu = () => {
-        const newState = !isMenuOpen;
-        setIsMenuOpen(newState);
-        if (newState) setIsNotificationsOpen(false);
+        setIsMenuOpen(prev => !prev);
     };
 
-    const toggleNotifications = () => {
-        const newState = !isNotificationsOpen;
-        setIsNotificationsOpen(newState);
-        if (newState) setIsMenuOpen(false);
-    };
-
+    /* Cerrar el menú cuando se hace clic fuera */
     const handleOverlayClick = () => {
         if (isMenuOpen) toggleMenu();
-        if (isNotificationsOpen) toggleNotifications();
     };
 
     const isOverlayVisible = isMenuOpen;
 
     /*--------------------------------------------------------
-    Función para enviar mensaje al backend
+    Enviar mensaje al backend IA
     --------------------------------------------------------*/
     const sendMessage = async () => {
         if (!message.trim()) return;
@@ -74,12 +51,12 @@ export default function ChatBot() {
         setMessage("");
 
         try {
-            const response = await axios.post("http://192.168.0.113:3000/api/chat", {
-                message: message,
-            });
+            const response = await axios.post("http://192.168.1.79:3000/api/chat", { message });
 
-            const aiReply = response.data.reply;
-            const botMessage = { role: "assistant", content: aiReply };
+            const botMessage = {
+                role: "assistant",
+                content: response.data.reply
+            };
 
             setChatMessages(prev => [...prev, botMessage]);
         } catch (error) {
@@ -87,7 +64,7 @@ export default function ChatBot() {
 
             const errorMsg = {
                 role: "assistant",
-                content: "Error: No pude conectar con el servidor de IA.",
+                content: "Error: No pude conectar con el servidor de IA."
             };
 
             setChatMessages(prev => [...prev, errorMsg]);
@@ -99,7 +76,8 @@ export default function ChatBot() {
     --------------------------------------------------------*/
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-            {/* Maneja el desplazamiento automático del teclado en iOS y Android */}
+
+            {/* Evita que el teclado tape el input */}
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -108,29 +86,21 @@ export default function ChatBot() {
                 <View style={styles.container}>
                     <StatusBar style="auto" />
 
-                    {/* Encabezado */}
+                    {/*--------------------------------------------------------
+                    Encabezado (solo botón de menú)
+                    --------------------------------------------------------*/}
                     <View style={styles.header}>
                         <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
                             <MaterialIcons name="menu" size={32} color="black" />
                         </TouchableOpacity>
-
-                        <View style={styles.headerRight}>
-                            <TouchableOpacity style={[styles.floatingBtn, styles.headerIcon]} onPress={toggleNotifications}>
-                                <Ionicons name="notifications" size={32} color="black" />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[styles.floatingBtn, styles.headerIcon]}
-                                onPress={() => navigation.navigate('Perfil')}
-                            >
-                                <Ionicons name="person-circle-outline" size={32} color="black" />
-                            </TouchableOpacity>
-                        </View>
                     </View>
 
-                    {/* Contenedor del chat */}
+                    {/*--------------------------------------------------------
+                    Contenedor del chat
+                    --------------------------------------------------------*/}
                     <View style={styles.chatContainer}>
-                        {/* Mensaje inicial */}
+
+                        {/* Mensaje inicial cuando no hay mensajes */}
                         {chatMessages.length === 0 && (
                             <View style={styles.welcomeBox}>
                                 <Text style={styles.centerMessage}>Bienvenido al ChatBot 4PetsCare</Text>
@@ -143,7 +113,7 @@ export default function ChatBot() {
                             style={styles.chatScroll}
                             contentContainerStyle={{
                                 paddingTop: 20,
-                                paddingBottom: 100 // asegura que el último mensaje no quede debajo del input
+                                paddingBottom: 100 // no cubrir mensajes con input
                             }}
                             ref={(ref) => (scrollViewRef = ref)}
                             onContentSizeChange={() => scrollViewRef?.scrollToEnd({ animated: true })}
@@ -157,7 +127,7 @@ export default function ChatBot() {
                                         borderRadius: 10,
                                         padding: 10,
                                         marginVertical: 5,
-                                        maxWidth: "80%",
+                                        maxWidth: "80%"
                                     }}
                                 >
                                     <Markdown style={markdownStyles}>{msg.content}</Markdown>
@@ -166,7 +136,9 @@ export default function ChatBot() {
                         </ScrollView>
                     </View>
 
-                    {/* Input inferior */}
+                    {/*--------------------------------------------------------
+                    Input inferior
+                    --------------------------------------------------------*/}
                     <View style={styles.bottomInputWrapper}>
                         <View style={styles.inputRow}>
                             <TextInput
@@ -178,13 +150,16 @@ export default function ChatBot() {
                                 returnKeyType="send"
                                 onSubmitEditing={sendMessage}
                             />
+
                             <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
                                 <MaterialCommunityIcons name="send" size={20} color="black" />
                             </TouchableOpacity>
                         </View>
                     </View>
 
-                    {/* Oscurecer fondo cuando el menú está abierto */}
+                    {/*--------------------------------------------------------
+                    Cerrar menú al tocar fuera
+                    --------------------------------------------------------*/}
                     {isOverlayVisible && (
                         <TouchableOpacity
                             style={styles.overlay}
@@ -193,15 +168,19 @@ export default function ChatBot() {
                         />
                     )}
 
-                    {/* Menú lateral */}
-                    <View style={[
-                        styles.sideMenu,
-                        { transform: [{ translateX: isMenuOpen ? 0 : -300 }] }
-                    ]}>
+                    {/*--------------------------------------------------------
+                    Menú lateral
+                    --------------------------------------------------------*/}
+                    <View
+                        style={[
+                            styles.sideMenu,
+                            { transform: [{ translateX: isMenuOpen ? 0 : -300 }] }
+                        ]}
+                    >
                         <View style={styles.menuHeader}>
                             <Text style={styles.menuTitle}>Menú</Text>
                             <TouchableOpacity onPress={toggleMenu}>
-                                <Ionicons name="close" size={30} color="#333" />
+                                <MaterialIcons name="close" size={30} color="#333" />
                             </TouchableOpacity>
                         </View>
 
@@ -209,42 +188,42 @@ export default function ChatBot() {
                             style={styles.menuItem}
                             onPress={() => navigation.navigate('Home')}
                         >
-                            <Ionicons name="home" size={24} color="black" />
+                            <MaterialCommunityIcons name="home" size={24} color="black" />
                             <Text style={styles.menuItemText}>Inicio</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
-                            <Ionicons name="paw-outline" size={30} color="#4BCF5C" />
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}
+                        >
+                            <MaterialCommunityIcons name="paw-outline" size={30} color="#4BCF5C" />
                             <Text style={styles.menuItemText}>Mascotas</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
-                            <Ionicons name="calendar-number" size={30} color="#007AFF" />
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}
+                        >
+                            <MaterialCommunityIcons name="calendar-month" size={30} color="#007AFF" />
                             <Text style={styles.menuItemText}>Calendario</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}>
-                            <MaterialIcons name="tips-and-updates" size={30} color="#FF9500" />
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}
+                        >
+                            <MaterialCommunityIcons name="lightbulb-on-outline" size={30} color="#FF9500" />
                             <Text style={styles.menuItemText}>Consejos</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
-                            <MaterialIcons name="emergency" size={30} color="#FF3B30" />
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}
+                        >
+                            <MaterialCommunityIcons name="alert" size={30} color="#FF3B30" />
                             <Text style={styles.menuItemText}>Emergencias</Text>
                         </TouchableOpacity>
                     </View>
-
-                    {/* Panel de notificaciones */}
-                    {isNotificationsOpen && (
-                        <View style={notificationStyles.notificationsContainer}>
-                            <Text style={notificationStyles.headerText}>Notificaciones</Text>
-                            <ScrollView style={notificationStyles.list}>
-                                {notificationsData.map((text, index) => (
-                                    <NotificationItem key={index} text={text} />
-                                ))}
-                            </ScrollView>
-                        </View>
-                    )}
                 </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -263,7 +242,6 @@ const styles = StyleSheet.create({
     /* Header */
     header: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingTop: 60,
@@ -275,27 +253,7 @@ const styles = StyleSheet.create({
         padding: 5,
     },
 
-    headerRight: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 15,
-        marginRight: 10,
-    },
-
-    headerIcon: {
-        backgroundColor: '#fff',
-        borderRadius: 35,
-        width: 60,
-        height: 60,
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOpacity: 0.2,
-        shadowRadius: 3,
-        elevation: 4,
-    },
-
-    /* Chat container */
+    /* Chat */
     chatContainer: {
         flex: 1,
         paddingHorizontal: 20,
@@ -318,7 +276,7 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
 
-    /* Input inferior (corregido para funcionar con teclado) */
+    /* Input */
     bottomInputWrapper: {
         width: "100%",
         paddingHorizontal: 10,
@@ -357,6 +315,7 @@ const styles = StyleSheet.create({
         borderColor: '#ccc',
     },
 
+    /* Overlay */
     overlay: {
         position: 'absolute',
         top: 0,
@@ -367,6 +326,7 @@ const styles = StyleSheet.create({
         zIndex: 20,
     },
 
+    /* Menú lateral */
     sideMenu: {
         position: 'absolute',
         top: 0,
@@ -398,7 +358,7 @@ const styles = StyleSheet.create({
     menuItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 50,
+        paddingVertical: 40,
         paddingHorizontal: 10,
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
@@ -412,52 +372,6 @@ const styles = StyleSheet.create({
 });
 
 /*------------------------------------------------------------
-Estilos de notificaciones
-------------------------------------------------------------*/
-const notificationStyles = StyleSheet.create({
-    notificationsContainer: {
-        position: 'absolute',
-        top: 100,
-        right: 30,
-        width: 300,
-        maxHeight: 400,
-        backgroundColor: '#e0e0e0',
-        borderRadius: 10,
-        padding: 15,
-        zIndex: 30,
-    },
-    headerText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        textAlign: 'center',
-        marginBottom: 10,
-        color: 'black',
-    },
-    list: {
-        flexGrow: 0,
-    },
-    notificationItem: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
-    },
-    bullet: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: 'red',
-        marginRight: 10,
-        marginTop: 5,
-    },
-    notificationText: {
-        fontSize: 16,
-        flexShrink: 1,
-    },
-});
-
-/*------------------------------------------------------------
 Estilos de Markdown (negritas, cursivas, etc.)
 ------------------------------------------------------------*/
 const markdownStyles = {
@@ -467,10 +381,6 @@ const markdownStyles = {
         letterSpacing: 0.2,
         color: "#111",
     },
-    strong: {
-        fontWeight: "700",
-    },
-    em: {
-        fontStyle: "italic",
-    },
+    strong: { fontWeight: "700" },
+    em: { fontStyle: "italic" },
 };
