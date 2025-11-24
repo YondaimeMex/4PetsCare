@@ -1,27 +1,45 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+// RegistroMascota.js
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
-import React from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 
-// Componente para mostrar una notificación individual
-const NotificationItem = ({ text }) => (
+// ----------------------------------------------------------------------------
+// saveMascotaToDB: guarda en AsyncStorage local (clave: @mascotas).
+// Retorna { success: boolean, message?: string, data?: any }
+// ----------------------------------------------------------------------------
+export async function saveMascotaToDB(mascota) {
+    try {
+        const raw = await AsyncStorage.getItem('@mascotas');
+        const actuales = raw ? JSON.parse(raw) : [];
+
+        const nueva = { id: Date.now(), ...mascota };
+
+        const updated = [nueva, ...actuales];
+
+        await AsyncStorage.setItem('@mascotas', JSON.stringify(updated));
+        console.log('saveMascotaToDB: guardado en AsyncStorage ->', nueva);
+
+        return { success: true, message: 'Guardado local (AsyncStorage)', data: nueva };
+    } catch (err) {
+        console.error('saveMascotaToDB - AsyncStorage error:', err);
+        return { success: false, message: 'No se pudo guardar localmente' };
+    }
+}
+
+// Importar el servicio de notificaciones
+import NotificationService from './Notificaciones';
+// Componente para mostrar cada notificación
+const NotificationItem = ({ text, date }) => (
     <View style={notificationStyles.notificationItem}>
         <View style={notificationStyles.bullet} />
-        <Text style={notificationStyles.notificationText}>{text}</Text>
+        <Text style={notificationStyles.notificationText}>{text} {"\n"}<Text style={{ fontSize: 12, color: '#555' }}>{date}</Text></Text>
     </View>
 );
 
-// Lista de notificaciones de ejemplo
-const notificationsData = [
-    '¡Se acerca el día de la cita! ¿Ya tienes todo preparado?',
-    '¡Campaña de vacunacion!, el día 30 de Octubre',
-    'Recordatorio: Próxima dosis de medicamento.',
-    'Hola'
-];
-
-// Opciones de especie para el menú desplegable
 const especies = [
     { key: 'domestico', label: 'Domestico (Perro, Gato, etc)' },
     { key: 'ave', label: 'Ave (Perico, Loro, etc)' },
@@ -30,206 +48,298 @@ const especies = [
 ];
 
 export default function RegistroMascota() {
-    const navigation = useNavigation(); // Hook para navegar entre pantallas
+    const navigation = useNavigation();
 
-    // Estados de los campos del formulario
+    // campos
     const [nombreMascota, setNombreMascota] = useState('');
     const [especie, setEspecie] = useState('');
     const [raza, setRaza] = useState('');
     const [edad, setEdad] = useState('');
     const [peso, setPeso] = useState('');
 
-    // Estados para mostrar u ocultar menús
+    // imagen: uri y key para forzar re-render/caché bust
+    const [imageUri, setImageUri] = useState(null);
+    const [imageKey, setImageKey] = useState(null);
+
+    // UI
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [notificaciones, setNotificaciones] = useState([]);
+    const [loading, setLoading] = useState(false);
 
-    // Selecciona la especie del menú desplegable
     const Selectespecie = (option) => {
         setEspecie(option.label);
         setIsDropdownOpen(false);
-    }
+    };
+    const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
 
-    // Muestra u oculta el menú de especies
-    const toggleDropdown = () => {
-        setIsDropdownOpen(!isDropdownOpen);
-    }
+    // ---------- Image Picker (actualizado para SDK old/new) ----------
+    const pickImageFromLibrary = async () => {
+        try {
+            const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!permission.granted) {
+                Alert.alert('Permiso denegado', 'Necesitamos permiso para acceder a la galería.');
+                return;
+            }
 
-    // Guarda los datos de la mascota
-    const handleSave = () => {
-        if (!nombreMascota || !especie) {
-            console.warn("Ingresa el nombre y selecciona la especie de tu mascota.");
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.7,
+            });
+
+            console.log('pickImageFromLibrary result:', result);
+
+            // Soporta ambos formatos:
+            // Nuevo: result.canceled / result.assets[0].uri
+            // Antiguo: result.cancelled / result.uri
+            const uri =
+                (result.assets && result.assets[0] && result.assets[0].uri) ||
+                result.uri ||
+                (result.cancelled === false && result.uri) ||
+                null;
+
+            if (uri) {
+                // Forzar bust de cache en preview con key
+                setImageUri(uri);
+                setImageKey(Date.now());
+                console.log('Imagen seleccionada URI:', uri);
+            } else {
+                console.log('Selección cancelada o sin URI.');
+            }
+        } catch (err) {
+            console.error('pickImageFromLibrary error:', err);
+            Alert.alert('Error', 'No se pudo seleccionar la imagen.');
+        }
+    };
+
+    const takePhotoWithCamera = async () => {
+        try {
+            const permission = await ImagePicker.requestCameraPermissionsAsync();
+            if (!permission.granted) {
+                Alert.alert('Permiso denegado', 'Necesitamos permiso para usar la cámara.');
+                return;
+            }
+
+            const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.7,
+            });
+
+            console.log('takePhotoWithCamera result:', result);
+
+            const uri =
+                (result.assets && result.assets[0] && result.assets[0].uri) ||
+                result.uri ||
+                (result.cancelled === false && result.uri) ||
+                null;
+
+            if (uri) {
+                setImageUri(uri);
+                setImageKey(Date.now());
+                console.log('Foto tomada URI:', uri);
+            } else {
+                console.log('Foto cancelada o sin URI.');
+            }
+        } catch (err) {
+            console.error('takePhotoWithCamera error:', err);
+            Alert.alert('Error', 'No se pudo tomar la foto.');
+        }
+    };
+
+    const removeImage = () => {
+        setImageUri(null);
+        setImageKey(null);
+    };
+
+    // Guarda los datos
+    const handleSave = async () => {
+        if (!nombreMascota?.trim() || !especie?.trim()) {
+            Alert.alert('Campos faltantes', 'Ingresa el nombre y selecciona la especie de tu mascota.');
             return;
         }
 
         const mascotaData = {
-            nombre: nombreMascota,
-            especie: especie,
-            raza: raza,
-            edad: edad,
-            peso: peso,
+            nombre: nombreMascota.trim(),
+            especie: especie.trim(),
+            raza: raza.trim(),
+            edad: edad.trim(),
+            peso: peso.trim(),
+            image: imageUri || null, // guardamos la URI tal cual
+            imageKey: imageKey || null // opcional para bust cache al mostrar
         };
 
-        console.log('Datos de Mascota a Guardar:', mascotaData);
-        console.log(`¡Mascota ${nombreMascota} ha sido registrado con éxito!`);
-    };
+        console.log('handleSave -> mascotaData:', mascotaData);
 
-    // Muestra u oculta el menú lateral
-    const toggleMenu = () => {
-        const newState = !isMenuOpen;
-        setIsMenuOpen(newState);
-        if (newState) {
-            setIsNotificationsOpen(false);
+        setLoading(true);
+        try {
+            const result = await saveMascotaToDB(mascotaData);
+
+            if (result && result.success) {
+                Alert.alert('Guardado', `¡Mascota ${mascotaData.nombre} registrada con éxito!`);
+
+                await NotificationService.saveNotification(`¡Felicidades! Se ha guardado con exito ${mascotaData.nombre} (${mascotaData.especie}).`);
+
+                // limpiar formulario
+                setNombreMascota('');
+                setEspecie('');
+                setRaza('');
+                setEdad('');
+                setPeso('');
+                setImageUri(null);
+                setImageKey(null);
+
+                navigation.navigate('Mascotas');
+            } else {
+                const msg = (result && result.message) ? result.message : 'No se pudo guardar la mascota.';
+                Alert.alert('Error al guardar', msg);
+            }
+        } catch (error) {
+            console.error('Error guardando mascota:', error);
+            Alert.alert('Error', 'Ocurrió un error al guardar. Revisa la consola.');
+        } finally {
+            setLoading(false);
         }
     };
 
-    // Muestra u oculta las notificaciones
-    const toggleNotifications = () => {
+    const toggleMenu = () => {
+        const newState = !isMenuOpen;
+        setIsMenuOpen(newState);
+        if (newState) setIsNotificationsOpen(false);
+    };
+
+    const toggleNotifications = async () => {
         const newState = !isNotificationsOpen;
         setIsNotificationsOpen(newState);
         if (newState) {
             setIsMenuOpen(false);
+            try {
+                const allNotifications = await NotificationService.getNotifications();
+                setNotificaciones(allNotifications);
+            } catch (error) {
+                console.error("Error al cargar notificaciones:", error);
+            }
         }
     };
 
-    // Cierra los menús al tocar fuera
     const handleOverlayClick = () => {
         if (isMenuOpen) toggleMenu();
         if (isNotificationsOpen) toggleNotifications();
     };
-
     const isOverlayVisible = isMenuOpen || isNotificationsOpen;
 
     return (
         <ScrollView contentContainerStyle={styles.scrollContent} style={styles.scrollContainer}>
             <StatusBar style="auto" />
 
-            {/* Encabezado con menú, notificaciones y perfil */}
             <View style={styles.header}>
                 <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
                     <MaterialIcons name="menu" size={32} />
                 </TouchableOpacity>
 
                 <View style={styles.headerRight}>
-                    <TouchableOpacity style={[styles.floatingBtn, styles.headerIcon]} onPress={toggleNotifications}>
+                    <TouchableOpacity accessible accessibilityLabel="Notificaciones" style={[styles.floatingBtn, styles.headerIcon]} onPress={toggleNotifications}>
                         <Ionicons name="notifications" size={32} color="black" />
                     </TouchableOpacity>
 
-                    <TouchableOpacity
-                        style={[styles.floatingBtn, styles.headerIcon]}
-                        onPress={() => navigation.navigate('Perfil')}
-                    >
+                    <TouchableOpacity accessible accessibilityLabel="Perfil" style={[styles.floatingBtn, styles.headerIcon]} onPress={() => navigation.navigate('Perfil')}>
                         <Ionicons name="person-circle-outline" size={32} color="black" />
                     </TouchableOpacity>
                 </View>
             </View>
 
-            {/* Formulario de registro de mascota */}
+            {/* Formulario */}
             <View style={styles.formCard}>
                 <Text style={styles.title}>¡Registra a tu mascota!</Text>
                 <Text style={styles.label}>Nombre de tu mascota</Text>
-                <TextInput
-                    style={styles.input}
-                    value={nombreMascota}
-                    onChangeText={setNombreMascota}
-                    placeholder="Ej. Toby"
-                    placeholderTextColor="#999"
-                />
+                <TextInput style={styles.input} value={nombreMascota} onChangeText={setNombreMascota} placeholder="Ej. Toby" placeholderTextColor="#999" accessibilityLabel="Nombre de la mascota" />
             </View>
 
-            {/* Selector de especie */}
             <View style={styles.formCard}>
                 <Text style={styles.label}>¿Qué mascota es?</Text>
-                <TouchableOpacity
-                    style={styles.dropdownContainer}
-                    onPress={toggleDropdown}
-                >
-                    <TextInput style={styles.dropdownInput}
-                        value={especie}
-                        placeholderTextColor={especie ? '#000' : '#999'}
-                        editable={false}
-                    />
-                    <MaterialIcons
-                        name={isDropdownOpen ? "arrow-drop-up" : "arrow-drop-down"}
-                        size={24}
-                        color="black"
-                        style={styles.dropdownIcon}
-                    />
+                <TouchableOpacity style={styles.dropdownContainer} onPress={toggleDropdown} accessibilityRole="button" accessibilityLabel="Seleccionar especie">
+                    <TextInput style={styles.dropdownInput} value={especie} placeholder="Selecciona una especie" placeholderTextColor={especie ? '#000' : '#999'} editable={false} />
+                    <MaterialIcons name={isDropdownOpen ? 'arrow-drop-up' : 'arrow-drop-down'} size={24} color="black" style={styles.dropdownIcon} />
                 </TouchableOpacity>
 
-                {/* Opciones del menú desplegable */}
                 {isDropdownOpen && especies.map((option) => (
-                    <TouchableOpacity
-                        key={option.key}
-                        style={styles.dropdownItem}
-                        onPress={() => Selectespecie(option)}
-                    >
+                    <TouchableOpacity key={option.key} style={styles.dropdownItem} onPress={() => Selectespecie(option)}>
                         <Text style={styles.dropdownText}>{option.label}</Text>
                     </TouchableOpacity>
                 ))}
             </View>
 
-            {/* Campos adicionales */}
             <View style={styles.formCard}>
                 <Text style={styles.label}>Raza de tu mascota</Text>
-                <TextInput
-                    style={styles.input}
-                    value={raza}
-                    onChangeText={setRaza}
-                    placeholder="Ej. Golden Retriever"
-                    placeholderTextColor="#999"
-                />
+                <TextInput style={styles.input} value={raza} onChangeText={setRaza} placeholder="Ej. Golden Retriever" placeholderTextColor="#999" />
             </View>
 
             <View style={styles.formCard}>
                 <Text style={styles.label}>Edad</Text>
-                <TextInput
-                    style={styles.input}
-                    value={edad}
-                    onChangeText={setEdad}
-                    placeholder="Ej. 5 años"
-                    placeholderTextColor="#999"
-                    keyboardType="numeric"
-                />
+                <TextInput style={styles.input} value={edad} onChangeText={setEdad} placeholder="Ej. 5" placeholderTextColor="#999" keyboardType="numeric" />
             </View>
 
             <View style={styles.formCard}>
                 <Text style={styles.label}>Peso (kg)</Text>
-                <TextInput
-                    style={styles.input}
-                    value={peso}
-                    onChangeText={setPeso}
-                    placeholder="Ej. 30kg"
-                    placeholderTextColor="#999"
-                    keyboardType="numeric"
-                />
+                <TextInput style={styles.input} value={peso} onChangeText={setPeso} placeholder="Ej. 30" placeholderTextColor="#999" keyboardType="numeric" />
             </View>
 
-            {/* Botón para guardar */}
-            <TouchableOpacity
-                style={styles.saveButton}
-                onPress={() => {
-                    handleSave();
-                    navigation.navigate('Mascotas');
-                }}
-            >
-                <Text style={styles.saveButtonText}>Guardar Mascota</Text>
+            {/* Imagen */}
+            <View style={[styles.formCard, { alignItems: 'center' }]}>
+                <Text style={styles.label}>Imagen de tu mascota</Text>
+
+                {imageUri ? (
+                    <>
+                        {/* key forzar recarga si cambia imageUri */}
+                        <Image key={String(imageKey)} source={{ uri: imageUri }} style={styles.previewImage} />
+                        <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                            <TouchableOpacity style={[styles.smallBtn, { marginRight: 8 }]} onPress={pickImageFromLibrary}>
+                                <Text style={styles.smallBtnText}>Cambiar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.smallBtn, { backgroundColor: '#FF3B30' }]} onPress={removeImage}>
+                                <Text style={styles.smallBtnText}>Eliminar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </>
+                ) : (
+                    <>
+                        <View style={styles.placeholderImage}>
+                            <Ionicons name="image" size={48} color="#bbb" />
+                        </View>
+
+                        <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                            <TouchableOpacity style={styles.smallBtn} onPress={pickImageFromLibrary}>
+                                <Text style={styles.smallBtnText}>Galería</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.smallBtn, { marginLeft: 8 }]} onPress={takePhotoWithCamera}>
+                                <Text style={styles.smallBtnText}>Cámara</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </>
+                )}
+            </View>
+
+            <TouchableOpacity style={[styles.saveButton, loading && { opacity: 0.7 }]} onPress={handleSave} disabled={loading} accessibilityLabel="Guardar mascota">
+                {loading ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <ActivityIndicator size="small" />
+                        <Text style={[styles.saveButtonText, { marginLeft: 10 }]}>Guardando...</Text>
+                    </View>
+                ) : (
+                    <Text style={styles.saveButtonText}>Guardar Mascota</Text>
+                )}
             </TouchableOpacity>
 
-            {/* Fondo oscuro cuando el menú o notificaciones están abiertas */}
             {isOverlayVisible && (
-                <TouchableOpacity
-                    style={styles.overlay}
-                    activeOpacity={1}
-                    onPress={handleOverlayClick}
-                />
+                <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={handleOverlayClick} />
             )}
 
-            {/* Menú lateral */}
-            <View style={[
-                styles.sideMenu,
-                { transform: [{ translateX: isMenuOpen ? 0 : -300 }] }
-            ]}>
+            {/* Menu lateral */}
+            <View style={[styles.sideMenu, { transform: [{ translateX: isMenuOpen ? 0 : -300 }] }]}>
                 <View style={styles.menuHeader}>
                     <Text style={styles.menuTitle}>Menú</Text>
                     <TouchableOpacity onPress={toggleMenu}>
@@ -237,11 +347,7 @@ export default function RegistroMascota() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Opciones del menú lateral */}
-                <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => navigation.navigate('Home')}
-                >
+                <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Home')}>
                     <Ionicons name="home" size={24} color="black" />
                     <Text style={styles.menuItemText}>Inicio</Text>
                 </TouchableOpacity>
@@ -263,23 +369,25 @@ export default function RegistroMascota() {
                 </TouchableOpacity>
             </View>
 
-            {/* Notificaciones desplegables */}
             {isNotificationsOpen && (
                 <View style={notificationStyles.notificationsContainer}>
                     <Text style={notificationStyles.headerText}>Notificaciones</Text>
                     <ScrollView style={notificationStyles.list}>
-                        {notificationsData.map((text, index) => (
-                            <NotificationItem key={index} text={text} />
-                        ))}
+                        {notificaciones.length > 0 ? (
+                            notificaciones.map((n, index) => (
+                                <NotificationItem key={index} text={n.text} date={n.date} />
+                            ))
+                        ) : (
+                            <Text style={{ textAlign: 'center', color: '#666', marginTop: 10 }}>No hay notificaciones.</Text>
+                        )}
                     </ScrollView>
                 </View>
             )}
-
-        </ScrollView >
+        </ScrollView>
     );
 }
 
-// Estilos generales del formulario y menú
+// Estilos (iguales a los que tenías, con algunos extras para imagen)
 const styles = StyleSheet.create({
     scrollContainer: {
         flex: 1,
@@ -450,7 +558,34 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 18,
         fontWeight: 'bold',
-    }
+    },
+    // Imagen
+    placeholderImage: {
+        width: 150,
+        height: 120,
+        borderRadius: 8,
+        backgroundColor: '#fafafa',
+        borderWidth: 1,
+        borderColor: '#eee',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    previewImage: {
+        width: 150,
+        height: 120,
+        borderRadius: 8,
+        resizeMode: 'cover',
+    },
+    smallBtn: {
+        backgroundColor: '#007AFF',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 6,
+    },
+    smallBtnText: {
+        color: '#fff',
+        fontWeight: '600',
+    },
 });
 
 // Estilos para las notificaciones

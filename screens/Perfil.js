@@ -6,6 +6,8 @@ import { useState } from 'react';
 import React from 'react';
 import * as ImagePicker from 'expo-image-picker';
 
+import NotificationService from './Notificaciones';
+
 // Componente para mostrar una notificación individual
 const NotificationItem = ({ text }) => (
   <View style={notificationStyles.notificationItem}>
@@ -14,21 +16,13 @@ const NotificationItem = ({ text }) => (
   </View>
 );
 
-// Lista de notificaciones
-const notificationsData = [
-  '¡Se acerca el día de la cita! ¿Ya tienes todo preparado?',
-  '¡Campaña de vacunacion!, el día 30 de Octubre',
-  'Recordatorio: Próxima dosis de medicamento.',
-  'Hola'
-];
-
 export default function Perfil() {
   const navigation = useNavigation();
 
   // Estados para abrir/cerrar menú y notificaciones
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-
+  const [notificaciones, setNotificaciones] = useState([]);
   // Estados del perfil
   const [profileImage, setProfileImage] = useState(null);
   const [userName, setUserName] = useState('Usuario');
@@ -46,11 +40,20 @@ export default function Perfil() {
   };
 
   // Abrir o cerrar el panel de notificaciones
-  const toggleNotifications = () => {
+  const toggleNotifications = async () => {
     const newState = !isNotificationsOpen;
     setIsNotificationsOpen(newState);
     if (newState) {
       setIsMenuOpen(false);
+      // Cargar notificaciones al abrir
+      try {
+        const allNotifications = await NotificationService.getNotifications();
+        setNotificaciones(allNotifications);
+      } catch (error) {
+        console.error("Error al cargar notificaciones:", error);
+        // Mostrar lista vacía o un error si falla la carga
+        setNotificaciones([]);
+      }
     }
   };
 
@@ -239,9 +242,13 @@ export default function Perfil() {
         <View style={notificationStyles.notificationsContainer}>
           <Text style={notificationStyles.headerText}>Notificaciones</Text>
           <ScrollView style={notificationStyles.list}>
-            {notificationsData.map((text, index) => (
-              <NotificationItem key={index} text={text} />
-            ))}
+            {notificaciones.length > 0 ? (
+              notificaciones.map((n, index) => (
+                <NotificationItem key={index} text={n.text} />
+              ))
+            ) : (
+              <Text style={{ textAlign: 'center', color: '#666', marginTop: 10 }}>No hay notificaciones.</Text>
+            )}
           </ScrollView>
         </View>
       )}

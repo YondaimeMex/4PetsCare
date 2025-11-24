@@ -1,31 +1,58 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
-import React from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
-// --- Componente de notificación ---
-const NotificationItem = ({ text }) => (
+import NotificationService from './Notificaciones';
+
+// Lista de consejos disponibles
+const petTips = [
+    { title: 'Nutrición Esencial 🍎', text: 'Asegúrate de que la dieta de tu mascota sea balanceada y apropiada para su edad y nivel de actividad. Evita darle comida humana que pueda ser tóxica (como el chocolate o las uvas).' },
+    { title: 'Ejercicio Diario 🏃‍♀️', text: 'El ejercicio regular es vital. Un perro necesita paseos; un gato, tiempo de juego. Esto previene la obesidad y problemas de comportamiento.' },
+    { title: 'Salud Dental 🦷', text: 'Cepilla los dientes de tu mascota varias veces a la semana con pasta especial para animales para prevenir enfermedades periodontales.' },
+    { title: 'Revisiones Veterinarias 🩺', text: 'No esperes a que tu mascota esté enferma. Las revisiones anuales y las vacunas al día son clave para la detección temprana de problemas.' },
+    { title: 'Identificación Segura 🏷️', text: 'Coloca un collar con placa de identificación actualizada y considera el microchip. Si se pierde, esto es fundamental para recuperarla.' },
+    { title: 'Hidratación Constante 💧', text: 'Proporciona agua fresca y limpia en todo momento. Lávate el cuenco a diario para evitar el crecimiento de bacterias.' },
+    { title: 'Socialización Temprana 🐾', text: 'Expón a tu mascota (especialmente cachorros) a diferentes personas, sonidos y entornos de forma segura para fomentar un buen temperamento.' },
+    { title: 'Control de Parásitos 🐛', text: 'Mantén un calendario estricto para desparasitación interna y externa (pulgas y garrapatas), siguiendo las indicaciones de tu veterinario.' },
+];
+
+
+const NotificationItem = ({ text, date }) => (
     <View style={notificationStyles.notificationItem}>
         <View style={notificationStyles.bullet} />
-        <Text style={notificationStyles.notificationText}>{text}</Text>
+        <Text style={notificationStyles.notificationText}>{text} {"\n"}<Text style={{ fontSize: 12, color: '#555' }}>{date}</Text></Text>
     </View>
 );
 
-// --- Datos de notificaciones ---
-const notificationsData = [
-    '¡Se acerca el día de la cita! ¿Ya tienes todo preparado?',
-    '¡Campaña de vacunacion!, el día 30 de Octubre',
-    'Recordatorio: Próxima dosis de medicamento.',
-    'Hola'
-];
-
-// --- Componente principal ---
 export default function Consejos() {
     const navigation = useNavigation();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [notificaciones, setNotificaciones] = useState([]);
+    // Estado para guardar el consejo actual
+    const [currentTip, setCurrentTip] = useState(petTips[0]); 
+
+    // Función para actualizar el consejo
+    const updateTip = useCallback(() => {
+        // Generar un índice aleatorio
+        const randomIndex = Math.floor(Math.random() * petTips.length);
+        
+        // Seleccionar un nuevo consejo
+        const newTip = petTips[randomIndex];
+        
+        // Actualizar el estado
+        setCurrentTip(newTip);
+        
+        Alert.alert("Actualizado", "¡Aquí tienes un nuevo consejo!");
+    }, []); // El array vacío asegura que la función solo se cree una vez
+
+    // Cargar el primer consejo al iniciar el componente
+    useEffect(() => {
+        updateTip();
+    }, [updateTip]);
+
 
     const toggleMenu = () => {
         const newState = !isMenuOpen;
@@ -33,10 +60,19 @@ export default function Consejos() {
         if (newState) setIsNotificationsOpen(false);
     };
 
-    const toggleNotifications = () => {
+    const toggleNotifications = async () => {
         const newState = !isNotificationsOpen;
         setIsNotificationsOpen(newState);
-        if (newState) setIsMenuOpen(false);
+        if (newState) {
+            setIsMenuOpen(false);
+            try {
+                const allNotifications = await NotificationService.getNotifications();
+                setNotificaciones(allNotifications);
+            } catch (error) {
+                console.error("Error al cargar notificaciones:", error);
+                setNotificaciones([]);
+            }
+        }
     };
 
     const handleOverlayClick = () => {
@@ -47,102 +83,117 @@ export default function Consejos() {
     const isOverlayVisible = isMenuOpen || isNotificationsOpen;
 
     return (
-            <View style={styles.container}>
-                <StatusBar style="auto" />
+        <View style={styles.container}>
+            <StatusBar style="auto" />
 
-                {/* --- Encabezado --- */}
-                <View style={styles.header}>
-                    <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
-                        <MaterialIcons name="menu" size={32} color="black" />
+            {/* --- Encabezado */}
+            <View style={styles.header}>
+                <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
+                    <MaterialIcons name="menu" size={32} color="black" />
+                </TouchableOpacity>
+                <View style={styles.headerRight}>
+                    <TouchableOpacity style={[styles.floatingBtn, styles.headerIcon]} onPress={toggleNotifications}>
+                        <Ionicons name="notifications" size={32} color="black" />
                     </TouchableOpacity>
-                    <View style={styles.headerRight}>
-                        <TouchableOpacity style={[styles.floatingBtn, styles.headerIcon]} onPress={toggleNotifications}>
-                            <Ionicons name="notifications" size={32} color="black" />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.floatingBtn, styles.headerIcon]} onPress={() => navigation.navigate('Perfil')}>
-                            <Ionicons name="person-circle-outline" size={32} color="black" />
-                        </TouchableOpacity>
-                    </View>
+                    <TouchableOpacity style={[styles.floatingBtn, styles.headerIcon]} onPress={() => navigation.navigate('Perfil')}>
+                        <Ionicons name="person-circle-outline" size={32} color="black" />
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            {/* --- Contenido principal --- */}
+            <ScrollView contentContainerStyle={styles.content}>
+                
+                {/* Primer Card: Contenido fijo */}
+                <View style={styles.card}>
+                    <Text style={styles.title}>Consejos Básicos</Text>
+                    <Text style={styles.cardText}>Cuida a tu mascota con amor, buena alimentación y visitas al veterinario. Mantén su espacio limpio y dale agua fresca siempre.</Text>
+                </View>
+                
+                {/* Segundo Card: Contenido dinámico */}
+                <View style={styles.dynamicCard}>
+                    <Text style={styles.dynamicTitle}>{currentTip.title}</Text>
+                    <Text style={styles.dynamicCardText}>{currentTip.text}</Text>
                 </View>
 
-                {/* --- Contenido principal --- */}
-                <View style={styles.content}>
-                    <View style={styles.card}>
-                        <Text style={styles.title}>Consejos</Text>
-                        <Text style={styles.cardText}>Cuida a tu mascota con amor, buena alimentación y visitas al veterinario. Mantén su espacio limpio y dale agua fresca siempre.</Text>
-                    </View>
-                    <View style={styles.card}>
-                        <Text style={styles.cardText}>Juega con ella y mantenla limpia y protegida</Text>
-                    </View>
+                {/* Contenido adicional */}
+                <View style={styles.card}>
+                     <Text style={styles.cardText}>Juega con ella y mantenla limpia y protegida.</Text>
                 </View>
 
-                {/* --- Botón flotante central --- */}
-                <TouchableOpacity style={styles.floatingBtnCenter} onPress={() => { navigation.navigate('Consejos'); alert('Actualizado'); }}>
-                    <View style={{ alignItems: 'center' }}>
-                        <MaterialCommunityIcons name="restart" size={40} color="black" />
-                        <Text style={styles.vaccineButtonText}>Actualizar</Text>
+            </ScrollView>
+
+            {/* --- Botón flotante central --- */}
+            <TouchableOpacity style={styles.floatingBtnCenter} onPress={updateTip}>
+                <View style={{ alignItems: 'center' }}>
+                    <MaterialCommunityIcons name="restart" size={40} color="black" />
+                    <Text style={styles.vaccineButtonText}>Actualizar</Text>
+                </View>
+            </TouchableOpacity>
+
+            {/* --- Overlay --- */}
+            {isOverlayVisible && (
+                <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={handleOverlayClick} />
+            )}
+
+            {/* --- Menú lateral --- */}
+            <View style={[styles.sideMenu, { transform: [{ translateX: isMenuOpen ? 0 : -300 }] }]}>
+                <View style={styles.menuHeader}>
+                    <Text style={styles.menuTitle}>Menú</Text>
+                    <TouchableOpacity onPress={toggleMenu}>
+                        <Ionicons name="close" size={30} color="#333" />
+                    </TouchableOpacity>
+                </View>
+
+                {/* Opciones de menú */}
+                <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Home')}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name="home" size={24} color="black" />
+                        <Text style={styles.menuItemText}>Inicio</Text>
                     </View>
                 </TouchableOpacity>
-
-                {/* --- Overlay --- */}
-                {isOverlayVisible && (
-                    <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={handleOverlayClick} />
-                )}
-
-                {/* --- Menú lateral --- */}
-                <View style={[styles.sideMenu, { transform: [{ translateX: isMenuOpen ? 0 : -300 }] }]}>
-                    <View style={styles.menuHeader}>
-                        <Text style={styles.menuTitle}>Menú</Text>
-                        <TouchableOpacity onPress={toggleMenu}>
-                            <Ionicons name="close" size={30} color="#333" />
-                        </TouchableOpacity>
+                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name="paw-outline" size={30} color="#4BCF5C" />
+                        <Text style={styles.menuItemText}>Mascotas</Text>
                     </View>
-
-                    {/* Opciones de menú */}
-                    <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Home')}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Ionicons name="home" size={24} color="black" />
-                            <Text style={styles.menuItemText}>Inicio</Text>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Mascotas')}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Ionicons name="paw-outline" size={30} color="#4BCF5C" />
-                            <Text style={styles.menuItemText}>Mascotas</Text>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Calendario')}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Ionicons name="calendar-number" size={30} color="#007AFF" />
-                            <Text style={styles.menuItemText}>Calendario</Text>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.menuItem} onPress={() => alert('Ya te encuentras en consejos')}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <MaterialIcons name="tips-and-updates" size={30} color="#FF9500" />
-                            <Text style={styles.menuItemText}>Consejos</Text>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Emergencias')}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <MaterialIcons name="emergency" size={30} color="#FF3B30" />
-                            <Text style={styles.menuItemText}>Emergencias</Text>
-                        </View>
-                    </TouchableOpacity>
-                </View>
-
-                {/* --- Panel de notificaciones --- */}
-                {isNotificationsOpen && (
-                    <View style={notificationStyles.notificationsContainer}>
-                        <Text style={notificationStyles.headerText}>Notificaciones</Text>
-                        <ScrollView style={notificationStyles.list}>
-                            {notificationsData.map((text, index) => (
-                                <NotificationItem key={index} text={text} />
-                            ))}
-                        </ScrollView>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name="calendar-number" size={30} color="#007AFF" />
+                        <Text style={styles.menuItemText}>Calendario</Text>
                     </View>
-                )}
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuItem} onPress={() => alert('Ya te encuentras en consejos')}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <MaterialIcons name="tips-and-updates" size={30} color="#FF9500" />
+                        <Text style={styles.menuItemText}>Consejos</Text>
+                    </View>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <MaterialIcons name="emergency" size={30} color="#FF3B30" />
+                        <Text style={styles.menuItemText}>Emergencias</Text>
+                    </View>
+                </TouchableOpacity>
             </View>
+
+            {/* --- Panel de notificaciones --- */}
+            {isNotificationsOpen && (
+                <View style={notificationStyles.notificationsContainer}>
+                    <Text style={notificationStyles.headerText}>Notificaciones</Text>
+                    <ScrollView style={notificationStyles.list}>
+                        {notificaciones.length > 0 ? (
+                            notificaciones.map((n, index) => (
+                                <NotificationItem key={index} text={n.text} date={n.date} />
+                            ))
+                        ) : (
+                            <Text style={{ textAlign: 'center', color: '#666', marginTop: 10 }}>No hay notificaciones.</Text>
+                        )}
+                    </ScrollView>
+                </View>
+            )}
+        </View>
     );
 }
 
@@ -153,7 +204,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff'
     },
     content: {
-        paddingHorizontal: 20
+        paddingHorizontal: 20,
+        paddingBottom: 150,
     },
     header: {
         flexDirection: 'row',
@@ -229,6 +281,7 @@ const styles = StyleSheet.create({
         marginLeft: 15,
         color: '#333'
     },
+    // Estilo para el card fijo
     card: {
         backgroundColor: '#e0e0e0',
         padding: 20,
@@ -238,6 +291,25 @@ const styles = StyleSheet.create({
     cardText: {
         fontSize: 16,
         lineHeight: 22
+    },
+    // Estilo para el card dinámico
+    dynamicCard: {
+        backgroundColor: '#FFEBEE',
+        padding: 20,
+        borderRadius: 10,
+        marginBottom: 20,
+        borderLeftWidth: 5,
+        borderLeftColor: '#FF9500',
+    },
+    dynamicTitle: {
+        fontWeight: 'bold',
+        fontSize: 18,
+        marginBottom: 8,
+        color: '#D15700',
+    },
+    dynamicCardText: {
+        fontSize: 16,
+        lineHeight: 22,
     },
     title: {
         fontWeight: 'bold',
@@ -262,7 +334,7 @@ const styles = StyleSheet.create({
         bottom: 60,
         left: '50%',
         transform: [{ translateX: -40 }],
-        backgroundColor: '#fff',
+        backgroundColor: '#FF9500',
         borderRadius: 50,
         elevation: 5,
         shadowColor: '#000',
@@ -276,9 +348,11 @@ const styles = StyleSheet.create({
         flexDirection: 'column'
     },
     vaccineButtonText: {
-        fontSize: 14,
-        marginTop: 5,
-        textAlign: 'center'
+        fontSize: 12,
+        marginTop: 2,
+        textAlign: 'center',
+        color: 'black',
+        fontWeight: 'bold',
     },
 });
 

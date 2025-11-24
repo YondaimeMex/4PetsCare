@@ -1,11 +1,14 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, TextInput } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useState } from 'react';
 import React from 'react';
 import { Calendar } from 'react-native-calendars';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import NotificationService from './Notificaciones';
 
 // Componente que muestra cada notificación
 const NotificationItem = ({ text }) => (
@@ -15,21 +18,20 @@ const NotificationItem = ({ text }) => (
     </View>
 );
 
-// Lista de notificaciones
-const notificationsData = [
-    '¡Se acerca el día de la cita! ¿Ya tienes todo preparado?',
-    '¡Campaña de vacunacion!, el día 30 de Octubre',
-    'Recordatorio: Próxima dosis de medicamento.',
-    'Hola'
-];
-
 export default function ConfirmacionVacuna() {
     const navigation = useNavigation();
+    const route = useRoute();
+    const { mascota } = route.params || {};
 
     // Estados del menú, notificaciones y calendario
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState('');
+    const [notificaciones, setNotificaciones] = useState([]);
+    const [veterinarias, setVeterinarias] = useState([]);
+    const [selectedVeterinaria, setSelectedVeterinaria] = useState('');
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
 
     // Abre o cierra el menú lateral
     const toggleMenu = () => {
@@ -40,12 +42,19 @@ export default function ConfirmacionVacuna() {
         }
     };
 
-    // Abre o cierra el panel de notificaciones
-    const toggleNotifications = () => {
+    const toggleNotifications = async () => {
         const newState = !isNotificationsOpen;
         setIsNotificationsOpen(newState);
         if (newState) {
             setIsMenuOpen(false);
+            // Cargar notificaciones al abrir
+            try {
+                const allNotifications = await NotificationService.getNotifications();
+                setNotificaciones(allNotifications);
+            } catch (error) {
+                console.error("Error al cargar notificaciones:", error);
+                setNotificaciones([]);
+            }
         }
     };
 
@@ -55,16 +64,58 @@ export default function ConfirmacionVacuna() {
         if (isNotificationsOpen) toggleNotifications();
     };
 
-    // Guarda la fecha seleccionada
-    const handleSave = () => {
+    // Cargar veterinarias
+    const loadVeterinarias = async () => {
+        try {
+            const jsonValue = await AsyncStorage.getItem('@veterinarias');
+            const data = jsonValue != null ? JSON.parse(jsonValue) : [];
+            data.sort((a, b) => a.label.localeCompare(b.label));
+            setVeterinarias(data);
+        } catch (error) {
+            console.error("Error cargando veterinarias", error);
+        }
+    };
+
+    // Cargar veterinarias al montar el componente
+    React.useEffect(() => {
+        loadVeterinarias();
+    }, []);
+
+    const handleSave = async () => {
         if (!selectedDate) {
             Alert.alert("Error", "Selecciona la fecha en que la vacuna fue aplicada.");
             return false;
         }
 
+        if (!selectedVeterinaria) {
+            Alert.alert("Error", "Selecciona la veterinaria donde se aplicó la vacuna.");
+            return false;
+        }
+
         const fechaAplicada = selectedDate;
-        console.log('Fecha de Vacuna Aplicada Guardada:', fechaAplicada);
-        return true;
+
+        const newCita = {
+            id: Date.now(), // ID único
+            fecha: fechaAplicada,
+            tipo: 'Vacuna',
+            veterinaria: selectedVeterinaria, // Nombre de la veterinaria seleccionada
+            usuario: mascota?.nombre || 'Mi Mascota', // Nombre de la mascota
+        };
+
+        try {
+            const citasRaw = await AsyncStorage.getItem('@citas');
+            const citas = citasRaw ? JSON.parse(citasRaw) : [];
+
+            const updatedCitas = [...citas, newCita];
+            await AsyncStorage.setItem('@citas', JSON.stringify(updatedCitas));
+
+            console.log('Vacuna Aplicada Guardada en AsyncStorage:', newCita);
+            return true;
+        } catch (error) {
+            console.error("Error al guardar la cita en AsyncStorage:", error);
+            Alert.alert("Error", "Hubo un problema al guardar el registro de la vacuna.");
+            return false;
+        }
     };
 
     // Verifica si hay un menú o notificaciones abiertas
@@ -120,11 +171,58 @@ export default function ConfirmacionVacuna() {
                     <Text style={styles.dateText}>Fecha elegida: {selectedDate}</Text>
                 ) : null}
 
+                {/* Seleccionar Veterinaria */}
+                <View style={[styles.card, { zIndex: 100 }]}>
+                    <Text style={styles.label}>Seleccione la veterinaria</Text>
+
+                    <TouchableOpacity style={styles.dropdownTrigger} onPress={() => setIsDropdownOpen(!isDropdownOpen)}>
+                        <TextInput
+                            style={styles.dropdownInputText}
+                            value={selectedVeterinaria}
+                            placeholder="Elige una veterinaria"
+                            placeholderTextColor="#999"
+                            editable={false}
+                            pointerEvents="none"
+                        />
+                        <MaterialIcons
+                            name={isDropdownOpen ? "arrow-drop-up" : "arrow-drop-down"}
+                            size={24}
+                            color="#333"
+                        />
+                    </TouchableOpacity>
+
+                    {/* Lista desplegable */}
+                    {isDropdownOpen && (
+                        <View style={styles.dropdownList}>
+                            {veterinarias.length === 0 ? (
+                                <View style={styles.emptyStateBox}>
+                                    <Text style={styles.emptyStateText}>No hay veterinarias guardadas.</Text>
+                                </View>
+                            ) : (
+                                <>
+                                    {veterinarias.map((option, index) => (
+                                        <TouchableOpacity
+                                            key={index}
+                                            style={styles.dropdownItem}
+                                            onPress={() => {
+                                                setSelectedVeterinaria(option.label);
+                                                setIsDropdownOpen(false);
+                                            }}
+                                        >
+                                            <Text style={styles.dropdownItemText}>{option.label}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </>
+                            )}
+                        </View>
+                    )}
+                </View>
+
                 {/* Botón para confirmar vacuna */}
                 <TouchableOpacity
                     style={styles.vaccineButton}
-                    onPress={() => {
-                        const saved = handleSave();
+                    onPress={async () => {
+                        const saved = await handleSave();
                         if (saved) {
                             navigation.navigate('VacunaRegistrada', { fechaAplicada: selectedDate });
                             setSelectedDate('');
@@ -180,7 +278,7 @@ export default function ConfirmacionVacuna() {
                     <MaterialIcons name="tips-and-updates" size={30} color="#FF9500" />
                     <Text style={styles.menuItemText}>Consejos</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); console.log('Emergencias'); }}>
+                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
                     <MaterialIcons name="emergency" size={30} color="#FF3B30" />
                     <Text style={styles.menuItemText}>Emergencias</Text>
                 </TouchableOpacity>
@@ -191,9 +289,13 @@ export default function ConfirmacionVacuna() {
                 <View style={notificationStyles.notificationsContainer}>
                     <Text style={notificationStyles.headerText}>Notificaciones</Text>
                     <ScrollView style={notificationStyles.list}>
-                        {notificationsData.map((text, index) => (
-                            <NotificationItem key={index} text={text} />
-                        ))}
+                        {notificaciones.length > 0 ? (
+                            notificaciones.map((n, index) => (
+                                <NotificationItem key={index} text={n.text} />
+                            ))
+                        ) : (
+                            <Text style={{ textAlign: 'center', color: '#666', marginTop: 10 }}>No hay notificaciones.</Text>
+                        )}
                     </ScrollView>
                 </View>
             )}
@@ -340,6 +442,55 @@ const styles = StyleSheet.create({
         shadowOpacity: 0,
         borderWidth: 0,
     },
+    label: {
+        fontSize: 16,
+        color: '#555',
+        marginBottom: 8,
+        fontWeight: '600'
+    },
+    dropdownTrigger: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f9f9f9',
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+        borderRadius: 8,
+        height: 50,
+        paddingHorizontal: 10
+    },
+    dropdownInputText: {
+        flex: 1,
+        fontSize: 16,
+        color: '#333'
+    },
+    dropdownList: {
+        marginTop: 5,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+        borderRadius: 8,
+        backgroundColor: '#fff',
+        overflow: 'hidden',
+        elevation: 4
+    },
+    dropdownItem: {
+        padding: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0'
+    },
+    dropdownItemText: {
+        fontSize: 16,
+        color: '#333'
+    },
+    emptyStateBox: {
+        padding: 20,
+        alignItems: 'center',
+        backgroundColor: '#fdfdfd'
+    },
+    emptyStateText: {
+        color: '#888',
+        marginBottom: 12,
+        fontSize: 14
+    }
 });
 
 const notificationStyles = StyleSheet.create({

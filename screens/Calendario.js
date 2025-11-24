@@ -1,169 +1,451 @@
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { FontAwesome5 } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
-import React from 'react';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import NotificationService from './Notificaciones';
+
+// --- COMPONENTES AUXILIARES ---
 
 // Componente para mostrar cada notificación
-const NotificationItem = ({ text }) => (
+const NotificationItem = ({ text, date }) => (
     <View style={notificationStyles.notificationItem}>
         <View style={notificationStyles.bullet} />
-        <Text style={notificationStyles.notificationText}>{text}</Text>
+        <Text style={notificationStyles.notificationText}>{text} {"\n"}<Text style={{ fontSize: 12, color: '#555' }}>{date}</Text></Text>
     </View>
 );
 
-// Lista de notificaciones
-const notificationsData = [
-    '¡Se acerca el día de la cita! ¿Ya tienes todo preparado?',
-    '¡Campaña de vacunacion!, el día 30 de Octubre',
-    'Recordatorio: Próximo medicamento.',
-    'Hola'
-];
+// Componente para mostrar detalles de vacunas
+const VacunaDetailItem = ({ vacuna, onEdit, onDelete }) => (
+    <View style={styles.vacunaDetailCard}>
+        <FontAwesome5 name="syringe" size={16} color="green" style={{ marginRight: 10 }} />
+        <View style={{ flex: 1 }}>
+            <Text style={styles.vacunaTextTitle}>Vacuna Aplicada</Text>
+            <Text style={styles.vacunaText}>{vacuna.veterinaria} - {vacuna.usuario}</Text>
+        </View>
+        <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity
+                style={[styles.actionButton, styles.editButton]}
+                onPress={() => onEdit(vacuna)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+                <MaterialIcons name="edit" size={18} color="#4BCF5C" />
+            </TouchableOpacity>
+            <TouchableOpacity
+                style={[styles.actionButton, styles.deleteButtonStyle]}
+                onPress={() => onDelete(vacuna)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+                <MaterialIcons name="delete" size={18} color="#FF3B30" />
+            </TouchableOpacity>
+        </View>
+    </View>
+);
+
+// Componente para mostrar los detalles de la cita
+const CitaDetailItem = ({ cita, onEdit, onDelete }) => (
+    <View style={styles.detailCard}>
+        <Ionicons name="paw" size={20} color="#007AFF" style={{ marginRight: 10 }} />
+        <View style={{ flex: 1 }}>
+            <Text style={styles.detailTextTitle}>Cita Programada</Text>
+            <Text style={styles.detailText}>Usuario: {cita.usuario}</Text>
+            <Text style={styles.detailText}>Veterinaria: {cita.veterinaria}</Text>
+        </View>
+        <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity
+                style={[styles.actionButton, styles.editButton]}
+                onPress={() => onEdit(cita)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+                <MaterialIcons name="edit" size={20} color="#007AFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+                style={[styles.actionButton, styles.deleteButtonStyle]}
+                onPress={() => onDelete(cita)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+                <MaterialIcons name="delete" size={20} color="#FF3B30" />
+            </TouchableOpacity>
+        </View>
+    </View>
+);
+
+// --- COMPONENTE PRINCIPAL ---
 
 export default function Calendario() {
-    const navigation = useNavigation(); // Hook para cambiar de pantalla
-    const [isMenuOpen, setIsMenuOpen] = useState(false); // Estado del menú lateral
-    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false); // Estado del panel de notificaciones
-    const today = new Date().toISOString().split('T')[0]; // Fecha actual
-    const [selectedDate, setSelectedDate] = useState(''); // Fecha seleccionada en el calendario
+    const navigation = useNavigation();
+    const isFocused = useIsFocused();
 
-    // Fechas de eventos (rojos) y citas (azules)
-    const [events] = useState(['2025-11-30', '2025-11-17']);
-    const [appointments] = useState(['2025-11-04', '2025-11-07']);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [selectedDate, setSelectedDate] = useState('');
+    const [selectedDayEvents, setSelectedDayEvents] = useState([]);
+    const [notificaciones, setNotificaciones] = useState([]);
+    const [allCitas, setAllCitas] = useState([]);
+    const [markedDatesData, setMarkedDatesData] = useState({});
 
-    // Función que marca las fechas con puntos de colores en el calendario
-    const getMarkedDates = () => {
-        const marked = {};
+    // Campañas Fijas
+    const FIXED_CAMPANAS = [
+        { fecha: '2025-11-20', tipo: 'campaña', nombre: 'Campaña de Desparasitación' },
+        { fecha: '2025-12-15', tipo: 'campaña', nombre: 'Campaña de Vacunación Anual' }
+    ];
 
-        // Fechas de eventos
-        events.forEach(date => {
-            if (!marked[date]) marked[date] = { dots: [] };
-            marked[date].dots.push({ key: `event-${date}`, color: 'red', selectedDotColor: 'white' });
-        });
+    // --- LÓGICA DE ELIMINACIÓN DE CITA ---
+    const deleteCita = async (citaToDelete) => {
+        Alert.alert(
+            "Confirmar Eliminación",
+            `¿Estás seguro de que quieres eliminar la cita con ${citaToDelete.veterinaria} de ${citaToDelete.usuario} el ${citaToDelete.fecha}?`,
+            [
+                { text: "Cancelar", style: "cancel" },
+                {
+                    text: "Eliminar",
+                    onPress: async () => {
+                        try {
+                            const citasRaw = await AsyncStorage.getItem('@citas');
+                            const citas = citasRaw ? JSON.parse(citasRaw) : [];
 
-        // Fechas de citas
-        appointments.forEach(date => {
-            if (!marked[date]) marked[date] = { dots: [] };
-            marked[date].dots.push({ key: `appt-${date}`, color: 'blue', selectedDotColor: 'white' });
-        });
+                            const updatedCitas = citas.filter(c =>
+                                c.fecha !== citaToDelete.fecha ||
+                                c.usuario !== citaToDelete.usuario ||
+                                c.veterinaria !== citaToDelete.veterinaria
+                            );
 
-        // Fecha seleccionada por el usuario
+                            await AsyncStorage.setItem('@citas', JSON.stringify(updatedCitas));
+                            await loadCalendarData();
+
+                            if (selectedDate === citaToDelete.fecha) {
+                                const newEventsForSelectedDay = FIXED_CAMPANAS
+                                    .filter(c => c.fecha === selectedDate)
+                                    .concat(updatedCitas.filter(c => c.fecha === selectedDate && (c.tipo === 'Cita' || c.tipo === 'Vacuna')));
+                                setSelectedDayEvents(newEventsForSelectedDay);
+                            }
+                            Alert.alert("Éxito", "Cita eliminada correctamente.");
+
+                        } catch (error) {
+                            console.error("Error al eliminar cita:", error);
+                            Alert.alert("Error", "No se pudo eliminar la cita.");
+                        }
+                    },
+                    style: "destructive"
+                }
+            ]
+        );
+    };
+
+    // --- LÓGICA DE EDICIÓN DE CITA ---
+    const editCita = (citaToEdit) => {
+        navigation.navigate('EditarCita', { cita: citaToEdit });
+    };
+
+    // --- LÓGICA DE ELIMINACIÓN DE VACUNA ---
+    const deleteVacuna = async (vacunaToDelete) => {
+        Alert.alert(
+            "Confirmar Eliminación",
+            `¿Estás seguro de que quieres eliminar el registro de vacuna en ${vacunaToDelete.veterinaria}?`,
+            [
+                { text: "Cancelar", style: "cancel" },
+                {
+                    text: "Eliminar",
+                    onPress: async () => {
+                        try {
+                            const citasRaw = await AsyncStorage.getItem('@citas');
+                            const citas = citasRaw ? JSON.parse(citasRaw) : [];
+
+                            const updatedCitas = citas.filter(c =>
+                                !(c.fecha === vacunaToDelete.fecha &&
+                                    c.usuario === vacunaToDelete.usuario &&
+                                    c.veterinaria === vacunaToDelete.veterinaria &&
+                                    (c.tipo === 'Vacuna' || c.veterinaria === 'Vacuna Registrada'))
+                            );
+
+                            await AsyncStorage.setItem('@citas', JSON.stringify(updatedCitas));
+                            await loadCalendarData();
+
+                            if (selectedDate === vacunaToDelete.fecha) {
+                                const newEventsForSelectedDay = FIXED_CAMPANAS
+                                    .filter(c => c.fecha === selectedDate)
+                                    .concat(updatedCitas.filter(c => c.fecha === selectedDate && (c.tipo === 'Cita' || c.tipo === 'Vacuna')));
+                                setSelectedDayEvents(newEventsForSelectedDay);
+                            }
+                            Alert.alert("Éxito", "Vacuna eliminada correctamente.");
+
+                        } catch (error) {
+                            console.error("Error al eliminar vacuna:", error);
+                            Alert.alert("Error", "No se pudo eliminar la vacuna.");
+                        }
+                    },
+                    style: "destructive"
+                }
+            ]
+        );
+    };
+
+    // --- LÓGICA DE EDICIÓN DE VACUNA ---
+    const editVacuna = (vacunaToEdit) => {
+        navigation.navigate('EditarVacuna', { vacuna: vacunaToEdit });
+    };    // --- CARGAR DATOS ---
+    const loadCalendarData = async () => {
+        try {
+            console.log('Cargando datos del calendario...');
+
+            const newMarked = {};
+            const allFetchedCitas = [];
+
+            // 1. Agregar campañas fijas
+            FIXED_CAMPANAS.forEach(campana => {
+                const date = campana.fecha;
+
+                if (!newMarked[date]) {
+                    newMarked[date] = { dots: [] };
+                }
+                newMarked[date].dots.push({
+                    key: `campana-${date}`,
+                    color: 'red',
+                    selectedDotColor: 'white'
+                });
+                allFetchedCitas.push(campana);
+            });
+
+            // 2. Agregar citas guardadas
+            const citasRaw = await AsyncStorage.getItem('@citas');
+            const citas = citasRaw ? JSON.parse(citasRaw) : [];
+
+            citas.forEach(cita => {
+                const date = cita.fecha;
+                if (!date) return;
+
+                if (!newMarked[date]) {
+                    newMarked[date] = { dots: [] };
+                }
+
+                // CLASIFICACIÓN CLARA
+                const esCitaProgramada = cita.tipo === 'Cita';
+                const esVacuna = cita.tipo === 'Vacuna' || cita.veterinaria === 'Vacuna Registrada';
+
+                console.log(`Calendario - Cita ${cita.id}: tipo=${cita.tipo}, fecha=${date}, esCita=${esCitaProgramada}, esVacuna=${esVacuna}`);
+
+                if (esCitaProgramada) {
+                    const hasCitaDot = newMarked[date].dots.find(d => d.color === 'blue');
+                    if (!hasCitaDot) {
+                        newMarked[date].dots.push({
+                            key: `cita-${date}-${Date.now()}`,
+                            color: 'blue',
+                            selectedDotColor: 'white'
+                        });
+                        console.log(`✓ Agregado punto AZUL para ${date}`);
+                    }
+                    allFetchedCitas.push({
+                        ...cita,
+                        tipo: 'cita'
+                    });
+                } else if (esVacuna) {
+                    const hasVacunaDot = newMarked[date].dots.find(d => d.color === 'green');
+                    if (!hasVacunaDot) {
+                        newMarked[date].dots.push({
+                            key: `vacuna-${date}-${Date.now()}`,
+                            color: 'green',
+                            selectedDotColor: 'white'
+                        });
+                        console.log(`✓ Agregado punto VERDE para ${date}`);
+                    }
+                    allFetchedCitas.push({
+                        ...cita,
+                        tipo: 'vacuna'
+                    });
+                }
+            });
+
+            console.log('Fechas marcadas FINAL:', newMarked);
+            setMarkedDatesData(newMarked);
+            setAllCitas(allFetchedCitas);
+
+        } catch (error) {
+            console.error("Error cargando calendario:", error);
+        }
+    };
+
+    // --- Seleccion de dia ---
+    const handleDayPress = (day) => {
+        setSelectedDate(day.dateString);
+        const events = allCitas.filter(item => item.fecha === day.dateString);
+        setSelectedDayEvents(events);
+    };
+
+    // Función para combinar las marcas del calendario con la selección actual
+    const getDisplayDates = () => {
+        const combined = { ...markedDatesData };
+
         if (selectedDate) {
-            const prev = marked[selectedDate] || {};
-            marked[selectedDate] = {
-                ...prev,
+            if (!combined[selectedDate]) {
+                combined[selectedDate] = { dots: [] };
+            }
+
+            combined[selectedDate] = {
+                ...combined[selectedDate],
                 selected: true,
                 selectedColor: '#4CAF50'
             };
+
+            console.log(`Fecha seleccionada: ${selectedDate}`, combined[selectedDate]);
         }
 
-        return marked;
+        return combined;
     };
 
-    // Abre o cierra el menú lateral
+    useEffect(() => {
+        if (isFocused) {
+            loadCalendarData();
+            setSelectedDate('');
+            setSelectedDayEvents([]);
+        }
+    }, [isFocused]);
+
+    // --- MANEJADORES DE UI (Menú/Notificaciones) ---
     const toggleMenu = () => {
         const newState = !isMenuOpen;
         setIsMenuOpen(newState);
         if (newState) setIsNotificationsOpen(false);
     };
 
-    // Abre o cierra el panel de notificaciones
-    const toggleNotifications = () => {
+    const toggleNotifications = async () => {
         const newState = !isNotificationsOpen;
         setIsNotificationsOpen(newState);
-        if (newState) setIsMenuOpen(false);
+        if (newState) {
+            setIsMenuOpen(false);
+            try {
+                const allNotifications = await NotificationService.getNotifications();
+                setNotificaciones(allNotifications);
+            } catch (error) {
+                console.error("Error al cargar notificaciones:", error);
+            }
+        }
     };
 
-    // Cierra el menú o las notificaciones si se toca fuera
     const handleOverlayClick = () => {
-        if (isMenuOpen) toggleMenu();
-        if (isNotificationsOpen) toggleNotifications();
+        if (isMenuOpen) setIsMenuOpen(false);
+        if (isNotificationsOpen) setIsNotificationsOpen(false);
     };
 
-    const isOverlayVisible = isMenuOpen || isNotificationsOpen; // Detecta si hay algo abierto (menu o notificaciones)
+    const isOverlayVisible = isMenuOpen || isNotificationsOpen;
 
     return (
         <View style={styles.container}>
             <StatusBar style="auto" />
 
-            {/* --- Encabezado superior --- */}
+            {/* Encabezado */}
             <View style={styles.header}>
-                {/* Botón de menú hamburguesa */}
                 <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
                     <MaterialIcons name="menu" size={32} color="black" />
                 </TouchableOpacity>
 
-                {/* Íconos del lado derecho: notificaciones y perfil */}
                 <View style={styles.headerRight}>
                     <TouchableOpacity style={styles.headerIcon} onPress={toggleNotifications}>
                         <Ionicons name="notifications" size={32} color="black" />
                     </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={styles.headerIcon}
-                        onPress={() => navigation.navigate('Perfil')}
-                    >
+                    <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('Perfil')}>
                         <Ionicons name="person-circle-outline" size={32} color="black" />
                     </TouchableOpacity>
                 </View>
             </View>
 
-            {/* --- Contenido principal --- */}
+            {/* Contenido */}
             <ScrollView contentContainerStyle={styles.content}>
-                {/* Tarjeta con título */}
                 <View style={styles.card}>
                     <Text style={styles.title}>Calendario</Text>
-                    <Text style={styles.subtitle}>¡En este apartado te mostrara las fechas de tus citas!</Text>
+                    <Text style={styles.subtitle}>¡Aquí puedes ver tus citas programadas y campañas activas!</Text>
                 </View>
 
-                {/* Calendario interactivo */}
                 <View style={{ paddingBottom: 30 }}>
                     <Calendar
-                        onDayPress={day => setSelectedDate(day.dateString)}
+                        onDayPress={handleDayPress}
                         markingType={'multi-dot'}
-                        markedDates={getMarkedDates()}
+                        markedDates={getDisplayDates()}
                         theme={{
                             todayTextColor: '#007AFF',
                             arrowColor: '#4CAF50',
+                            textDayFontWeight: '500',
+                            selectedDayBackgroundColor: '#4CAF50',
+                            selectedDayTextColor: '#ffffff'
+                        }}
+                        style={{
+                            borderWidth: 1,
+                            borderColor: '#e0e0e0',
+                            borderRadius: 10,
+                            overflow: 'hidden'
                         }}
                     />
 
-                    {selectedDate ? (
-                        <Text style={styles.dateText}>Fecha elegida: {selectedDate}</Text>
-                    ) : null}
+                    {/* --- DETALLES DEL DÍA SELECCIONADO --- */}
+                    {selectedDate && (
+                        <View style={styles.detailsContainer}>
+                            <Text style={styles.dateText}>
+                                Eventos para el <Text style={{ fontWeight: 'bold' }}>{selectedDate}</Text>:
+                            </Text>
 
-                    <View style={styles.card}>
+                            {selectedDayEvents.length === 0 ? (
+                                <Text style={styles.noEventsText}>No hay eventos programados para esta fecha.</Text>
+                            ) : (
+                                selectedDayEvents.map((event, index) => {
+                                    if (event.tipo === 'cita') {
+                                        return (
+                                            <CitaDetailItem
+                                                key={`${event.id}-${index}`}
+                                                cita={event}
+                                                onEdit={editCita}
+                                                onDelete={deleteCita}
+                                            />
+                                        );
+                                    } else if (event.tipo === 'campaña') {
+                                        return (
+                                            <View key={`campana-${index}`} style={styles.campaignCard}>
+                                                <MaterialIcons name="local-hospital" size={20} color="red" style={{ marginRight: 10 }} />
+                                                <Text style={styles.campaignText}>{event.nombre || '¡Campaña de Vacunación!'}</Text>
+                                            </View>
+                                        );
+                                    } else if (event.tipo === 'vacuna') {
+                                        return (
+                                            <VacunaDetailItem
+                                                key={`vacuna-${index}`}
+                                                vacuna={event}
+                                                onEdit={editVacuna}
+                                                onDelete={deleteVacuna}
+                                            />
+                                        );
+                                    }
+                                    return null;
+                                })
+                            )}
+                        </View>
+                    )}
+
+                    <View style={styles.legendCard}>
+                        <Text style={styles.title}>Representación de colores</Text>
                         <View style={styles.row}>
                             <FontAwesome5 name="circle" size={16} color="red" />
-                            <Text style={styles.subtitlebottom}>Eventos de vacunación</Text>
+                            <Text style={styles.subtitlebottom}>Campañas de Vacunación</Text>
                         </View>
-
                         <View style={styles.row}>
                             <FontAwesome5 name="circle" size={16} color="blue" />
-                            <Text style={styles.subtitlebottom}>Citas</Text>
+                            <Text style={styles.subtitlebottom}>Tus Citas Programadas</Text>
+                        </View>
+                        <View style={styles.row}>
+                            <FontAwesome5 name="circle" size={16} color="green" />
+                            <Text style={styles.subtitlebottom}>Vacunas Aplicadas</Text>
                         </View>
                     </View>
                 </View>
-
             </ScrollView>
 
-            {/* --- Fondo oscuro cuando se abre el menú o notificaciones --- */}
+            {/* Overlay */}
             {isOverlayVisible && (
-                <TouchableOpacity
-                    style={styles.overlay}
-                    activeOpacity={1}
-                    onPress={handleOverlayClick}
-                />
+                <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={handleOverlayClick} />
             )}
 
-            {/* --- Menú lateral --- */}
-            <View style={[
-                styles.sideMenu,
-                { transform: [{ translateX: isMenuOpen ? 0 : -300 }] }
-            ]}>
+            {/* --- MENÚ LATERAL --- */}
+            <View style={[styles.sideMenu, { transform: [{ translateX: isMenuOpen ? 0 : -300 }] }]}>
                 <View style={styles.menuHeader}>
                     <Text style={styles.menuTitle}>Menú</Text>
                     <TouchableOpacity onPress={toggleMenu}>
@@ -171,56 +453,44 @@ export default function Calendario() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Opciones del menú */}
-                <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => navigation.navigate('Home')}
-                >
+                <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Home')}>
                     <Ionicons name="home" size={24} color="black" />
                     <Text style={styles.menuItemText}>Inicio</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => navigation.navigate('Mascotas')}
-                >
+                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
                     <Ionicons name="paw-outline" size={30} color="#4BCF5C" />
                     <Text style={styles.menuItemText}>Mascotas</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => alert('Ya te encuentras en calendario')}
-                >
+                <TouchableOpacity style={styles.menuItem} onPress={() => console.warn('Ya te encuentras en la pantalla de Calendario')}>
                     <Ionicons name="calendar-number" size={30} color="#007AFF" />
                     <Text style={styles.menuItemText}>Calendario</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => navigation.navigate('Consejos')}
-                >
+                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}>
                     <MaterialIcons name="tips-and-updates" size={30} color="#FF9500" />
                     <Text style={styles.menuItemText}>Consejos</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => navigation.navigate('Emergencias')}
-                >
+                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
                     <MaterialIcons name="emergency" size={30} color="#FF3B30" />
                     <Text style={styles.menuItemText}>Emergencias</Text>
                 </TouchableOpacity>
             </View>
 
-            {/* --- Panel de notificaciones --- */}
+            {/* Notificaciones */}
             {isNotificationsOpen && (
                 <View style={notificationStyles.notificationsContainer}>
                     <Text style={notificationStyles.headerText}>Notificaciones</Text>
                     <ScrollView style={notificationStyles.list}>
-                        {notificationsData.map((text, index) => (
-                            <NotificationItem key={index} text={text} />
-                        ))}
+                        {notificaciones.length > 0 ? (
+                            notificaciones.map((n, index) => (
+                                <NotificationItem key={index} text={n.text} date={n.date} />
+                            ))
+                        ) : (
+                            <Text style={{ textAlign: 'center', color: '#666', marginTop: 10 }}>No hay notificaciones.</Text>
+                        )}
                     </ScrollView>
                 </View>
             )}
@@ -228,16 +498,17 @@ export default function Calendario() {
     );
 }
 
-
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: '#fff'
     },
     content: {
         paddingHorizontal: 20,
-        paddingBottom: 50,
+        paddingBottom: 50
     },
+
+    // --- Header ---
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -249,19 +520,21 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#ddd',
         width: '100%',
-        marginBottom: 30,
+        marginBottom: 30
     },
     headerRight: {
         flexDirection: 'row',
         width: '45%',
-        justifyContent: 'space-between',
+        justifyContent: 'space-between'
     },
     menuHamburguesa: {
-        padding: 5,
+        padding: 5
     },
     headerIcon: {
-        padding: 5,
+        padding: 5
     },
+
+    // --- Overlay ---
     overlay: {
         position: 'absolute',
         top: 0,
@@ -269,8 +542,10 @@ const styles = StyleSheet.create({
         right: 0,
         bottom: 0,
         backgroundColor: '#00000080',
-        zIndex: 10,
+        zIndex: 10
     },
+
+    // --- Menú lateral ---
     sideMenu: {
         position: 'absolute',
         top: 0,
@@ -284,20 +559,19 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 4, height: 0 },
         shadowOpacity: 0.3,
         shadowRadius: 5,
-        elevation: 10,
-        flex: 1,
+        elevation: 10
     },
     menuHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 30,
-        paddingTop: 30,
+        paddingTop: 30
     },
     menuTitle: {
         fontSize: 22,
         fontWeight: 'bold',
-        color: '#333',
+        color: '#333'
     },
     menuItem: {
         flexDirection: 'row',
@@ -305,77 +579,165 @@ const styles = StyleSheet.create({
         paddingVertical: 50,
         paddingHorizontal: 10,
         borderBottomWidth: 1,
-        borderBottomColor: '#eee',
+        borderBottomColor: '#eee'
     },
     menuItemText: {
         fontSize: 18,
         marginLeft: 15,
-        color: '#333',
+        color: '#333'
     },
+
+    // --- Cards Generales ---
     card: {
         backgroundColor: '#e0e0e0',
         padding: 20,
         borderRadius: 10,
-        marginBottom: 20,
+        marginBottom: 20
     },
+    legendCard: {
+        backgroundColor: '#f9f9f9',
+        padding: 20,
+        borderRadius: 10,
+        marginTop: 20,
+        borderWidth: 1,
+        borderColor: '#eee'
+    },
+
+    // --- Estilos de Detalles de Eventos ---
+    detailsContainer: {
+        marginTop: 25,
+        backgroundColor: '#fff',
+        padding: 10,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#ddd'
+    },
+    detailCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#E3F2FD',
+        padding: 15,
+        borderRadius: 8,
+        marginBottom: 10,
+        borderLeftWidth: 5,
+        borderLeftColor: '#007AFF',
+    },
+    campaignCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFEBEE',
+        padding: 15,
+        borderRadius: 8,
+        marginBottom: 10,
+        borderLeftWidth: 5,
+        borderLeftColor: 'red',
+    },
+    vacunaCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#E8F5E9',
+        padding: 15,
+        borderRadius: 8,
+        marginBottom: 10,
+        borderLeftWidth: 5,
+        borderLeftColor: 'green',
+    },
+    vacunaDetailCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#E8F5E9',
+        padding: 15,
+        borderRadius: 8,
+        marginBottom: 10,
+        borderLeftWidth: 5,
+        borderLeftColor: 'green',
+    },
+    deleteButton: {
+        padding: 5,
+        marginLeft: 10,
+    },
+    actionButtonsContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    actionButton: {
+        padding: 8,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    editButton: {
+        backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    },
+    deleteButtonStyle: {
+        backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    },
+
+    // --- Textos de Detalles ---
+    detailTextTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 3,
+        color: '#007AFF'
+    },
+    detailText: {
+        fontSize: 14,
+        color: '#333'
+    },
+    campaignText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: 'red'
+    },
+    vacunaTextTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#388E3C',
+        marginBottom: 2
+    },
+    vacunaText: {
+        fontSize: 14,
+        color: '#388E3C'
+    },
+    noEventsText: {
+        textAlign: 'center',
+        color: '#999',
+        padding: 10,
+        fontStyle: 'italic'
+    },
+    dateText: {
+        marginTop: 10,
+        fontSize: 18,
+        textAlign: 'center',
+        fontWeight: '500',
+        color: '#333',
+        marginBottom: 15
+    },
+
+    // --- Textos Generales ---
     title: {
         fontWeight: 'bold',
         fontSize: 20,
         marginBottom: 5,
-        textAlign: 'center',
+        textAlign: 'center'
     },
     subtitle: {
         fontSize: 16,
         textAlign: 'center',
         marginBottom: 10,
-        color: '#555',
+        color: '#555'
     },
     row: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 5,
+        marginBottom: 10
     },
     subtitlebottom: {
         marginLeft: 8,
         fontSize: 16,
-    },
-    dateText: {
-        marginTop: 20,
-        fontSize: 18,
-        textAlign: 'center',
-        fontWeight: '500',
-        color: '#333',
-        marginBottom: 30,
-    },
-    vaccineButton: {
-        backgroundColor: '#4CAF50',
-        padding: 15,
-        borderRadius: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 30,
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
-    },
-    vaccineButtonContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    vaccineButtonText: {
-        color: 'white',
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginLeft: 10,
-        marginRight: 5,
-    },
-    floatingBtn: {
-        padding: 0,
-        elevation: 0,
-        shadowOpacity: 0,
-        borderWidth: 0,
+        color: '#444'
     },
 });
 
@@ -394,24 +756,24 @@ const notificationStyles = StyleSheet.create({
         shadowOffset: { width: 0, height: 5 },
         shadowOpacity: 0.25,
         shadowRadius: 3.84,
-        elevation: 5,
+        elevation: 5
     },
     headerText: {
         fontSize: 18,
         fontWeight: 'bold',
         textAlign: 'center',
         marginBottom: 10,
-        color: 'black',
+        color: 'black'
     },
     list: {
-        flexGrow: 0,
+        flexGrow: 0
     },
     notificationItem: {
         flexDirection: 'row',
         alignItems: 'flex-start',
         paddingVertical: 10,
         borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
+        borderBottomColor: '#ccc'
     },
     bullet: {
         width: 8,
@@ -420,10 +782,10 @@ const notificationStyles = StyleSheet.create({
         backgroundColor: 'red',
         marginRight: 10,
         marginTop: 5,
-        flexShrink: 0,
+        flexShrink: 0
     },
     notificationText: {
         fontSize: 16,
-        flexShrink: 1,
+        flexShrink: 1
     },
 });

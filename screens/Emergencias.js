@@ -1,47 +1,163 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { useState, useEffect } from 'react';
 import React from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import NotificationService from './Notificaciones';
 
 // Componente que muestra cada notificación individual
-const NotificationItem = ({ text }) => (
+const NotificationItem = ({ text, date }) => (
     <View style={notificationStyles.notificationItem}>
         <View style={notificationStyles.bullet} />
-        <Text style={notificationStyles.notificationText}>{text}</Text>
+        <Text style={notificationStyles.notificationText}>{text} {"\n"}<Text style={{ fontSize: 12, color: '#555' }}>{date}</Text></Text>
     </View>
 );
 
-// Lista de notificaciones de ejemplo
-const notificationsData = [
-    '¡Se acerca el día de la cita! ¿Ya tienes todo preparado?',
-    '¡Campaña de vacunacion!, el día 30 de Octubre',
-    'Recordatorio: Próxima dosis de medicamento.',
-    'Hola'
-];
+// Componente para mostrar cada veterinaria (ACTUALIZADO con botón de eliminar)
+const VeterinariaItem = ({ veterinaria, onDelete }) => (
+    <View style={styles.card}>
+        <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => onDelete(veterinaria)}
+        >
+            <MaterialIcons name="delete" size={24} color="#FF3B30" />
+        </TouchableOpacity>
+        <Text style={styles.title}>{veterinaria.label}</Text>
+        <Text style={styles.subtitle}>📍 {veterinaria.ubicacion}</Text>
+        <Text style={styles.telefono}>📞 {veterinaria.numero || 'No proporcionado'}</Text>
+    </View>
+);
 
 // Pantalla principal de emergencias
 export default function Emergencias() {
-    const navigation = useNavigation(); // Hook para navegar entre pantallas
-    const [isMenuOpen, setIsMenuOpen] = useState(false); // Estado del menú lateral
-    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false); // Estado del panel de notificaciones
+    const navigation = useNavigation();
+    const isFocused = useIsFocused();
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [notificaciones, setNotificaciones] = useState([]);
+    const [veterinarias, setVeterinarias] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    // Cargar veterinarias desde AsyncStorage
+    const loadVeterinarias = async () => {
+        try {
+            setLoading(true);
+            const veterinariasRaw = await AsyncStorage.getItem('@veterinarias');
+            const veterinariasData = veterinariasRaw ? JSON.parse(veterinariasRaw) : [];
+            setVeterinarias(veterinariasData);
+        } catch (error) {
+            console.error("Error cargando veterinarias:", error);
+            setVeterinarias([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Función para eliminar veterinaria
+    const deleteVeterinaria = async (veterinariaToDelete) => {
+        Alert.alert(
+            "Confirmar Eliminación",
+            `¿Estás seguro de que quieres eliminar la veterinaria "${veterinariaToDelete.label}"?`,
+            [
+                {
+                    text: "Cancelar",
+                    style: "cancel"
+                },
+                {
+                    text: "Eliminar",
+                    onPress: async () => {
+                        try {
+                            // Obtener veterinarias actuales
+                            const veterinariasRaw = await AsyncStorage.getItem('@veterinarias');
+                            const veterinariasData = veterinariasRaw ? JSON.parse(veterinariasRaw) : [];
+
+                            // Filtrar la veterinaria a eliminar
+                            const updatedVeterinarias = veterinariasData.filter(
+                                vet => vet.id !== veterinariaToDelete.id
+                            );
+
+                            // Guardar la lista actualizada
+                            await AsyncStorage.setItem('@veterinarias', JSON.stringify(updatedVeterinarias));
+
+                            // Actualizar el estado local
+                            setVeterinarias(updatedVeterinarias);
+
+                            Alert.alert("Éxito", "Veterinaria eliminada correctamente.");
+
+                        } catch (error) {
+                            console.error("Error al eliminar veterinaria:", error);
+                            Alert.alert("Error", "No se pudo eliminar la veterinaria.");
+                        }
+                    },
+                    style: "destructive"
+                }
+            ]
+        );
+    };
+
+    // Función para eliminar TODAS las veterinarias
+    const deleteAllVeterinarias = () => {
+        if (veterinarias.length === 0) {
+            Alert.alert("Info", "No hay veterinarias para eliminar.");
+            return;
+        }
+
+        Alert.alert(
+            "Eliminar Todas",
+            `¿Estás seguro de que quieres eliminar todas las ${veterinarias.length} veterinarias?`,
+            [
+                {
+                    text: "Cancelar",
+                    style: "cancel"
+                },
+                {
+                    text: "Eliminar Todas",
+                    onPress: async () => {
+                        try {
+                            await AsyncStorage.removeItem('@veterinarias');
+                            setVeterinarias([]);
+                            Alert.alert("Éxito", "Todas las veterinarias han sido eliminadas.");
+                        } catch (error) {
+                            console.error("Error al eliminar todas las veterinarias:", error);
+                            Alert.alert("Error", "No se pudieron eliminar las veterinarias.");
+                        }
+                    },
+                    style: "destructive"
+                }
+            ]
+        );
+    };
+
+    useEffect(() => {
+        if (isFocused) {
+            loadVeterinarias();
+        }
+    }, [isFocused]);
 
     // Abre o cierra el menú lateral
     const toggleMenu = () => {
         const newState = !isMenuOpen;
         setIsMenuOpen(newState);
         if (newState) {
-            setIsNotificationsOpen(false); // Cierra notificaciones si se abre el menú
+            setIsNotificationsOpen(false);
         }
     };
 
-    // Abre o cierra el panel de notificaciones
-    const toggleNotifications = () => {
+    const toggleNotifications = async () => {
         const newState = !isNotificationsOpen;
         setIsNotificationsOpen(newState);
         if (newState) {
-            setIsMenuOpen(false); // Cierra menú si se abren notificaciones
+            setIsMenuOpen(false);
+            try {
+                const allNotifications = await NotificationService.getNotifications();
+                setNotificaciones(allNotifications);
+            } catch (error) {
+                console.error("Error al cargar notificaciones:", error);
+                setNotificaciones([]);
+            }
         }
     };
 
@@ -81,25 +197,52 @@ export default function Emergencias() {
             </View>
 
             {/* Contenido principal con información de veterinarias */}
-            <View style={styles.content}>
+            <ScrollView contentContainerStyle={styles.content}>
                 <Text style={styles.headerText}>Veterinarias en caso de emergencia:</Text>
-                <View style={styles.card}>
-                    <Text style={styles.title}>Emergencias</Text>
-                    <Text style={styles.subtitle}>Veterinaria 1: "Luz"</Text>
-                    <Text>Teléfono: 9988776655</Text>
-                    <Text>Ubicación: Av. Portillo</Text>
-                </View>
 
-                <View style={styles.card}>
-                    <Text style={styles.title}>Emergencias</Text>
-                    <Text style={styles.subtitle}>Veterinaria 2: "Lares"</Text>
-                    <Text>Teléfono: 9988776655</Text>
-                    <Text>Ubicación: Av. Andres Q</Text>
-                </View>
-            </View>
+                {/* Contador y botón de eliminar todas */}
+                {veterinarias.length > 0 && (
+                    <View style={styles.headerActions}>
+                        <Text style={styles.counterText}>
+                            {veterinarias.length} veterinaria{veterinarias.length !== 1 ? 's' : ''} registrada{veterinarias.length !== 1 ? 's' : ''}
+                        </Text>
+                        <TouchableOpacity
+                            style={styles.deleteAllButton}
+                            onPress={deleteAllVeterinarias}
+                        >
+                            <MaterialIcons name="delete-sweep" size={20} color="#FF3B30" />
+                            <Text style={styles.deleteAllText}>Eliminar todas</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {loading ? (
+                    <Text style={styles.loadingText}>Cargando veterinarias...</Text>
+                ) : veterinarias.length === 0 ? (
+                    <View style={styles.emptyState}>
+                        <Ionicons name="medical-outline" size={50} color="#ccc" />
+                        <Text style={styles.emptyStateText}>No hay veterinarias registradas</Text>
+                        <Text style={styles.emptyStateSubtext}>
+                            Presiona el botón + para agregar tu primera veterinaria de emergencia
+                        </Text>
+                    </View>
+                ) : (
+                    veterinarias.map((veterinaria, index) => (
+                        <VeterinariaItem
+                            key={veterinaria.id || index}
+                            veterinaria={veterinaria}
+                            onDelete={deleteVeterinaria}
+                        />
+                    ))
+                )}
+
+            </ScrollView>
 
             {/* Botón flotante para registrar una nueva veterinaria */}
-            <TouchableOpacity style={styles.floatingBtnRight} onPress={() => navigation.navigate('RegistroVeterinaria')}>
+            <TouchableOpacity
+                style={styles.floatingBtnRight}
+                onPress={() => navigation.navigate('RegistroVeterinaria')}
+            >
                 <MaterialCommunityIcons name="plus-circle-outline" size={24} color="black" />
             </TouchableOpacity>
 
@@ -159,9 +302,13 @@ export default function Emergencias() {
                 <View style={notificationStyles.notificationsContainer}>
                     <Text style={notificationStyles.headerText}>Notificaciones</Text>
                     <ScrollView style={notificationStyles.list}>
-                        {notificationsData.map((text, index) => (
-                            <NotificationItem key={index} text={text} />
-                        ))}
+                        {notificaciones.length > 0 ? (
+                            notificaciones.map((n, index) => (
+                                <NotificationItem key={index} text={n.text} date={n.date} />
+                            ))
+                        ) : (
+                            <Text style={{ textAlign: 'center', color: '#666', marginTop: 10 }}>No hay notificaciones.</Text>
+                        )}
                     </ScrollView>
                 </View>
             )}
@@ -177,6 +324,7 @@ const styles = StyleSheet.create({
     },
     content: {
         paddingHorizontal: 20,
+        paddingBottom: 100,
     },
     header: {
         flexDirection: 'row',
@@ -251,34 +399,83 @@ const styles = StyleSheet.create({
         marginLeft: 15,
         color: '#333',
     },
-    headerText:{
-        fontSize:20,
-        marginBottom:20,
+    headerText: {
+        fontSize: 20,
+        marginBottom: 20,
         fontWeight: "bold",
+        textAlign: 'center',
+    },
+    headerActions: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 15,
+        paddingHorizontal: 10,
+    },
+    counterText: {
+        fontSize: 14,
+        color: '#666',
+        fontWeight: '500',
+    },
+    deleteAllButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 8,
+        backgroundColor: '#FFEBEE',
+        borderRadius: 6,
+    },
+    deleteAllText: {
+        fontSize: 12,
+        color: '#FF3B30',
+        fontWeight: '500',
+        marginLeft: 4,
     },
     card: {
         backgroundColor: '#ffffffff',
         padding: 20,
         borderRadius: 10,
-        marginBottom: 20,
+        marginBottom: 15,
         borderWidth: 2,
-        borderColor: '#ee4a52'
+        borderColor: '#ee4a52',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        position: 'relative',
+    },
+    deleteButton: {
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        padding: 5,
+        backgroundColor: '#FFEBEE',
+        borderRadius: 15,
+        zIndex: 1,
     },
     title: {
         fontWeight: 'bold',
         fontSize: 16,
         marginBottom: 5,
-        textAlign: 'center'
+        textAlign: 'center',
+        color: '#333',
+        paddingRight: 30, // Espacio para el botón de eliminar
     },
     subtitle: {
-        fontSize: 16,
+        fontSize: 14,
         textAlign: 'center',
-        marginBottom: 10,
+        marginBottom: 5,
         color: '#555',
+    },
+    telefono: {
+        fontSize: 14,
+        textAlign: 'center',
+        color: '#007AFF',
+        fontWeight: '500',
     },
     floatingBtnRight: {
         position: 'absolute',
-        top: 685,
+        bottom: 30,
         right: 20,
         backgroundColor: '#fff',
         padding: 18,
@@ -292,6 +489,40 @@ const styles = StyleSheet.create({
         height: 60,
         justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#eee',
+    },
+    loadingText: {
+        textAlign: 'center',
+        fontSize: 16,
+        color: '#666',
+        marginVertical: 20,
+    },
+    emptyState: {
+        alignItems: 'center',
+        padding: 40,
+        backgroundColor: '#f9f9f9',
+        borderRadius: 10,
+        marginVertical: 20,
+    },
+    emptyStateText: {
+        fontSize: 18,
+        color: '#666',
+        marginTop: 10,
+        textAlign: 'center',
+    },
+    emptyStateSubtext: {
+        fontSize: 14,
+        color: '#999',
+        marginTop: 5,
+        textAlign: 'center',
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 15,
+        color: '#333',
+        textAlign: 'center',
     },
 });
 

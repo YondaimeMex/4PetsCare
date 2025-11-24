@@ -106,10 +106,6 @@ export default function Login() {
         navigation.navigate('Registro');
     };
 
-    // Acceso rápido como invitado
-    const handleGuestAccess = () => {
-        setIsLoggedIn(true);
-    };
 
     return (
         <View style={styles.container}>
@@ -264,15 +260,7 @@ export default function Login() {
                             </View>
                         </TouchableOpacity>
 
-                        {/* Botón de acceso como invitado */}
-                        <TouchableOpacity
-                            style={styles.guestButton}
-                            onPress={handleGuestAccess}
-                            disabled={loading}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.guestButtonText}>Continuar como invitado</Text>
-                        </TouchableOpacity>
+
 
                         {/* Pie de página */}
                         <View style={styles.footer}>
