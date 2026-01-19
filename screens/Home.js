@@ -97,9 +97,9 @@ export default function HomeScreen() {
                 </View>
             </View>
 
-            {/* Botón flotante izquierdo (ChatBot) */}
-            <TouchableOpacity style={styles.floatingBtnLeft} onPress={() => navigation.navigate('ChatBot')}>
-                <MaterialCommunityIcons name="robot" size={24} color="black" />
+            {/* Botón flotante izquierdo (BuscadorGoogle) */}
+            <TouchableOpacity style={styles.floatingBtnLeft} onPress={() => navigation.navigate('BuscadorGoogle')}>
+                <MaterialIcons name="search" size={24} color="black" />
             </TouchableOpacity>
 
             {/* Botón flotante derecho (Agregar mascota) */}

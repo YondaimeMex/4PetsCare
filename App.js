@@ -12,6 +12,7 @@ import Emergencias from './screens/Emergencias';
 import RegistroVeterinaria from './screens/RegistroVeterinaria';
 import ProgramarCita from './screens/ProgramarCita';
 import ChatBot from './screens/ChatBot';
+import BuscadorGoogle from './screens/BuscadorGoogle';
 
 const Stack = createNativeStackNavigator();
 
@@ -31,6 +32,7 @@ export default function App() {
         <Stack.Screen name="RegistroVeterinaria" component={RegistroVeterinaria} />
         <Stack.Screen name="ProgramarCita" component={ProgramarCita} />
         <Stack.Screen name="ChatBot" component={ChatBot} />
+        <Stack.Screen name="BuscadorGoogle" component={BuscadorGoogle} />
       </Stack.Navigator>
     </NavigationContainer>
   );
