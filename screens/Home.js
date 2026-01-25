@@ -44,21 +44,19 @@ export default function HomeScreen() {
     // Función para determinar si una fecha es pasada (mejorada)
     const isPastDate = (dateString) => {
         try {
-            // Parsear YYYY-MM-DD
             const [year, month, day] = dateString.split('-').map(Number);
-
-            // Crear fecha objetivo en hora local (mes es 0-indexado)
             const targetDate = new Date(year, month - 1, day);
 
-            // Crear la fecha de HOY, normalizada a 00:00:00 hora local
             const today = new Date();
-            const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-            console.log(`Comparando: ${dateString} (${targetDate}) vs hoy (${startOfToday}) - esPasada: ${targetDate < startOfToday}`); // ← DEBUG
+            const startOfToday = new Date(
+                today.getFullYear(),
+                today.getMonth(),
+                today.getDate()
+            );
 
             return targetDate < startOfToday;
         } catch (error) {
-            console.error('Error en isPastDate:', error, 'fecha:', dateString);
+            console.error('Error en isPastDate:', error);
             return false;
         }
     };
@@ -67,10 +65,7 @@ export default function HomeScreen() {
     const loadCitas = async () => {
         try {
             const citasRaw = await AsyncStorage.getItem('@citas');
-            console.log('Datos crudos de AsyncStorage:', citasRaw); // ← DEBUG
-
             const allCitas = citasRaw ? JSON.parse(citasRaw) : [];
-            console.log('Citas parseadas:', allCitas); // ← DEBUG
 
             const proxVacunas = [];
             const proxCitas = [];
@@ -78,43 +73,28 @@ export default function HomeScreen() {
             const pasadasCitas = [];
 
             allCitas.forEach(cita => {
-                console.log('Procesando cita:', cita); // ← DEBUG
-
                 const esPasada = isPastDate(cita.fecha);
 
-                // CRITERIO CLARO DE CLASIFICACIÓN
-                const esVacuna = cita.tipo === 'Vacuna' || cita.veterinaria === 'Vacuna Registrada';
+                const esVacuna =
+                    cita.tipo === 'Vacuna' ||
+                    cita.veterinaria === 'Vacuna Registrada';
+
                 const esCita = cita.tipo === 'Cita';
 
-                console.log(`Cita ${cita.id}: fecha=${cita.fecha}, tipo=${cita.tipo}, esPasada=${esPasada}, esVacuna=${esVacuna}, esCita=${esCita}`); // ← DEBUG
-
                 if (esPasada) {
-                    if (esVacuna) {
-                        pasadasVacunas.push(cita);
-                    } else if (esCita) {
-                        pasadasCitas.push(cita);
-                    }
+                    if (esVacuna) pasadasVacunas.push(cita);
+                    else if (esCita) pasadasCitas.push(cita);
                 } else {
-                    if (esVacuna) {
-                        proxVacunas.push(cita);
-                    } else if (esCita) {
-                        proxCitas.push(cita);
-                    }
+                    if (esVacuna) proxVacunas.push(cita);
+                    else if (esCita) proxCitas.push(cita);
                 }
             });
 
-            console.log('Próximas vacunas:', proxVacunas); // ← DEBUG
-            console.log('Próximas citas:', proxCitas); // ← DEBUG
-            console.log('Vacunas pasadas:', pasadasVacunas); // ← DEBUG
-            console.log('Citas pasadas:', pasadasCitas); // ← DEBUG
-
-            // Ordenar por fecha
             proxVacunas.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
             proxCitas.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
             pasadasVacunas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
             pasadasCitas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
-            // Actualizar estados
             setUpcomingVacunas(proxVacunas.slice(0, 2));
             setUpcomingCitas(proxCitas.slice(0, 2));
             setAppliedVacunas(pasadasVacunas.slice(0, 3));
@@ -280,8 +260,13 @@ export default function HomeScreen() {
             </ScrollView>
 
             {/* Botón flotante izquierdo*/}
-            <TouchableOpacity style={styles.floatingBtnLeft} onPress={() => navigation.navigate('ChatBot')}>
-                <MaterialCommunityIcons name="robot" size={24} color="black" />
+            <TouchableOpacity style={styles.floatingBtnLeft} onPress={() => navigation.navigate('BuscadorGoogle')}>
+                <MaterialCommunityIcons name="google" size={24} color="black" />
+            </TouchableOpacity>
+
+            {/* Botón flotante central */}
+            <TouchableOpacity style={styles.floatingBtnCenter} onPress={() => navigation.navigate('Mapas')}>
+                <MaterialIcons name="map" size={24} color="black" />
             </TouchableOpacity>
 
             {/* Botón flotante derecho*/}
@@ -555,6 +540,24 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 3.84,
     },
+    floatingBtnCenter: {
+        position: 'absolute',
+        bottom: 40,
+        alignSelf: 'center',
+        backgroundColor: '#fff',
+        padding: 15,
+        borderRadius: 50,
+        elevation: 5,
+        width: 60,
+        height: 60,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+    },
+
 });
 
 // Estilos para las notificaciones

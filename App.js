@@ -15,11 +15,12 @@ import Consejos from './screens/Consejos';
 import Emergencias from './screens/Emergencias';
 import RegistroVeterinaria from './screens/RegistroVeterinaria';
 import ProgramarCita from './screens/ProgramarCita';
-import ChatBot from './screens/ChatBot';
+import BuscadorGoogle from './screens/BuscadorGoogle';
 import PerfilMascotaStack from "./screens/PerfilMascotaStack";
 import EditarCita from './screens/EditarCita';
 import EditarVacuna from './screens/EditarVacuna';
 import NotificationService from './screens/Notificaciones';
+import Mapas from './screens/Mapas';
 export const AuthContext = createContext();
 
 const Stack = createNativeStackNavigator();
@@ -36,7 +37,7 @@ export default function App() {
         // Aquí puedes llamar a tu backend para verificar si hay sesión activa
         // const token = await AsyncStorage.getItem('userToken');
         // setIsLoggedIn(!!token);
-        setIsLoggedIn(false); // Por ahora, siempre comienza con Login
+        setIsLoggedIn(true); // Simulamos que el usuario ya está autenticado (Cambiar a false para probar pantalla de login)
       } catch (error) {
         console.error('Error verificando autenticación:', error);
       } finally {
@@ -95,7 +96,8 @@ export default function App() {
               <Stack.Screen name="ProgramarCita" component={ProgramarCita} />
               <Stack.Screen name="EditarCita" component={EditarCita} />
               <Stack.Screen name="EditarVacuna" component={EditarVacuna} />
-              <Stack.Screen name="ChatBot" component={ChatBot} />
+              <Stack.Screen name="BuscadorGoogle" component={BuscadorGoogle} />
+              <Stack.Screen name="Mapas" component={Mapas} />
             </Stack.Group>
           )}
         </Stack.Navigator>
