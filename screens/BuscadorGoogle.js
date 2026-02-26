@@ -15,6 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { WebView } from 'react-native-webview';
 import { useNavigation } from '@react-navigation/native';
 import { Dimensions } from 'react-native';
+import { useApp } from '../context';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const MENU_HEIGHT = SCREEN_HEIGHT - HEADER_HEIGHT;
@@ -22,7 +23,7 @@ const MENU_HEIGHT = SCREEN_HEIGHT - HEADER_HEIGHT;
 const HEADER_HEIGHT = Platform.OS === 'ios' ? 100 : 90;
 
 export default function BuscadorGoogle() {
-
+    const { colors, t } = useApp();
     const navigation = useNavigation();
     const scrollViewRef = useRef(null);
 
@@ -49,13 +50,13 @@ export default function BuscadorGoogle() {
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-            <View style={styles.container}>
-                <StatusBar style="auto" />
+            <View style={[styles.container, { backgroundColor: colors.background }]}>
+                <StatusBar style={colors.background === '#121212' ? 'light' : 'auto'} />
 
                 {/* HEADER */}
-                <View style={styles.header}>
+                <View style={[styles.header, { backgroundColor: colors.background }]}>
                     <TouchableOpacity onPress={toggleMenu} style={styles.menuButton}>
-                        <MaterialIcons name="menu" size={32} color="#000" />
+                        <MaterialIcons name="menu" size={32} color={colors.text} />
                     </TouchableOpacity>
                 </View>
 
@@ -65,19 +66,20 @@ export default function BuscadorGoogle() {
                     {/* PANTALLA INICIAL */}
                     {isInitial && (
                         <View style={styles.centerContent}>
-                            <Text style={styles.title}>Buscador 4PetsCare</Text>
-                            <MaterialCommunityIcons name="paw" size={40} />
+                            <Text style={[styles.title, { color: colors.text }]}>Buscador 4PetsCare</Text>
+                            <MaterialCommunityIcons name="paw" size={40} color={colors.primary} />
 
-                            <View style={styles.centerInput}>
+                            <View style={[styles.centerInput, { backgroundColor: colors.backgroundLight }]}>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { color: colors.text }]}
                                     placeholder="Buscar en Google..."
+                                    placeholderTextColor={colors.textMuted}
                                     value={message}
                                     onChangeText={setMessage}
                                     onSubmitEditing={sendMessage}
                                 />
                                 <TouchableOpacity onPress={sendMessage}>
-                                    <MaterialCommunityIcons name="send" size={22} />
+                                    <MaterialCommunityIcons name="send" size={22} color={colors.primary} />
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -92,8 +94,8 @@ export default function BuscadorGoogle() {
                             }
                         >
                             {messages.map(msg => (
-                                <View key={msg.id} style={styles.messageBubble}>
-                                    <Text>{msg.text}</Text>
+                                <View key={msg.id} style={[styles.messageBubble, { backgroundColor: colors.secondary }]}>
+                                    <Text style={{ color: colors.text }}>{msg.text}</Text>
                                 </View>
                             ))}
                         </ScrollView>
@@ -118,40 +120,40 @@ export default function BuscadorGoogle() {
                 <View
                     style={[
                         styles.sideMenu,
-                        { transform: [{ translateX: isMenuOpen ? 0 : -300 }] }
+                        { transform: [{ translateX: isMenuOpen ? 0 : -300 }], backgroundColor: colors.card }
                     ]}
                 >
                     <View style={styles.menuHeader}>
-                        <Text style={styles.menuTitle}>Menú</Text>
+                        <Text style={[styles.menuTitle, { color: colors.text }]}>{t.menu}</Text>
                         <TouchableOpacity onPress={toggleMenu}>
-                            <Ionicons name="close" size={30} />
+                            <Ionicons name="close" size={30} color={colors.text} />
                         </TouchableOpacity>
                     </View>
 
                     <ScrollView>
-                        <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Home'); }}>
-                            <Ionicons name="home" size={24} />
-                            <Text style={styles.menuItemText}>Inicio</Text>
+                        <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Home'); }}>
+                            <Ionicons name="home" size={24} color={colors.text} />
+                            <Text style={[styles.menuItemText, { color: colors.text }]}>{t.home}</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
+                        <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
                             <Ionicons name="paw-outline" size={30} color="#4BCF5C" />
-                            <Text style={styles.menuItemText}>Mascotas</Text>
+                            <Text style={[styles.menuItemText, { color: colors.text }]}>{t.pets}</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
+                        <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
                             <Ionicons name="calendar-number" size={30} color="#007AFF" />
-                            <Text style={styles.menuItemText}>Calendario</Text>
+                            <Text style={[styles.menuItemText, { color: colors.text }]}>{t.calendar}</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}>
+                        <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}>
                             <MaterialIcons name="tips-and-updates" size={30} color="#FF9500" />
-                            <Text style={styles.menuItemText}>Consejos</Text>
+                            <Text style={[styles.menuItemText, { color: colors.text }]}>{t.tips}</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
+                        <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
                             <MaterialIcons name="emergency" size={30} color="#FF3B30" />
-                            <Text style={styles.menuItemText}>Emergencias</Text>
+                            <Text style={[styles.menuItemText, { color: colors.text }]}>{t.emergencies}</Text>
                         </TouchableOpacity>
                     </ScrollView>
                 </View>
@@ -162,14 +164,13 @@ export default function BuscadorGoogle() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#fff' },
+    container: { flex: 1 },
 
     header: {
         height: HEADER_HEIGHT,
         paddingTop: Platform.OS === 'ios' ? 50 : 30,
         paddingHorizontal: 20,
         justifyContent: 'center',
-        backgroundColor: '#fff',
         zIndex: 10
     },
 
@@ -196,7 +197,6 @@ const styles = StyleSheet.create({
 
     centerInput: {
         flexDirection: 'row',
-        backgroundColor: '#e9e9e9',
         borderRadius: 30,
         paddingHorizontal: 15,
         alignItems: 'center',
@@ -211,7 +211,6 @@ const styles = StyleSheet.create({
 
     messageBubble: {
         alignSelf: 'flex-end',
-        backgroundColor: '#DCF8C6',
         padding: 10,
         borderRadius: 10,
         margin: 10
@@ -233,7 +232,6 @@ const styles = StyleSheet.create({
         left: 0,
         width: 280,
         height: MENU_HEIGHT,
-        backgroundColor: '#fff',
         padding: 20,
         zIndex: 20,
         elevation: 10
@@ -254,7 +252,8 @@ const styles = StyleSheet.create({
     menuItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 20
+        paddingVertical: 20,
+        borderBottomWidth: 1
     },
 
     menuItemText: {
