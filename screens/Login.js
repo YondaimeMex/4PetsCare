@@ -5,8 +5,9 @@ import { useNavigation } from '@react-navigation/native';
 import { useState, useEffect, useRef, useContext } from 'react';
 import React from 'react';
 import { AuthContext } from '../App';
+import {supabase} from '../lib/Supabase';
 
-    const API_BASE_URL = "http://192.168.18.69:3000";
+    
 export default function Login() {
     const navigation = useNavigation();
     const { setIsLoggedIn } = useContext(AuthContext);
@@ -72,21 +73,15 @@ export default function Login() {
     setLoading(true);
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email, password }),
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password: password,
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            Alert.alert('Error', data.message || 'Credenciales inválidas');
+        if (error) {
+            Alert.alert('Error', error.message || 'Credenciales inválidas');
             return;
         }
-
         // Si llegamos aquí, el login fue correcto
         // data.token → JWT
         // data.user  → { id, nombre, email, telefono }

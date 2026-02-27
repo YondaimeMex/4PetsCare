@@ -5,6 +5,7 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useState, useEffect } from 'react';
 import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../lib/Supabase';
 
 import NotificationService from './Notificaciones';
 
@@ -32,6 +33,11 @@ export default function HomeScreen() {
     const [appliedVacunas, setAppliedVacunas] = useState([]);
     const [appliedCitas, setAppliedCitas] = useState([]);
 
+    const handleLogout = async () => {
+    await supabase.auth.signOut();
+    // No necesitas hacer nada más — el onAuthStateChange en App.js
+    // detecta el logout y cambia isLoggedIn a false automáticamente
+};
 
     // Función auxiliar para formatear la fecha
     const formatDate = (dateString) => {
@@ -164,6 +170,13 @@ export default function HomeScreen() {
                     >
                         <Ionicons name="person-circle-outline" size={32} color="black" />
                     </TouchableOpacity>
+                    <TouchableOpacity
+    style={[styles.menuItem, { borderBottomWidth: 0 }]}
+    onPress={() => { toggleMenu(); handleLogout(); }}
+>
+    <Ionicons name="log-out-outline" size={30} color="#FF3B30" />
+    <Text style={[styles.menuItemText, { color: '#FF3B30' }]}>Cerrar Sesión</Text>
+</TouchableOpacity>
                 </View>
             </View>
 

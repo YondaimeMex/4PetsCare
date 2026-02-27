@@ -21,6 +21,7 @@ import EditarCita from './screens/EditarCita';
 import EditarVacuna from './screens/EditarVacuna';
 import NotificationService from './screens/Notificaciones';
 import Mapas from './screens/Mapas';
+import { supabase } from './lib/Supabase';
 export const AuthContext = createContext();
 
 const Stack = createNativeStackNavigator();
@@ -30,22 +31,16 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simular verificación de token/sesión
-    // En producción, verificarías aquí si hay una sesión activa
-    const checkAuth = async () => {
-      try {
-        // Aquí puedes llamar a tu backend para verificar si hay sesión activa
-        // const token = await AsyncStorage.getItem('userToken');
-        // setIsLoggedIn(!!token);
-        setIsLoggedIn(true); // Simulamos que el usuario ya está autenticado (Cambiar a false para probar pantalla de login)
-      } catch (error) {
-        console.error('Error verificando autenticación:', error);
-      } finally {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setIsLoggedIn(!!session);
         setIsLoading(false);
-      }
-    };
+    });
 
-    checkAuth();
+    // Escuchar cambios de sesión (login / logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setIsLoggedIn(!!session);
+    });
+    return () => subscription.unsubscribe()
   }, []);
 
   if (isLoading) {

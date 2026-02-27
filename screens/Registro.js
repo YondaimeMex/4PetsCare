@@ -4,9 +4,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { useState, useEffect, useRef } from 'react';
 import React from 'react';
+import { supabase } from '../lib/Supabase';
 
-// IP local y puerto del backend
-const API_BASE_URL = "http://192.168.18.69:3000";
+
 
 export default function Registro() {
     const navigation = useNavigation();
@@ -101,25 +101,20 @@ export default function Registro() {
         // Llamada real a la API de registro
         setLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+            const { data, error } = await supabase.auth.signUp({
+            email: email.trim(),
+            password: password,
+            options: {
+                data: {
+                    nombre: username.trim(), // se guarda en el perfil del usuario
                 },
-                body: JSON.stringify({
-                    nombre: username.trim(), // el backend espera "nombre"
-                    email: email.trim(),
-                    password: password,
-                    // telefono: puedes agregar un campo en el formulario si lo necesitas
-                }),
-            });
+            },
+        });
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                Alert.alert('Error', data.message || 'No se pudo completar el registro.');
-                return;
-            }
+           if (error) {
+            Alert.alert('Error', error.message || 'No se pudo completar el registro.');
+            return;
+        }
 
             // Registro exitoso
             Alert.alert(
