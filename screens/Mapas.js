@@ -4,7 +4,6 @@ import {
     Text,
     TouchableOpacity,
     StyleSheet,
-    ScrollView,
     TextInput,
     Platform,
     KeyboardAvoidingView
@@ -12,34 +11,15 @@ import {
 
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { useNavigation } from '@react-navigation/native';
 import { WebView } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// ---------------- NOTIFICACIONES ----------------
-
-const NotificationItem = ({ text }) => (
-    <View style={notificationStyles.notificationItem}>
-        <View style={notificationStyles.bullet} />
-        <Text style={notificationStyles.notificationText}>{text}</Text>
-    </View>
-);
-
-const notificationsData = [
-    '¡Se acerca el día de la cita! ¿Ya tienes todo preparado?',
-    '¡Campaña de vacunacion!, el día 30 de Octubre',
-    'Recordatorio: Próxima dosis de medicamento.',
-    'Hola'
-];
-
-// ---------------- COMPONENTE ----------------
-
-export default function BuscadorGoogle() {
-
-    const navigation = useNavigation();
+export default function Mapa() {
 
     const [message, setMessage] = useState('');
-    const [url, setUrl] = useState(null);
+    const [url, setUrl] = useState(
+        'https://www.google.com/maps/search/veterinarias'
+    );
 
     return (
         <SafeAreaView style={styles.container}>
@@ -58,14 +38,14 @@ export default function BuscadorGoogle() {
                 </View>
             </View>
 
-            {/* CONTENIDO */}
+            {/* TEXTO CENTRAL */}
             <View style={styles.content}>
                 <View style={styles.centerMessageContainer}>
                     <Text style={styles.centerMessage}>
-                        Bienvenido al buscador de Google
+                        Veterinarias cercanas
                     </Text>
                     <MaterialCommunityIcons
-                        name="dog"
+                        name="map-marker-radius"
                         size={40}
                         color="black"
                         style={{ marginTop: 20 }}
@@ -73,7 +53,7 @@ export default function BuscadorGoogle() {
                 </View>
             </View>
 
-            {/* INPUT FIJO Y ELEGANTE */}
+            {/* INPUT */}
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 15 : 0}
@@ -82,7 +62,7 @@ export default function BuscadorGoogle() {
                     <View style={styles.inputRow}>
                         <TextInput
                             style={styles.input}
-                            placeholder="Pregunta sobre mascotas"
+                            placeholder="Buscar veterinarias"
                             placeholderTextColor="#9b9b9b"
                             value={message}
                             onChangeText={setMessage}
@@ -93,11 +73,11 @@ export default function BuscadorGoogle() {
                             onPress={() => {
                                 if (!message.trim()) return;
 
-                                const googleURL =
-                                    'https://www.google.com/search?q=' +
+                                const mapsURL =
+                                    'https://www.google.com/maps/search/' +
                                     encodeURIComponent(message);
 
-                                setUrl(googleURL);
+                                setUrl(mapsURL);
                             }}
                         >
                             <MaterialCommunityIcons name="send" size={20} color="black" />
@@ -106,7 +86,7 @@ export default function BuscadorGoogle() {
                 </View>
             </KeyboardAvoidingView>
 
-            {/* GOOGLE */}
+            {/* MAPA */}
             {url && (
                 <View style={styles.webViewContainer}>
                     <WebView source={{ uri: url }} />
@@ -116,8 +96,6 @@ export default function BuscadorGoogle() {
         </SafeAreaView>
     );
 }
-
-// ================== ESTILOS ==================
 
 const styles = StyleSheet.create({
     container: {
@@ -192,5 +170,3 @@ const styles = StyleSheet.create({
         zIndex: 100
     }
 });
-
-const notificationStyles = StyleSheet.create({});

@@ -1,11 +1,13 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
-import React from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Componente que muestra cada notificación individual
+import NotificationService from './Notificaciones';
+
+// Componente que muestra cada notificación
 const NotificationItem = ({ text }) => (
     <View style={notificationStyles.notificationItem}>
         <View style={notificationStyles.bullet} />
@@ -13,17 +15,9 @@ const NotificationItem = ({ text }) => (
     </View>
 );
 
-// Lista de notificaciones de ejemplo
-const notificationsData = [
-    '¡Se acerca el día de la cita! ¿Ya tienes todo preparado?',
-    '¡Campaña de vacunacion!, el día 30 de Octubre',
-    'Recordatorio: Próxima dosis de medicamento.',
-    'Hola'
-];
-
 // Pantalla principal para registrar veterinarias
 export default function RegistroVeterinaria() {
-    const navigation = useNavigation(); // Para cambiar entre pantallas
+    const navigation = useNavigation();
 
     // Estados para los campos del formulario
     const [nombreVeterinaria, setNombreVeterinaria] = useState('');
@@ -33,22 +27,45 @@ export default function RegistroVeterinaria() {
     // Estados para abrir/cerrar el menú y notificaciones
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [notificaciones, setNotificaciones] = useState([]);
 
-    // Función para guardar datos de la veterinaria
-    const handleSave = () => {
+    // --- LÓGICA DE GUARDADO COMPATIBLE ---
+    const handleSave = async () => {
         if (!nombreVeterinaria || !UbiVeterinaria) {
-            console.warn("Ingresa el nombre y la ubicación");
+            Alert.alert("Faltan datos", "Ingresa el nombre y la ubicación");
             return;
         }
 
-        const VeterinariaData = {
-            nombre: nombreVeterinaria,
-            ubicacion: UbiVeterinaria, // corregido
-            numero: Numero,
-        };
+        try {
+            // 1. Crear objeto (Usamos 'label' para que funcione con el Dropdown de ProgramarCita)
+            const nuevaVeterinaria = {
+                id: Date.now(),
+                label: nombreVeterinaria, // <--- Esto es clave para que se vea en la lista
+                ubicacion: UbiVeterinaria,
+                numero: Numero,
+            };
 
-        console.log('Datos de Veterinaria a Guardar:', VeterinariaData);
-        console.log(`¡Veterinaria ${nombreVeterinaria} ha sido registrada con éxito!`);
+            // 2. Leer lo que ya hay guardado
+            const existentesRaw = await AsyncStorage.getItem('@veterinarias');
+            const existentes = existentesRaw ? JSON.parse(existentesRaw) : [];
+
+            // 3. Agregar y guardar
+            const actualizada = [...existentes, nuevaVeterinaria];
+            await AsyncStorage.setItem('@veterinarias', JSON.stringify(actualizada));
+
+            console.log('Veterinaria guardada:', nuevaVeterinaria);
+
+            // 4. Mensaje de éxito y volver atrás
+            Alert.alert(
+                "Éxito",
+                `Veterinaria "${nombreVeterinaria}" registrada.`,
+                [{ text: "OK", onPress: () => navigation.goBack() }] // Regresa a ProgramarCita
+            );
+
+        } catch (error) {
+            console.error(error);
+            Alert.alert("Error", "No se pudo guardar la veterinaria.");
+        }
     };
 
     // Función para abrir/cerrar menú lateral
@@ -59,37 +76,46 @@ export default function RegistroVeterinaria() {
     };
 
     // Función para abrir/cerrar notificaciones
-    const toggleNotifications = () => {
+    const toggleNotifications = async () => {
         const newState = !isNotificationsOpen;
         setIsNotificationsOpen(newState);
-        if (newState) setIsMenuOpen(false);
+        if (newState) {
+            setIsMenuOpen(false);
+            try {
+                const allNotifications = await NotificationService.getNotifications();
+                setNotificaciones(allNotifications);
+            } catch (error) {
+                console.error("Error al cargar notificaciones:", error);
+                setNotificaciones([]);
+            }
+        }
     };
 
     // Cierra el menú o las notificaciones si se toca fuera
     const handleOverlayClick = () => {
-        if (isMenuOpen) toggleMenu();
-        if (isNotificationsOpen) toggleNotifications();
+        if (isMenuOpen) setIsMenuOpen(false);
+        if (isNotificationsOpen) setIsNotificationsOpen(false);
     };
 
     const isOverlayVisible = isMenuOpen || isNotificationsOpen;
 
     return (
-        <ScrollView contentContainerStyle={styles.scrollContent} style={styles.scrollContainer}>
+        <View style={styles.container}>
             <StatusBar style="auto" />
 
-            {/* Encabezado con menú, notificaciones y perfil */}
+            {/* Encabezado ORIGINAL */}
             <View style={styles.header}>
                 <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
-                    <MaterialIcons name="menu" size={32} />
+                    <MaterialIcons name="menu" size={32} color="black" />
                 </TouchableOpacity>
 
                 <View style={styles.headerRight}>
-                    <TouchableOpacity style={[styles.floatingBtn, styles.headerIcon]} onPress={toggleNotifications}>
+                    <TouchableOpacity style={styles.headerIcon} onPress={toggleNotifications}>
                         <Ionicons name="notifications" size={32} color="black" />
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.floatingBtn, styles.headerIcon]}
+                        style={styles.headerIcon}
                         onPress={() => navigation.navigate('Perfil')}
                     >
                         <Ionicons name="person-circle-outline" size={32} color="black" />
@@ -97,52 +123,57 @@ export default function RegistroVeterinaria() {
                 </View>
             </View>
 
-            {/* Formulario de registro */}
-            <View style={styles.formCard}>
-                <Text style={styles.title}>¡Registra tu Veterinaria!</Text>
-                <Text style={styles.label}>Nombre:</Text>
-                <TextInput
-                    style={styles.input}
-                    value={nombreVeterinaria}
-                    onChangeText={setNombreVeterinaria}
-                    placeholder="Ej. Luz"
-                    placeholderTextColor="#999"
-                />
-            </View>
+            {/* Contenido principal */}
+            <ScrollView contentContainerStyle={styles.scrollContent}>
+                {/* Formulario de registro (Diseño Original) */}
+                <View style={styles.formCard}>
+                    <Text style={styles.title}>¡Registra tu Veterinaria!</Text>
+                    <Text style={styles.label}>Nombre:</Text>
+                    <TextInput
+                        style={styles.input}
+                        value={nombreVeterinaria}
+                        onChangeText={setNombreVeterinaria}
+                        placeholder="Ej. Luz"
+                        placeholderTextColor="#999"
+                    />
+                </View>
 
-            <View style={styles.formCard}>
-                <Text style={styles.label}>Ubicación:</Text>
-                <TextInput
-                    style={styles.input}
-                    value={UbiVeterinaria}
-                    onChangeText={setUbiVeterinaria}
-                    placeholder="Ej. Lopez Portillo"
-                    placeholderTextColor="#999"
-                />
-            </View>
+                <View style={styles.formCard}>
+                    <Text style={styles.label}>Ubicación:</Text>
+                    <TextInput
+                        style={styles.input}
+                        value={UbiVeterinaria}
+                        onChangeText={setUbiVeterinaria}
+                        placeholder="Ej. Lopez Portillo"
+                        placeholderTextColor="#999"
+                    />
+                </View>
 
-            <View style={styles.formCard}>
-                <Text style={styles.label}>Número:</Text>
-                <TextInput
-                    style={styles.input}
-                    value={Numero}
-                    onChangeText={setNumero}
-                    placeholder="Ej. 9988776655"
-                    placeholderTextColor="#999"
-                    keyboardType="numeric"
-                />
-            </View>
+                <View style={styles.formCard}>
+                    <Text style={styles.label}>Número:</Text>
+                    <TextInput
+                        style={styles.input}
+                        value={Numero}
+                        onChangeText={setNumero}
+                        placeholder="Ej. 9988776655"
+                        placeholderTextColor="#999"
+                        keyboardType="numeric"
+                    />
+                </View>
 
-            {/* Botón para guardar veterinaria */}
-            <TouchableOpacity
-                style={styles.saveButton}
-                onPress={() => {
-                    handleSave();
-                    navigation.navigate('Emergencias');
-                }}
-            >
-                <Text style={styles.saveButtonText}>Guardar Veterinaria</Text>
-            </TouchableOpacity>
+                {/* Botón para guardar veterinaria */}
+                <TouchableOpacity
+                    style={styles.saveButton}
+                    onPress={handleSave}
+                >
+                    <Text style={styles.saveButtonText}>Guardar Veterinaria</Text>
+                </TouchableOpacity>
+
+                {/* Botón Cancelar */}
+                <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 20 }}>
+                    <Text style={{ color: '#666', textAlign: 'center' }}>Cancelar</Text>
+                </TouchableOpacity>
+            </ScrollView>
 
             {/* Fondo oscuro cuando se abre menú o notificaciones */}
             {isOverlayVisible && (
@@ -153,7 +184,6 @@ export default function RegistroVeterinaria() {
                 />
             )}
 
-            {/* Menú lateral */}
             <View style={[
                 styles.sideMenu,
                 { transform: [{ translateX: isMenuOpen ? 0 : -300 }] }
@@ -164,16 +194,18 @@ export default function RegistroVeterinaria() {
                         <Ionicons name="close" size={30} color="#333" />
                     </TouchableOpacity>
                 </View>
+
                 <TouchableOpacity
                     style={styles.menuItem}
-                    onPress={() => navigation.navigate('Home')}
+                    onPress={() => { toggleMenu(); navigation.navigate('Home'); }}
                 >
                     <Ionicons name="home" size={24} color="black" />
                     <Text style={styles.menuItemText}>Inicio</Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity
                     style={styles.menuItem}
-                    onPress={() => alert('Ya te encuentras en mascotas')}
+                    onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}
                 >
                     <Ionicons name="paw-outline" size={30} color="#4BCF5C" />
                     <Text style={styles.menuItemText}>Mascotas</Text>
@@ -181,7 +213,7 @@ export default function RegistroVeterinaria() {
 
                 <TouchableOpacity
                     style={styles.menuItem}
-                    onPress={() => navigation.navigate('Calendario')}
+                    onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}
                 >
                     <Ionicons name="calendar-number" size={30} color="#007AFF" />
                     <Text style={styles.menuItemText}>Calendario</Text>
@@ -189,7 +221,7 @@ export default function RegistroVeterinaria() {
 
                 <TouchableOpacity
                     style={styles.menuItem}
-                    onPress={() => navigation.navigate('Consejos')}
+                    onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}
                 >
                     <MaterialIcons name="tips-and-updates" size={30} color="#FF9500" />
                     <Text style={styles.menuItemText}>Consejos</Text>
@@ -197,37 +229,40 @@ export default function RegistroVeterinaria() {
 
                 <TouchableOpacity
                     style={styles.menuItem}
-                    onPress={() => navigation.navigate('Emergencias')}
+                    onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}
                 >
                     <MaterialIcons name="emergency" size={30} color="#FF3B30" />
                     <Text style={styles.menuItemText}>Emergencias</Text>
                 </TouchableOpacity>
             </View>
 
-            {/* Notificaciones */}
+            {/* Panel de notificaciones */}
             {isNotificationsOpen && (
                 <View style={notificationStyles.notificationsContainer}>
                     <Text style={notificationStyles.headerText}>Notificaciones</Text>
                     <ScrollView style={notificationStyles.list}>
-                        {notificationsData.map((text, index) => (
-                            <NotificationItem key={index} text={text} />
-                        ))}
+                        {notificaciones.length > 0 ? (
+                            notificaciones.map((n, index) => (
+                                <NotificationItem key={index} text={n.text} />
+                            ))
+                        ) : (
+                            <Text style={{ textAlign: 'center', color: '#666', marginTop: 10 }}>No hay notificaciones.</Text>
+                        )}
                     </ScrollView>
                 </View>
             )}
-        </ScrollView>
+        </View>
     );
 }
 
-
 const styles = StyleSheet.create({
-    scrollContainer: {
+    container: {
         flex: 1,
         backgroundColor: '#f5f5f5',
     },
     scrollContent: {
         paddingHorizontal: 20,
-        paddingTop: 40,
+        paddingTop: 20,
         paddingBottom: 50,
         alignItems: 'center',
     },
@@ -235,9 +270,14 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 30,
+        paddingHorizontal: 20,
+        paddingTop: 50,
+        paddingBottom: 10,
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#ddd',
         width: '100%',
-        paddingHorizontal: 5
+        marginBottom: 30,
     },
     headerRight: {
         flexDirection: 'row',
@@ -248,19 +288,7 @@ const styles = StyleSheet.create({
         padding: 5,
     },
     headerIcon: {
-        padding: 8,
-    },
-    floatingBtn: {
-        backgroundColor: '#fff',
-        padding: 8,
-        borderRadius: 50,
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-        borderWidth: 1,
-        borderColor: '#ccc',
+        padding: 5,
     },
     overlay: {
         position: 'absolute',
@@ -319,64 +347,37 @@ const styles = StyleSheet.create({
         width: '90%',
         borderWidth: 1,
         borderColor: '#ccc',
-        borderRadius: 5,
+        borderRadius: 10,
+        elevation: 2,
     },
     label: {
         fontSize: 16,
-        marginBottom: 5,
-        fontWeight: 'normal',
+        marginBottom: 8,
+        fontWeight: '600',
+        color: '#333',
     },
     input: {
         width: '100%',
-        height: 45,
-        backgroundColor: '#eee',
-        paddingHorizontal: 10,
+        height: 50,
+        backgroundColor: '#f9f9f9',
+        paddingHorizontal: 15,
         borderWidth: 1,
         borderColor: '#ddd',
-        borderRadius: 5,
-        marginBottom: 20,
+        borderRadius: 8,
+        fontSize: 16,
+        color: '#333',
     },
     title: {
         fontWeight: 'bold',
-        fontSize: 20,
+        fontSize: 22,
         marginBottom: 20,
         alignSelf: 'center',
         color: '#333'
     },
-    dropdownContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#eee',
-        height: 45,
-        borderRadius: 5,
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: '#ddd',
-    },
-    dropdownInput: {
-        flex: 1,
-        paddingHorizontal: 10,
-        color: '#000',
-    },
-    dropdownIcon: {
-        paddingRight: 5,
-    },
-    dropdownItem: {
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderColor: '#ccc',
-        padding: 12,
-        marginTop: -1,
-        width: '100%',
-    },
-    dropdownText: {
-        fontSize: 16,
-        color: '#333',
-    },
     saveButton: {
         backgroundColor: '#4CAF50',
-        padding: 15,
-        borderRadius: 8,
+        padding: 16,
+        borderRadius: 10,
         alignItems: 'center',
         marginTop: 20,
         width: '90%',
@@ -392,6 +393,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     }
 });
+
 const notificationStyles = StyleSheet.create({
     notificationsContainer: {
         position: 'absolute',

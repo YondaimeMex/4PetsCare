@@ -1,168 +1,500 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, TextInput, Alert } from 'react-native';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
-import { ScreenWrapper, Card, Button } from '../components';
-import { spacing, typography, borderRadius } from '../constants';
-import { useApp } from '../context';
+import { useState } from 'react';
+import React from 'react';
+import * as ImagePicker from 'expo-image-picker';
+
+import NotificationService from './Notificaciones';
+
+// Componente para mostrar una notificación individual
+const NotificationItem = ({ text }) => (
+  <View style={notificationStyles.notificationItem}>
+    <View style={notificationStyles.bullet} />
+    <Text style={notificationStyles.notificationText}>{text}</Text>
+  </View>
+);
 
 export default function Perfil() {
   const navigation = useNavigation();
-  const { userData, colors, t } = useApp();
 
-  // Datos adicionales (en una app real vendrían de una API)
-  const additionalData = {
-    petsCount: 2,
-    memberSince: 'Enero 2024',
+  // Estados para abrir/cerrar menú y notificaciones
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notificaciones, setNotificaciones] = useState([]);
+  // Estados del perfil
+  const [profileImage, setProfileImage] = useState(null);
+  const [userName, setUserName] = useState('Usuario');
+  const [registrationDate] = useState('15 de Octubre de 2024'); // Fecha fija de ejemplo
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempName, setTempName] = useState('');
+
+  // Abrir o cerrar el menú lateral
+  const toggleMenu = () => {
+    const newState = !isMenuOpen;
+    setIsMenuOpen(newState);
+    if (newState) {
+      setIsNotificationsOpen(false);
+    }
   };
 
-  const menuOptions = [
-    { icon: 'person-outline', label: t.editProfile, screen: 'EditarPerfil' },
-    { icon: 'notifications-outline', label: t.notifications, screen: null },
-    { icon: 'paw-outline', label: t.myPets, screen: 'Mascotas' },
-    { icon: 'calendar-outline', label: t.myAppointments, screen: 'Calendario' },
-    { icon: 'settings-outline', label: t.settings, screen: 'Configuracion' },
-    { icon: 'help-circle-outline', label: t.help, screen: null },
-  ];
+  // Abrir o cerrar el panel de notificaciones
+  const toggleNotifications = async () => {
+    const newState = !isNotificationsOpen;
+    setIsNotificationsOpen(newState);
+    if (newState) {
+      setIsMenuOpen(false);
+      // Cargar notificaciones al abrir
+      try {
+        const allNotifications = await NotificationService.getNotifications();
+        setNotificaciones(allNotifications);
+      } catch (error) {
+        console.error("Error al cargar notificaciones:", error);
+        // Mostrar lista vacía o un error si falla la carga
+        setNotificaciones([]);
+      }
+    }
+  };
+
+  // Cerrar todo si se toca el fondo oscuro
+  const handleOverlayClick = () => {
+    if (isMenuOpen) toggleMenu();
+    if (isNotificationsOpen) toggleNotifications();
+  };
+
+  // Función para seleccionar imagen
+  const pickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (permissionResult.granted === false) {
+      Alert.alert('Se requieren permisos para acceder a la galería');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setProfileImage(result.assets[0].uri);
+    }
+  };
+
+  // Función para guardar el nombre editado
+  const saveName = () => {
+    if (tempName.trim() !== '') {
+      setUserName(tempName.trim());
+      setIsEditing(false);
+      setTempName('');
+    } else {
+      Alert.alert('Error', 'El nombre no puede estar vacío');
+    }
+  };
+
+  // Función para cancelar la edición
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setTempName('');
+  };
+
+  const isOverlayVisible = isMenuOpen || isNotificationsOpen;
 
   return (
-    <ScreenWrapper showProfile={false}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Sección de perfil */}
-        <View style={styles.profileSection}>
-          <Image
-            source={{ uri: userData.avatar }}
-            style={[styles.avatar, { borderColor: colors.primary }]}
-          />
-          <Text style={[styles.userName, { color: colors.text }]}>{userData.name}</Text>
-          <Text style={[styles.userEmail, { color: colors.textMuted }]}>{userData.email}</Text>
+    <View style={styles.container}>
+      <StatusBar style="auto" />
 
-          <View style={[styles.statsContainer, { backgroundColor: colors.card }]}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: colors.primary }]}>{additionalData.petsCount}</Text>
-              <Text style={[styles.statLabel, { color: colors.text }]}>{t.pets}</Text>
+      {/* Encabezado con menú, notificaciones y perfil */}
+      <View style={styles.header}>
+        {/* Botón menú hamburguesa */}
+        <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
+          <MaterialIcons name="menu" size={32} color="black" />
+        </TouchableOpacity>
+
+        {/* Botón de notificaciones */}
+        <TouchableOpacity style={[styles.floatingBtn, styles.headerIcon]} onPress={toggleNotifications}>
+          <Ionicons name="notifications" size={32} color="black" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Contenido principal */}
+      <ScrollView style={styles.content}>
+        {/* Contenido del perfil */}
+        <View style={profileStyles.container}>
+          {/* Título Perfil */}
+          <Text style={profileStyles.title}>Perfil</Text>
+
+          {/* Imagen de perfil */}
+          <TouchableOpacity onPress={pickImage} style={profileStyles.imageContainer}>
+            {profileImage ? (
+              <Image source={{ uri: profileImage }} style={profileStyles.profileImage} />
+            ) : (
+              <View style={profileStyles.defaultImage}>
+                <Ionicons name="person-circle" size={120} color="#ccc" />
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Nombre de usuario */}
+          <Text style={profileStyles.label}>Usuario</Text>
+          {isEditing ? (
+            <View style={profileStyles.editContainer}>
+              <TextInput
+                style={profileStyles.input}
+                value={tempName}
+                onChangeText={setTempName}
+                placeholder="Nuevo nombre"
+                autoFocus
+              />
+              <View style={profileStyles.buttonGroup}>
+                <TouchableOpacity style={[profileStyles.actionButton, profileStyles.saveButton]} onPress={saveName}>
+                  <Text style={profileStyles.buttonText}>Guardar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[profileStyles.actionButton, profileStyles.cancelButton]} onPress={cancelEdit}>
+                  <Text style={profileStyles.buttonText}>Cancelar</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: colors.primary }]}>{additionalData.memberSince}</Text>
-              <Text style={[styles.statLabel, { color: colors.text }]}>{t.memberSince}</Text>
+          ) : (
+            <View style={profileStyles.infoBox}>
+              <Text style={profileStyles.infoText}>{userName}</Text>
             </View>
-          </View>
-        </View>
+          )}
 
-        {/* Información de contacto */}
-        <Card title={t.information}>
-          <View style={styles.infoRow}>
-            <Ionicons name="call-outline" size={20} color={colors.textLight} />
-            <Text style={[styles.infoText, { color: colors.text }]}>{userData.phone}</Text>
+          {/* Fecha de registro */}
+          <Text style={profileStyles.label}>Fecha de registro</Text>
+          <View style={profileStyles.infoBox}>
+            <Text style={profileStyles.infoText}>{registrationDate}</Text>
           </View>
-          <View style={styles.infoRow}>
-            <Ionicons name="mail-outline" size={20} color={colors.textLight} />
-            <Text style={[styles.infoText, { color: colors.text }]}>{userData.email}</Text>
-          </View>
-        </Card>
 
-        {/* Opciones del menú */}
-        <Card title={t.options}>
-          {menuOptions.map((option, index) => (
+          {/* Botón editar nombre */}
+          {!isEditing && (
             <TouchableOpacity
-              key={index}
-              style={[styles.menuOption, { borderBottomColor: colors.borderLight }]}
-              onPress={() => option.screen && navigation.navigate(option.screen)}
+              style={profileStyles.editButton}
+              onPress={() => {
+                setTempName(userName);
+                setIsEditing(true);
+              }}
             >
-              <Ionicons name={option.icon} size={24} color={colors.primary} />
-              <Text style={[styles.menuOptionText, { color: colors.text }]}>{option.label}</Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+              <Ionicons name="pencil" size={20} color="#fff" />
+              <Text style={profileStyles.editButtonText}>Editar nombre</Text>
             </TouchableOpacity>
-          ))}
-        </Card>
-
-        {/* Botón de cerrar sesión */}
-        <View style={styles.logoutContainer}>
-          <Button
-            title={t.logout}
-            variant="outline"
-            icon={<MaterialIcons name="logout" size={20} color={colors.danger} />}
-            onPress={() => alert('Cerrar sesión')}
-            style={[styles.logoutButton, { borderColor: colors.danger }]}
-          />
+          )}
         </View>
       </ScrollView>
-    </ScreenWrapper>
+
+      {/* Fondo oscuro cuando se abre menú o notificaciones */}
+      {isOverlayVisible && (
+        <TouchableOpacity
+          style={styles.overlay}
+          activeOpacity={1}
+          onPress={handleOverlayClick}
+        />
+      )}
+
+      {/* Menú lateral */}
+      <View style={[
+        styles.sideMenu,
+        { transform: [{ translateX: isMenuOpen ? 0 : -300 }] }
+      ]}>
+        <View style={styles.menuHeader}>
+          <Text style={styles.menuTitle}>Menú</Text>
+          <TouchableOpacity onPress={toggleMenu}>
+            <Ionicons name="close" size={30} color="#333" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Opciones del menú */}
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => { toggleMenu(); navigation.navigate('Home'); }}
+        >
+          <Ionicons name="home" size={24} color="black" />
+          <Text style={styles.menuItemText}>Inicio</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
+          <Ionicons name="paw-outline" size={30} color="#4BCF5C" />
+          <Text style={styles.menuItemText}>Mascotas</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
+          <Ionicons name="calendar-number" size={30} color="#007AFF" />
+          <Text style={styles.menuItemText}>Calendario</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}>
+          <MaterialIcons name="tips-and-updates" size={30} color="#FF9500" />
+          <Text style={styles.menuItemText}>Consejos</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
+          <MaterialIcons name="emergency" size={30} color="#FF3B30" />
+          <Text style={styles.menuItemText}>Emergencias</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Panel de notificaciones */}
+      {isNotificationsOpen && (
+        <View style={notificationStyles.notificationsContainer}>
+          <Text style={notificationStyles.headerText}>Notificaciones</Text>
+          <ScrollView style={notificationStyles.list}>
+            {notificaciones.length > 0 ? (
+              notificaciones.map((n, index) => (
+                <NotificationItem key={index} text={n.text} />
+              ))
+            ) : (
+              <Text style={{ textAlign: 'center', color: '#666', marginTop: 10 }}>No hay notificaciones.</Text>
+            )}
+          </ScrollView>
+        </View>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  content: {
+    paddingHorizontal: 20,
     flex: 1,
   },
-  scrollContent: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
-  profileSection: {
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    width: '100%',
+    marginBottom: 30,
   },
-  avatar: {
-    width: 100,
-    height: 100,
+  menuHamburguesa: {
+    padding: 5,
+  },
+  headerIcon: {
+    padding: 15,
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#00000080',
+    zIndex: 10,
+  },
+  sideMenu: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: 280,
+    backgroundColor: '#fff',
+    padding: 20,
+    zIndex: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 4, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 10,
+    flex: 1,
+  },
+  menuHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 30,
+    paddingTop: 30,
+  },
+  menuTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 50,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  menuItemText: {
+    fontSize: 18,
+    marginLeft: 15,
+    color: '#333',
+  },
+  floatingBtn: {
+    backgroundColor: '#fff',
+    padding: 18,
     borderRadius: 50,
-    marginBottom: spacing.md,
-    borderWidth: 3,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#ccc',
   },
-  userName: {
-    ...typography.title,
+});
+
+// Estilos para las notificaciones
+const notificationStyles = StyleSheet.create({
+  notificationsContainer: {
+    position: 'absolute',
+    top: 100,
+    right: 30,
+    width: 300,
+    maxHeight: 400,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 10,
+    padding: 15,
+    zIndex: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
-  userEmail: {
-    ...typography.bodySmall,
-    marginBottom: spacing.md,
+  headerText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 10,
+    color: 'black',
   },
-  statsContainer: {
+  list: {
+    flexGrow: 0,
+  },
+  notificationItem: {
     flexDirection: 'row',
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    marginTop: spacing.sm,
+    alignItems: 'flex-start',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
   },
-  statItem: {
+  bullet: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'red',
+    marginRight: 10,
+    marginTop: 5,
+  },
+  notificationText: {
+    fontSize: 16,
+  },
+});
+
+// Estilos para el perfil
+const profileStyles = StyleSheet.create({
+  container: {
     flex: 1,
     alignItems: 'center',
+    paddingTop: 20,
   },
-  statNumber: {
-    ...typography.subtitle,
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 30,
   },
-  statLabel: {
-    ...typography.caption,
+  imageContainer: {
+    marginBottom: 30,
   },
-  statDivider: {
-    width: 1,
-    marginHorizontal: spacing.md,
+  profileImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: '#007AFF',
   },
-  infoRow: {
-    flexDirection: 'row',
+  defaultImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+    marginLeft: 20,
+  },
+  infoBox: {
+    backgroundColor: '#f5f5f5',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    width: '90%',
+    marginBottom: 25,
   },
   infoText: {
-    ...typography.body,
-    marginLeft: spacing.sm,
+    fontSize: 18,
+    color: '#333',
   },
-  menuOption: {
+  editButton: {
     flexDirection: 'row',
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 8,
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
+    marginTop: 20,
   },
-  menuOptionText: {
-    ...typography.body,
+  editButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  editContainer: {
+    width: '90%',
+    marginBottom: 25,
+  },
+  input: {
+    backgroundColor: '#f5f5f5',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    fontSize: 18,
+    color: '#333',
+    marginBottom: 10,
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  actionButton: {
     flex: 1,
-    marginLeft: spacing.md,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 5,
   },
-  logoutContainer: {
-    marginTop: spacing.lg,
+  saveButton: {
+    backgroundColor: '#4BCF5C',
   },
-  logoutButton: {},
+  cancelButton: {
+    backgroundColor: '#FF3B30',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });
