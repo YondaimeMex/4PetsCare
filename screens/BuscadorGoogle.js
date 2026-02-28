@@ -74,7 +74,7 @@ export default function BuscadorGoogle() {
 
             <StatusBar style="auto" />
 
-                {/* HEADER */}
+            {/* HEADER */}
             <View style={styles.header}>
                 <TouchableOpacity>
                     <MaterialIcons name="menu" size={32} color="black" />
@@ -208,8 +208,7 @@ export default function BuscadorGoogle() {
                 </View>
             )}
 
-        </SafeAreaView>
-        </KeyboardAvoidingView>
+        </SafeAreaView >
     );
 }
 
