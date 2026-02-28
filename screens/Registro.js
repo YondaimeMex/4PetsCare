@@ -5,11 +5,13 @@ import { useNavigation } from '@react-navigation/native';
 import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import { supabase } from '../lib/Supabase';
+import { useApp } from '../context';
 
 
 
 export default function Registro() {
     const navigation = useNavigation();
+    const { colors, t, isDarkMode } = useApp();
 
     // Estados del formulario
     const [username, setUsername] = useState('');
@@ -102,19 +104,19 @@ export default function Registro() {
         setLoading(true);
         try {
             const { data, error } = await supabase.auth.signUp({
-            email: email.trim(),
-            password: password,
-            options: {
-                data: {
-                    nombre: username.trim(), // se guarda en el perfil del usuario
+                email: email.trim(),
+                password: password,
+                options: {
+                    data: {
+                        nombre: username.trim(), // se guarda en el perfil del usuario
+                    },
                 },
-            },
-        });
+            });
 
-           if (error) {
-            Alert.alert('Error', error.message || 'No se pudo completar el registro.');
-            return;
-        }
+            if (error) {
+                Alert.alert('Error', error.message || 'No se pudo completar el registro.');
+                return;
+            }
 
             // Registro exitoso
             Alert.alert(
@@ -147,11 +149,11 @@ export default function Registro() {
     };
 
     return (
-        <View style={styles.container}>
-            <StatusBar style="light" backgroundColor="#4BCF5C" />
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
 
             {/* Encabezado con fondo gradiente */}
-            <View style={styles.headerBackground}>
+            <View style={[styles.headerBackground, { backgroundColor: colors.success }]}>
                 <Animated.View
                     style={[
                         styles.headerContent,
@@ -186,22 +188,22 @@ export default function Registro() {
                             },
                         ]}
                     >
-                        <Text style={styles.formTitle}>Regístrate</Text>
-                        <Text style={styles.formSubtitle}>Crea tu cuenta para comenzar</Text>
+                        <Text style={[styles.formTitle, { color: colors.text }]}>Regístrate</Text>
+                        <Text style={[styles.formSubtitle, { color: colors.textMuted }]}>Crea tu cuenta para comenzar</Text>
 
                         {/* Campo Usuario */}
                         <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Usuario</Text>
-                            <View style={[styles.inputWrapper, errors.username && styles.inputWrapperError]}>
-                                <Ionicons name="person-outline" size={22} color="#4BCF5C" style={styles.inputIcon} />
+                            <Text style={[styles.label, { color: colors.text }]}>Usuario</Text>
+                            <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }, errors.username && styles.inputWrapperError]}>
+                                <Ionicons name="person-outline" size={22} color={colors.success} style={styles.inputIcon} />
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { color: colors.text }]}
                                     value={username}
                                     onChangeText={setUsername}
                                     placeholder="Tu nombre de usuario"
-                                    placeholderTextColor="#999"
+                                    placeholderTextColor={colors.textMuted}
                                     editable={!loading}
-                                    selectionColor="#4BCF5C"
+                                    selectionColor={colors.success}
                                 />
                             </View>
                             {errors.username ? (
@@ -214,19 +216,19 @@ export default function Registro() {
 
                         {/* Campo Correo */}
                         <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Correo electrónico</Text>
-                            <View style={[styles.inputWrapper, errors.email && styles.inputWrapperError]}>
-                                <Ionicons name="mail-outline" size={22} color="#4BCF5C" style={styles.inputIcon} />
+                            <Text style={[styles.label, { color: colors.text }]}>Correo electrónico</Text>
+                            <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }, errors.email && styles.inputWrapperError]}>
+                                <Ionicons name="mail-outline" size={22} color={colors.success} style={styles.inputIcon} />
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { color: colors.text }]}
                                     value={email}
                                     onChangeText={setEmail}
                                     placeholder="tu@correo.com"
-                                    placeholderTextColor="#999"
+                                    placeholderTextColor={colors.textMuted}
                                     keyboardType="email-address"
                                     autoCapitalize="none"
                                     editable={!loading}
-                                    selectionColor="#4BCF5C"
+                                    selectionColor={colors.success}
                                 />
                             </View>
                             {errors.email ? (
@@ -239,18 +241,18 @@ export default function Registro() {
 
                         {/* Campo Contraseña */}
                         <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Contraseña</Text>
-                            <View style={[styles.inputWrapper, errors.password && styles.inputWrapperError]}>
-                                <Ionicons name="lock-closed-outline" size={22} color="#4BCF5C" style={styles.inputIcon} />
+                            <Text style={[styles.label, { color: colors.text }]}>Contraseña</Text>
+                            <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }, errors.password && styles.inputWrapperError]}>
+                                <Ionicons name="lock-closed-outline" size={22} color={colors.success} style={styles.inputIcon} />
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { color: colors.text }]}
                                     value={password}
                                     onChangeText={setPassword}
                                     placeholder="Mínimo 6 caracteres"
-                                    placeholderTextColor="#999"
+                                    placeholderTextColor={colors.textMuted}
                                     secureTextEntry={!showPassword}
                                     editable={!loading}
-                                    selectionColor="#4BCF5C"
+                                    selectionColor={colors.success}
                                 />
                                 <TouchableOpacity
                                     style={styles.eyeIcon}
@@ -261,7 +263,7 @@ export default function Registro() {
                                     <Ionicons
                                         name={showPassword ? "eye-off-outline" : "eye-outline"}
                                         size={22}
-                                        color="#4BCF5C"
+                                        color={colors.success}
                                     />
                                 </TouchableOpacity>
                             </View>
@@ -275,18 +277,18 @@ export default function Registro() {
 
                         {/* Campo Confirmar Contraseña */}
                         <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Confirmar Contraseña</Text>
-                            <View style={[styles.inputWrapper, errors.confirmPassword && styles.inputWrapperError]}>
-                                <Ionicons name="lock-closed-outline" size={22} color="#4BCF5C" style={styles.inputIcon} />
+                            <Text style={[styles.label, { color: colors.text }]}>Confirmar Contraseña</Text>
+                            <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }, errors.confirmPassword && styles.inputWrapperError]}>
+                                <Ionicons name="lock-closed-outline" size={22} color={colors.success} style={styles.inputIcon} />
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { color: colors.text }]}
                                     value={confirmPassword}
                                     onChangeText={setConfirmPassword}
                                     placeholder="Confirma tu contraseña"
-                                    placeholderTextColor="#999"
+                                    placeholderTextColor={colors.textMuted}
                                     secureTextEntry={!showConfirmPassword}
                                     editable={!loading}
-                                    selectionColor="#4BCF5C"
+                                    selectionColor={colors.success}
                                 />
                                 <TouchableOpacity
                                     style={styles.eyeIcon}
@@ -297,7 +299,7 @@ export default function Registro() {
                                     <Ionicons
                                         name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
                                         size={22}
-                                        color="#4BCF5C"
+                                        color={colors.success}
                                     />
                                 </TouchableOpacity>
                             </View>
@@ -311,7 +313,7 @@ export default function Registro() {
 
                         {/* Botón Registrarse */}
                         <TouchableOpacity
-                            style={[styles.registerButton, loading && styles.disabledButton]}
+                            style={[styles.registerButton, { backgroundColor: colors.success }, loading && styles.disabledButton]}
                             onPress={handleRegister}
                             disabled={loading}
                             activeOpacity={0.8}
@@ -331,9 +333,9 @@ export default function Registro() {
 
                         {/* Separador */}
                         <View style={styles.separatorContainer}>
-                            <View style={styles.separatorLine} />
-                            <Text style={styles.separatorText}>¿Ya tienes cuenta?</Text>
-                            <View style={styles.separatorLine} />
+                            <View style={[styles.separatorLine, { backgroundColor: colors.border }]} />
+                            <Text style={[styles.separatorText, { color: colors.textMuted }]}>¿Ya tienes cuenta?</Text>
+                            <View style={[styles.separatorLine, { backgroundColor: colors.border }]} />
                         </View>
 
                         {/* Botón Volver a Login */}
@@ -343,19 +345,19 @@ export default function Registro() {
                             disabled={loading}
                             activeOpacity={0.7}
                         >
-                            <Text style={styles.loginLinkText}>Inicia sesión aquí</Text>
+                            <Text style={[styles.loginLinkText, { color: colors.success }]}>Inicia sesión aquí</Text>
                         </TouchableOpacity>
 
                         {/* Pie de página */}
-                        <View style={styles.footer}>
-                            <Text style={styles.footerText}>Al registrarte, aceptas nuestros</Text>
+                        <View style={[styles.footer, { borderTopColor: colors.border }]}>
+                            <Text style={[styles.footerText, { color: colors.textMuted }]}>Al registrarte, aceptas nuestros</Text>
                             <View style={styles.footerLinks}>
                                 <TouchableOpacity>
-                                    <Text style={styles.footerLink}>Términos de servicio</Text>
+                                    <Text style={[styles.footerLink, { color: colors.success }]}>Términos de servicio</Text>
                                 </TouchableOpacity>
-                                <Text style={styles.footerText}> y </Text>
+                                <Text style={[styles.footerText, { color: colors.textMuted }]}> y </Text>
                                 <TouchableOpacity>
-                                    <Text style={styles.footerLink}>Política de privacidad</Text>
+                                    <Text style={[styles.footerLink, { color: colors.success }]}>Política de privacidad</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>

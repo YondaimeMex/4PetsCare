@@ -4,9 +4,11 @@ import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { useState, useEffect, useRef } from 'react';
 import React from 'react';
+import { useApp } from '../context';
 
 export default function Recuperación() {
     const navigation = useNavigation();
+    const { colors, t, isDarkMode } = useApp();
 
     // Estados principales
     const [step, setStep] = useState(1); // 1: Ingreso de email, 2: Código de verificación, 3: Nueva contraseña
@@ -209,11 +211,11 @@ export default function Recuperación() {
     };
 
     return (
-        <View style={styles.container}>
-            <StatusBar style="light" backgroundColor="#4BCF5C" />
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
 
             {/* Encabezado con fondo gradiente */}
-            <View style={styles.headerBackground}>
+            <View style={[styles.headerBackground, { backgroundColor: colors.success }]}>
                 <Animated.View
                     style={[
                         styles.headerContent,
@@ -252,23 +254,23 @@ export default function Recuperación() {
                         {step === 1 && (
                             <>
                                 <View>
-                                    <Text style={styles.formTitle}>Ingresa tu correo</Text>
-                                    <Text style={styles.formSubtitle}>Te enviaremos un código para recuperar tu contraseña</Text>
+                                    <Text style={[styles.formTitle, { color: colors.text }]}>Ingresa tu correo</Text>
+                                    <Text style={[styles.formSubtitle, { color: colors.textMuted }]}>Te enviaremos un código para recuperar tu contraseña</Text>
 
                                     <View style={styles.inputContainer}>
-                                        <Text style={styles.label}>Correo electrónico</Text>
-                                        <View style={[styles.inputWrapper, errors.email && styles.inputWrapperError]}>
-                                            <Ionicons name="mail-outline" size={22} color="#4BCF5C" style={styles.inputIcon} />
+                                        <Text style={[styles.label, { color: colors.text }]}>Correo electrónico</Text>
+                                        <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }, errors.email && styles.inputWrapperError]}>
+                                            <Ionicons name="mail-outline" size={22} color={colors.success} style={styles.inputIcon} />
                                             <TextInput
-                                                style={styles.input}
+                                                style={[styles.input, { color: colors.text }]}
                                                 value={email}
                                                 onChangeText={setEmail}
                                                 placeholder="tu@correo.com"
-                                                placeholderTextColor="#999"
+                                                placeholderTextColor={colors.textMuted}
                                                 keyboardType="email-address"
                                                 autoCapitalize="none"
                                                 editable={!loading}
-                                                selectionColor="#4BCF5C"
+                                                selectionColor={colors.success}
                                             />
                                         </View>
                                         {errors.email ? (
@@ -281,7 +283,7 @@ export default function Recuperación() {
                                 </View>
 
                                 <TouchableOpacity
-                                    style={[styles.submitButton, loading && styles.disabledButton]}
+                                    style={[styles.submitButton, { backgroundColor: colors.success }, loading && styles.disabledButton]}
                                     onPress={handleRequestReset}
                                     disabled={loading}
                                     activeOpacity={0.8}
@@ -305,23 +307,23 @@ export default function Recuperación() {
                         {step === 2 && (
                             <>
                                 <View>
-                                    <Text style={styles.formTitle}>Verifica tu código</Text>
-                                    <Text style={styles.formSubtitle}>Hemos enviado un código de 6 dígitos a {email}</Text>
+                                    <Text style={[styles.formTitle, { color: colors.text }]}>Verifica tu código</Text>
+                                    <Text style={[styles.formSubtitle, { color: colors.textMuted }]}>Hemos enviado un código de 6 dígitos a {email}</Text>
 
                                     <View style={styles.inputContainer}>
-                                        <Text style={styles.label}>Código de verificación</Text>
-                                        <View style={[styles.inputWrapper, errors.verificationCode && styles.inputWrapperError]}>
-                                            <Ionicons name="shield-checkmark-outline" size={22} color="#4BCF5C" style={styles.inputIcon} />
+                                        <Text style={[styles.label, { color: colors.text }]}>Código de verificación</Text>
+                                        <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }, errors.verificationCode && styles.inputWrapperError]}>
+                                            <Ionicons name="shield-checkmark-outline" size={22} color={colors.success} style={styles.inputIcon} />
                                             <TextInput
-                                                style={styles.input}
+                                                style={[styles.input, { color: colors.text }]}
                                                 value={verificationCode}
                                                 onChangeText={setVerificationCode}
                                                 placeholder="000000"
-                                                placeholderTextColor="#999"
+                                                placeholderTextColor={colors.textMuted}
                                                 keyboardType="number-pad"
                                                 maxLength={6}
                                                 editable={!loading}
-                                                selectionColor="#4BCF5C"
+                                                selectionColor={colors.success}
                                             />
                                         </View>
                                         {errors.verificationCode ? (
@@ -333,17 +335,17 @@ export default function Recuperación() {
                                     </View>
 
                                     {/* Timer */}
-                                    <View style={styles.timerContainer}>
-                                        <Ionicons name="hourglass-outline" size={18} color="#4BCF5C" />
-                                        <Text style={styles.timerText}>
-                                            Código válido por: <Text style={styles.timerBold}>{formatTime(timeLeft)}</Text>
+                                    <View style={[styles.timerContainer, { backgroundColor: isDarkMode ? colors.card : '#e8f5e9' }]}>
+                                        <Ionicons name="hourglass-outline" size={18} color={colors.success} />
+                                        <Text style={[styles.timerText, { color: colors.text }]}>
+                                            Código válido por: <Text style={[styles.timerBold, { color: colors.success }]}>{formatTime(timeLeft)}</Text>
                                         </Text>
                                     </View>
                                 </View>
 
                                 <View>
                                     <TouchableOpacity
-                                        style={[styles.submitButton, loading && styles.disabledButton]}
+                                        style={[styles.submitButton, { backgroundColor: colors.success }, loading && styles.disabledButton]}
                                         onPress={handleVerifyCode}
                                         disabled={loading}
                                         activeOpacity={0.8}
@@ -367,10 +369,10 @@ export default function Recuperación() {
                                             onPress={handleResendCode}
                                             disabled={loading}
                                         >
-                                            <Text style={styles.resendText}>¿No recibiste el código? Reenviar</Text>
+                                            <Text style={[styles.resendText, { color: colors.success }]}>¿No recibiste el código? Reenviar</Text>
                                         </TouchableOpacity>
                                     ) : (
-                                        <Text style={styles.resendDisabled}>¿No recibiste el código? Espera para reenviar</Text>
+                                        <Text style={[styles.resendDisabled, { color: colors.textMuted }]}>¿No recibiste el código? Espera para reenviar</Text>
                                     )}
                                 </View>
                             </>
@@ -380,22 +382,22 @@ export default function Recuperación() {
                         {step === 3 && (
                             <>
                                 <View>
-                                    <Text style={styles.formTitle}>Nueva contraseña</Text>
-                                    <Text style={styles.formSubtitle}>Crea una nueva contraseña segura para tu cuenta</Text>
+                                    <Text style={[styles.formTitle, { color: colors.text }]}>Nueva contraseña</Text>
+                                    <Text style={[styles.formSubtitle, { color: colors.textMuted }]}>Crea una nueva contraseña segura para tu cuenta</Text>
 
                                     <View style={styles.inputContainer}>
-                                        <Text style={styles.label}>Nueva contraseña</Text>
-                                        <View style={[styles.inputWrapper, errors.newPassword && styles.inputWrapperError]}>
-                                            <Ionicons name="lock-closed-outline" size={22} color="#4BCF5C" style={styles.inputIcon} />
+                                        <Text style={[styles.label, { color: colors.text }]}>Nueva contraseña</Text>
+                                        <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }, errors.newPassword && styles.inputWrapperError]}>
+                                            <Ionicons name="lock-closed-outline" size={22} color={colors.success} style={styles.inputIcon} />
                                             <TextInput
-                                                style={styles.input}
+                                                style={[styles.input, { color: colors.text }]}
                                                 value={newPassword}
                                                 onChangeText={setNewPassword}
                                                 placeholder="Mínimo 6 caracteres"
-                                                placeholderTextColor="#999"
+                                                placeholderTextColor={colors.textMuted}
                                                 secureTextEntry={!showPassword}
                                                 editable={!loading}
-                                                selectionColor="#4BCF5C"
+                                                selectionColor={colors.success}
                                             />
                                             <TouchableOpacity
                                                 style={styles.eyeIcon}
@@ -406,7 +408,7 @@ export default function Recuperación() {
                                                 <Ionicons
                                                     name={showPassword ? "eye-off-outline" : "eye-outline"}
                                                     size={22}
-                                                    color="#4BCF5C"
+                                                    color={colors.success}
                                                 />
                                             </TouchableOpacity>
                                         </View>
@@ -419,18 +421,18 @@ export default function Recuperación() {
                                     </View>
 
                                     <View style={styles.inputContainer}>
-                                        <Text style={styles.label}>Confirmar contraseña</Text>
-                                        <View style={[styles.inputWrapper, errors.confirmPassword && styles.inputWrapperError]}>
-                                            <Ionicons name="lock-closed-outline" size={22} color="#4BCF5C" style={styles.inputIcon} />
+                                        <Text style={[styles.label, { color: colors.text }]}>Confirmar contraseña</Text>
+                                        <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }, errors.confirmPassword && styles.inputWrapperError]}>
+                                            <Ionicons name="lock-closed-outline" size={22} color={colors.success} style={styles.inputIcon} />
                                             <TextInput
-                                                style={styles.input}
+                                                style={[styles.input, { color: colors.text }]}
                                                 value={confirmPassword}
                                                 onChangeText={setConfirmPassword}
                                                 placeholder="Confirma tu contraseña"
-                                                placeholderTextColor="#999"
+                                                placeholderTextColor={colors.textMuted}
                                                 secureTextEntry={!showConfirmPassword}
                                                 editable={!loading}
-                                                selectionColor="#4BCF5C"
+                                                selectionColor={colors.success}
                                             />
                                             <TouchableOpacity
                                                 style={styles.eyeIcon}
@@ -441,7 +443,7 @@ export default function Recuperación() {
                                                 <Ionicons
                                                     name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
                                                     size={22}
-                                                    color="#4BCF5C"
+                                                    color={colors.success}
                                                 />
                                             </TouchableOpacity>
                                         </View>
@@ -455,7 +457,7 @@ export default function Recuperación() {
                                 </View>
 
                                 <TouchableOpacity
-                                    style={[styles.submitButton, loading && styles.disabledButton]}
+                                    style={[styles.submitButton, { backgroundColor: colors.success }, loading && styles.disabledButton]}
                                     onPress={handleResetPassword}
                                     disabled={loading}
                                     activeOpacity={0.8}
@@ -482,8 +484,8 @@ export default function Recuperación() {
                             disabled={loading}
                             activeOpacity={0.7}
                         >
-                            <Ionicons name="arrow-back" size={20} color="#4BCF5C" />
-                            <Text style={styles.backButtonText}>
+                            <Ionicons name="arrow-back" size={20} color={colors.success} />
+                            <Text style={[styles.backButtonText, { color: colors.success }]}>
                                 {step === 1 ? 'Volver a Login' : 'Paso anterior'}
                             </Text>
                         </TouchableOpacity>

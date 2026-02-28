@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import NotificationService from './Notificaciones';
+import { useApp } from '../context';
 
 // Componente que muestra cada notificación
 const NotificationItem = ({ text }) => (
@@ -18,6 +19,7 @@ const NotificationItem = ({ text }) => (
 // Pantalla principal para registrar veterinarias
 export default function RegistroVeterinaria() {
     const navigation = useNavigation();
+    const { colors, t, isDarkMode } = useApp();
 
     // Estados para los campos del formulario
     const [nombreVeterinaria, setNombreVeterinaria] = useState('');
@@ -100,25 +102,25 @@ export default function RegistroVeterinaria() {
     const isOverlayVisible = isMenuOpen || isNotificationsOpen;
 
     return (
-        <View style={styles.container}>
-            <StatusBar style="auto" />
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
 
             {/* Encabezado ORIGINAL */}
-            <View style={styles.header}>
+            <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
                 <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
-                    <MaterialIcons name="menu" size={32} color="black" />
+                    <MaterialIcons name="menu" size={32} color={colors.text} />
                 </TouchableOpacity>
 
                 <View style={styles.headerRight}>
                     <TouchableOpacity style={styles.headerIcon} onPress={toggleNotifications}>
-                        <Ionicons name="notifications" size={32} color="black" />
+                        <Ionicons name="notifications" size={32} color={colors.text} />
                     </TouchableOpacity>
 
                     <TouchableOpacity
                         style={styles.headerIcon}
                         onPress={() => navigation.navigate('Perfil')}
                     >
-                        <Ionicons name="person-circle-outline" size={32} color="black" />
+                        <Ionicons name="person-circle-outline" size={32} color={colors.text} />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -126,44 +128,44 @@ export default function RegistroVeterinaria() {
             {/* Contenido principal */}
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 {/* Formulario de registro (Diseño Original) */}
-                <View style={styles.formCard}>
-                    <Text style={styles.title}>¡Registra tu Veterinaria!</Text>
-                    <Text style={styles.label}>Nombre:</Text>
+                <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Text style={[styles.title, { color: colors.text }]}>¡Registra tu Veterinaria!</Text>
+                    <Text style={[styles.label, { color: colors.text }]}>Nombre:</Text>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: isDarkMode ? colors.background : '#f9f9f9', borderColor: colors.border, color: colors.text }]}
                         value={nombreVeterinaria}
                         onChangeText={setNombreVeterinaria}
                         placeholder="Ej. Luz"
-                        placeholderTextColor="#999"
+                        placeholderTextColor={colors.textMuted}
                     />
                 </View>
 
-                <View style={styles.formCard}>
-                    <Text style={styles.label}>Ubicación:</Text>
+                <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Text style={[styles.label, { color: colors.text }]}>Ubicación:</Text>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: isDarkMode ? colors.background : '#f9f9f9', borderColor: colors.border, color: colors.text }]}
                         value={UbiVeterinaria}
                         onChangeText={setUbiVeterinaria}
                         placeholder="Ej. Lopez Portillo"
-                        placeholderTextColor="#999"
+                        placeholderTextColor={colors.textMuted}
                     />
                 </View>
 
-                <View style={styles.formCard}>
-                    <Text style={styles.label}>Número:</Text>
+                <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Text style={[styles.label, { color: colors.text }]}>Número:</Text>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: isDarkMode ? colors.background : '#f9f9f9', borderColor: colors.border, color: colors.text }]}
                         value={Numero}
                         onChangeText={setNumero}
                         placeholder="Ej. 9988776655"
-                        placeholderTextColor="#999"
+                        placeholderTextColor={colors.textMuted}
                         keyboardType="numeric"
                     />
                 </View>
 
                 {/* Botón para guardar veterinaria */}
                 <TouchableOpacity
-                    style={styles.saveButton}
+                    style={[styles.saveButton, { backgroundColor: colors.success }]}
                     onPress={handleSave}
                 >
                     <Text style={styles.saveButtonText}>Guardar Veterinaria</Text>
@@ -171,7 +173,7 @@ export default function RegistroVeterinaria() {
 
                 {/* Botón Cancelar */}
                 <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 20 }}>
-                    <Text style={{ color: '#666', textAlign: 'center' }}>Cancelar</Text>
+                    <Text style={{ color: colors.textMuted, textAlign: 'center' }}>Cancelar</Text>
                 </TouchableOpacity>
             </ScrollView>
 
@@ -184,69 +186,66 @@ export default function RegistroVeterinaria() {
                 />
             )}
 
-            <View style={[
-                styles.sideMenu,
-                { transform: [{ translateX: isMenuOpen ? 0 : -300 }] }
-            ]}>
+            <View style={[styles.sideMenu, { backgroundColor: colors.card, transform: [{ translateX: isMenuOpen ? 0 : -300 }] }]}>
                 <View style={styles.menuHeader}>
-                    <Text style={styles.menuTitle}>Menú</Text>
+                    <Text style={[styles.menuTitle, { color: colors.text }]}>Menú</Text>
                     <TouchableOpacity onPress={toggleMenu}>
-                        <Ionicons name="close" size={30} color="#333" />
+                        <Ionicons name="close" size={30} color={colors.text} />
                     </TouchableOpacity>
                 </View>
 
                 <TouchableOpacity
-                    style={styles.menuItem}
+                    style={[styles.menuItem, { borderBottomColor: colors.border }]}
                     onPress={() => { toggleMenu(); navigation.navigate('Home'); }}
                 >
-                    <Ionicons name="home" size={24} color="black" />
-                    <Text style={styles.menuItemText}>Inicio</Text>
+                    <Ionicons name="home" size={24} color={colors.text} />
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Inicio</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    style={styles.menuItem}
+                    style={[styles.menuItem, { borderBottomColor: colors.border }]}
                     onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}
                 >
-                    <Ionicons name="paw-outline" size={30} color="#4BCF5C" />
-                    <Text style={styles.menuItemText}>Mascotas</Text>
+                    <Ionicons name="paw-outline" size={30} color={colors.success} />
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Mascotas</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    style={styles.menuItem}
+                    style={[styles.menuItem, { borderBottomColor: colors.border }]}
                     onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}
                 >
-                    <Ionicons name="calendar-number" size={30} color="#007AFF" />
-                    <Text style={styles.menuItemText}>Calendario</Text>
+                    <Ionicons name="calendar-number" size={30} color={colors.primary} />
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Calendario</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    style={styles.menuItem}
+                    style={[styles.menuItem, { borderBottomColor: colors.border }]}
                     onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}
                 >
                     <MaterialIcons name="tips-and-updates" size={30} color="#FF9500" />
-                    <Text style={styles.menuItemText}>Consejos</Text>
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Consejos</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    style={styles.menuItem}
+                    style={[styles.menuItem, { borderBottomColor: colors.border }]}
                     onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}
                 >
                     <MaterialIcons name="emergency" size={30} color="#FF3B30" />
-                    <Text style={styles.menuItemText}>Emergencias</Text>
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Emergencias</Text>
                 </TouchableOpacity>
             </View>
 
             {/* Panel de notificaciones */}
             {isNotificationsOpen && (
-                <View style={notificationStyles.notificationsContainer}>
-                    <Text style={notificationStyles.headerText}>Notificaciones</Text>
+                <View style={[notificationStyles.notificationsContainer, { backgroundColor: isDarkMode ? colors.card : '#e0e0e0' }]}>
+                    <Text style={[notificationStyles.headerText, { color: colors.text }]}>Notificaciones</Text>
                     <ScrollView style={notificationStyles.list}>
                         {notificaciones.length > 0 ? (
                             notificaciones.map((n, index) => (
                                 <NotificationItem key={index} text={n.text} />
                             ))
                         ) : (
-                            <Text style={{ textAlign: 'center', color: '#666', marginTop: 10 }}>No hay notificaciones.</Text>
+                            <Text style={{ textAlign: 'center', color: colors.textMuted, marginTop: 10 }}>No hay notificaciones.</Text>
                         )}
                     </ScrollView>
                 </View>

@@ -3,7 +3,6 @@ import {
     View,
     Text,
     TouchableOpacity,
-    StyleSheet,
     TextInput,
     Platform,
     KeyboardAvoidingView
@@ -13,28 +12,32 @@ import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-ic
 import { StatusBar } from 'expo-status-bar';
 import { WebView } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useApp } from '../context';
 
 export default function Mapa() {
+    const { colors, t, isDarkMode } = useApp();
 
     const [message, setMessage] = useState('');
     const [url, setUrl] = useState(
         'https://www.google.com/maps/search/veterinarias'
     );
 
+    const styles = getStyles(colors);
+
     return (
         <SafeAreaView style={styles.container}>
 
-            <StatusBar style="auto" />
+            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
 
             {/* HEADER */}
             <View style={styles.header}>
                 <TouchableOpacity>
-                    <MaterialIcons name="menu" size={32} color="black" />
+                    <MaterialIcons name="menu" size={32} color={colors.text} />
                 </TouchableOpacity>
 
                 <View style={styles.headerRight}>
-                    <Ionicons name="notifications" size={32} color="black" />
-                    <Ionicons name="person-circle-outline" size={32} color="black" />
+                    <Ionicons name="notifications" size={32} color={colors.text} />
+                    <Ionicons name="person-circle-outline" size={32} color={colors.text} />
                 </View>
             </View>
 
@@ -47,7 +50,7 @@ export default function Mapa() {
                     <MaterialCommunityIcons
                         name="map-marker-radius"
                         size={40}
-                        color="black"
+                        color={colors.text}
                         style={{ marginTop: 20 }}
                     />
                 </View>
@@ -80,7 +83,7 @@ export default function Mapa() {
                                 setUrl(mapsURL);
                             }}
                         >
-                            <MaterialCommunityIcons name="send" size={20} color="black" />
+                            <MaterialCommunityIcons name="send" size={20} color={colors.text} />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -97,10 +100,10 @@ export default function Mapa() {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => ({
     container: {
         flex: 1,
-        backgroundColor: '#fff'
+        backgroundColor: colors.background
     },
 
     header: {
@@ -126,19 +129,20 @@ const styles = StyleSheet.create({
 
     centerMessage: {
         fontSize: 20,
-        fontWeight: '700'
+        fontWeight: '700',
+        color: colors.text
     },
 
     inputContainer: {
         paddingBottom: Platform.OS === 'android' ? 12 : 25,
         paddingTop: 10,
-        backgroundColor: '#fff'
+        backgroundColor: colors.background
     },
 
     inputRow: {
         width: '92%',
         height: 54,
-        backgroundColor: '#e9e9e9',
+        backgroundColor: colors.inputBackground,
         borderRadius: 28,
         flexDirection: 'row',
         alignItems: 'center',
@@ -148,14 +152,15 @@ const styles = StyleSheet.create({
 
     input: {
         flex: 1,
-        fontSize: 15
+        fontSize: 15,
+        color: colors.text
     },
 
     sendButton: {
         width: 48,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#fff',
+        backgroundColor: colors.card,
         justifyContent: 'center',
         alignItems: 'center'
     },
@@ -166,7 +171,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: '#fff',
+        backgroundColor: colors.background,
         zIndex: 100
     }
 });

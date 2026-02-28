@@ -4,14 +4,16 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ScrollView,
   Alert,
 } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { StatusBar } from 'expo-status-bar';
+import { useApp } from '../context';
 
 export default function Salud({ route }) {
+  const { colors, t, isDarkMode } = useApp();
   const { mascotaId } = route.params;
 
   const [padecimientos, setPadecimientos] = useState([]);
@@ -71,8 +73,11 @@ export default function Salud({ route }) {
     );
   };
 
+  const styles = getStyles(colors);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 50 }}>
+      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -81,18 +86,18 @@ export default function Salud({ route }) {
           <Ionicons
             name={isEditing ? "close" : "create-outline"}
             size={28}
-            color="black"
+            color={colors.text}
           />
         </TouchableOpacity>
       </View>
       <Text style={styles.subtitle}>Padecimientos o enfermedades</Text>
       {/* Botón agregar */}
-      {isEditing&&(
-         <TouchableOpacity style={styles.addButtonContainer} onPress={addPadecimiento}>
-        <Text style={styles.addButtonText}>＋ Agregar </Text>
-      </TouchableOpacity>
+      {isEditing && (
+        <TouchableOpacity style={styles.addButtonContainer} onPress={addPadecimiento}>
+          <Text style={styles.addButtonText}>＋ Agregar </Text>
+        </TouchableOpacity>
       )}
-     
+
 
       {padecimientos.length === 0 && (
         <Text style={styles.noPadecimientos}>No hay padecimientos agregados</Text>
@@ -113,10 +118,11 @@ export default function Salud({ route }) {
 
               <Text style={styles.label}>Síntomas</Text>
               <View style={styles.iconInputContainer}>
-                <MaterialIcons name="healing" size={20} color="#555" />
+                <MaterialIcons name="healing" size={20} color={colors.textMuted} />
                 <TextInput
                   style={[styles.input, { flex: 1 }]}
                   placeholder="Síntomas"
+                  placeholderTextColor={colors.textMuted}
                   value={padecimiento.sintomas}
                   onChangeText={(text) => actualizarCampo(padecimiento.id, "sintomas", text)}
                 />
@@ -124,10 +130,11 @@ export default function Salud({ route }) {
 
               <Text style={styles.label}>Medicamentos</Text>
               <View style={styles.iconInputContainer}>
-                <Ionicons name="medkit-outline" size={20} color="#555" />
+                <Ionicons name="medkit-outline" size={20} color={colors.textMuted} />
                 <TextInput
                   style={[styles.input, { flex: 1 }]}
                   placeholder="Medicamentos"
+                  placeholderTextColor={colors.textMuted}
                   value={padecimiento.medicamentos}
                   onChangeText={(text) => actualizarCampo(padecimiento.id, "medicamentos", text)}
                 />
@@ -146,11 +153,11 @@ export default function Salud({ route }) {
             <>
               <Text style={styles.cardTitle}>{padecimiento.nombre || "Sin nombre"}</Text>
               <View style={styles.cardRow}>
-                <MaterialIcons name="healing" size={20} color="#555" />
+                <MaterialIcons name="healing" size={20} color={colors.textMuted} />
                 <Text style={styles.cardText}>{padecimiento.sintomas || "-"}</Text>
               </View>
               <View style={styles.cardRow}>
-                <Ionicons name="medkit-outline" size={20} color="#555" />
+                <Ionicons name="medkit-outline" size={20} color={colors.textMuted} />
                 <Text style={styles.cardText}>{padecimiento.medicamentos || "-"}</Text>
               </View>
             </>
@@ -158,7 +165,7 @@ export default function Salud({ route }) {
         </View>
       ))}
 
-  {padecimientos.length > 0 && isEditing && (
+      {padecimientos.length > 0 && isEditing && (
         <TouchableOpacity
           style={styles.saveButton}
           onPress={guardarDatos}
@@ -168,40 +175,41 @@ export default function Salud({ route }) {
           </Text>
         </TouchableOpacity>
       )}
-      
+
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f9f9f9", padding: 20, paddingTop:40, },
-   header: {
+const getStyles = (colors) => ({
+  container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 40, },
+  header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 25,
     borderBottomWidth: 1,
-    borderColor: "#dbd6d6ff",
+    borderColor: colors.border,
   },
-  title: { fontSize: 28, fontWeight: "bold", marginBottom: 10,},
-  subtitle:{
+  title: { fontSize: 28, fontWeight: "bold", marginBottom: 10, color: colors.text, },
+  subtitle: {
     fontSize: 18,
-    marginBottom:20,
+    marginBottom: 20,
     fontWeight: "600",
+    color: colors.text,
   },
   addButtonContainer: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     padding: 5,
     borderRadius: 12,
-    borderWidth:1,
-    borderColor:"#59bc67ff",
+    borderWidth: 1,
+    borderColor: colors.success,
     alignItems: "center",
     marginBottom: 15,
   },
-  addButtonText: { color: "#12bd02ff", fontWeight: "bold", fontSize: 16 },
-  noPadecimientos: { fontStyle: "italic", color: "#777", marginVertical: 20, textAlign: "center" },
+  addButtonText: { color: colors.success, fontWeight: "bold", fontSize: 16 },
+  noPadecimientos: { fontStyle: "italic", color: colors.textMuted, marginVertical: 20, textAlign: "center" },
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     padding: 20,
     borderRadius: 20,
     marginBottom: 15,
@@ -211,26 +219,27 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  cardTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 12 },
-  cardText: { fontSize: 14, marginLeft: 8, color: "#555" },
+  cardTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 12, color: colors.text, },
+  cardText: { fontSize: 14, marginLeft: 8, color: colors.textMuted },
   cardRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.border,
     borderRadius: 10,
     padding: 10,
     marginBottom: 10,
     fontSize: 14,
-    backgroundColor: "#fdfdfd",
+    backgroundColor: colors.card,
     marginLeft: 10,
+    color: colors.text,
   },
   label: {
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 4,
     marginTop: 10,
+    color: colors.text,
   },
-
   iconInputContainer: { flexDirection: "row", alignItems: "center", marginBottom: 10, },
   deleteButton: {
     backgroundColor: "#e74c3c",
@@ -243,7 +252,7 @@ const styles = StyleSheet.create({
   rowButtons: { flexDirection: "row", justifyContent: "flex-end" },
   saveButton: {
     marginTop: 20,
-    backgroundColor: "#4BCF5C",
+    backgroundColor: colors.success,
     padding: 15,
     borderRadius: 25,
     alignItems: "center",

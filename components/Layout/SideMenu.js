@@ -29,12 +29,14 @@ export default function SideMenu() {
         return <MaterialIcons name={item.icon} size={iconSizes.lg} color={item.color} />;
     };
 
+    // No renderizar si el menú está cerrado para evitar interceptar toques
+    if (!isMenuOpen) return null;
+
     return (
         <View
             style={[
                 styles.sideMenu,
                 {
-                    transform: [{ translateX: isMenuOpen ? 0 : -300 }],
                     backgroundColor: colors.background,
                 }
             ]}

@@ -15,6 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { WebView } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useApp } from '../context';
 
 // ---------------- NOTIFICACIONES ----------------
 
@@ -37,37 +38,38 @@ const notificationsData = [
 export default function BuscadorGoogle() {
 
     const navigation = useNavigation();
+    const { colors, t, isDarkMode } = useApp();
 
     const [message, setMessage] = useState('');
     const [url, setUrl] = useState(null);
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
 
-            <StatusBar style="auto" />
+            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
 
             {/* HEADER */}
             <View style={styles.header}>
                 <TouchableOpacity>
-                    <MaterialIcons name="menu" size={32} color="black" />
+                    <MaterialIcons name="menu" size={32} color={colors.text} />
                 </TouchableOpacity>
 
                 <View style={styles.headerRight}>
-                    <Ionicons name="notifications" size={32} color="black" />
-                    <Ionicons name="person-circle-outline" size={32} color="black" />
+                    <Ionicons name="notifications" size={32} color={colors.text} />
+                    <Ionicons name="person-circle-outline" size={32} color={colors.text} />
                 </View>
             </View>
 
             {/* CONTENIDO */}
             <View style={styles.content}>
                 <View style={styles.centerMessageContainer}>
-                    <Text style={styles.centerMessage}>
+                    <Text style={[styles.centerMessage, { color: colors.text }]}>
                         Bienvenido al buscador de Google
                     </Text>
                     <MaterialCommunityIcons
                         name="dog"
                         size={40}
-                        color="black"
+                        color={colors.text}
                         style={{ marginTop: 20 }}
                     />
                 </View>
@@ -78,18 +80,18 @@ export default function BuscadorGoogle() {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 15 : 0}
             >
-                <View style={styles.inputContainer}>
-                    <View style={styles.inputRow}>
+                <View style={[styles.inputContainer, { backgroundColor: colors.card }]}>
+                    <View style={[styles.inputRow, { backgroundColor: isDarkMode ? colors.background : '#e9e9e9' }]}>
                         <TextInput
-                            style={styles.input}
+                            style={[styles.input, { color: colors.text }]}
                             placeholder="Pregunta sobre mascotas"
-                            placeholderTextColor="#9b9b9b"
+                            placeholderTextColor={colors.textMuted}
                             value={message}
                             onChangeText={setMessage}
                         />
 
                         <TouchableOpacity
-                            style={styles.sendButton}
+                            style={[styles.sendButton, { backgroundColor: colors.card }]}
                             onPress={() => {
                                 if (!message.trim()) return;
 
@@ -100,7 +102,7 @@ export default function BuscadorGoogle() {
                                 setUrl(googleURL);
                             }}
                         >
-                            <MaterialCommunityIcons name="send" size={20} color="black" />
+                            <MaterialCommunityIcons name="send" size={20} color={colors.text} />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -108,7 +110,7 @@ export default function BuscadorGoogle() {
 
             {/* GOOGLE */}
             {url && (
-                <View style={styles.webViewContainer}>
+                <View style={[styles.webViewContainer, { backgroundColor: colors.background }]}>
                     <WebView source={{ uri: url }} />
                 </View>
             )}
