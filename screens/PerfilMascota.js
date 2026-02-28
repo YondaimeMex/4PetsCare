@@ -14,10 +14,13 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { StatusBar } from 'expo-status-bar';
+import { useApp } from '../context';
 
 export default function PerfilMascota() {
     const navigation = useNavigation();
     const route = useRoute();
+    const { colors, t, isDarkMode } = useApp();
 
     // Recibe la mascota enviada desde la pantalla anterior
     const mascota = route.params?.mascota;
@@ -87,40 +90,41 @@ export default function PerfilMascota() {
 
     return (
         <KeyboardAvoidingView
-            style={{ flex: 1 }}
+            style={{ flex: 1, backgroundColor: colors.background }}
             behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
+            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
             <ScrollView
-                contentContainerStyle={styles.container}
+                contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
                 keyboardShouldPersistTaps="handled"
             >
 
                 {/* HEADER */}
                 <View style={styles.header}>
-                    <Text style={styles.title}>Perfil de Mascota</Text>
+                    <Text style={[styles.title, { color: colors.text }]}>Perfil de Mascota</Text>
                     <TouchableOpacity onPress={() => setIsEditable(!isEditable)}>
                         <Ionicons
                             name={isEditable ? "close" : "create-outline"}
                             size={28}
-                            color="black"
+                            color={colors.text}
                         />
                     </TouchableOpacity>
                 </View>
 
                 {/*TABS DE NAVEGACION*/}
-                <View style={styles.tabsContainer}>
+                <View style={[styles.tabsContainer, { borderColor: colors.border }]}>
 
                     <TouchableOpacity
                         style={
                             styles.tabButtonS}
                         onPress={() =>
-                             navigation.navigate("PerfilMascotaStack", {
+                            navigation.navigate("PerfilMascotaStack", {
                                 screen: "Salud",
                                 params: { mascotaId: mascota.id }
                             })
                         }
                     >
-                        <Text style={styles.tabText}> Salud</Text>
+                        <Text style={[styles.tabText, { color: colors.text }]}> Salud</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -132,84 +136,84 @@ export default function PerfilMascota() {
                             })
                         }
                     >
-                    <Text style={styles.tabText}>Actividades</Text>
-                </TouchableOpacity>
+                        <Text style={[styles.tabText, { color: colors.text }]}>Actividades</Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity
-                    style={styles.tabButtonAl}
-                    onPress={() =>
-                         navigation.navigate("PerfilMascotaStack", {
+                    <TouchableOpacity
+                        style={styles.tabButtonAl}
+                        onPress={() =>
+                            navigation.navigate("PerfilMascotaStack", {
                                 screen: "Alimentacion",
                                 params: { mascotaId: mascota.id }
                             })
-                    }
-                >
-                    <Text style={styles.tabText}>Alimentación</Text>
+                        }
+                    >
+                        <Text style={[styles.tabText, { color: colors.text }]}>Alimentación</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* FOTO */}
+                <TouchableOpacity onPress={pickImage} disabled={!isEditable}>
+                    <Image
+                        source={
+                            image
+                                ? { uri: image }
+                                : <Ionicons name="paw-outline" size={70} color="#C0C0C0" />
+                        }
+                        style={styles.petImage}
+                    />
                 </TouchableOpacity>
-            </View>
 
-            {/* FOTO */}
-            <TouchableOpacity onPress={pickImage} disabled={!isEditable}>
-                <Image
-                    source={
-                        image
-                            ? { uri: image }
-                            : <Ionicons name="paw-outline" size={70} color="#C0C0C0" />
-                    }
-                    style={styles.petImage}
-                />
-            </TouchableOpacity>
+                {/* FORMULARIO */}
+                <View style={styles.form}>
+                    <Text style={[styles.label, { color: colors.text }]}>Nombre</Text>
+                    <TextInput
+                        style={[styles.input, !isEditable && styles.disabled, { borderColor: colors.border, color: colors.text, backgroundColor: isEditable ? colors.inputBackground : colors.card }]}
+                        editable={isEditable}
+                        value={nombre}
+                        onChangeText={setNombre}
+                    />
 
-            {/* FORMULARIO */}
-            <View style={styles.form}>
-                <Text style={styles.label}>Nombre</Text>
-                <TextInput
-                    style={[styles.input, !isEditable && styles.disabled]}
-                    editable={isEditable}
-                    value={nombre}
-                    onChangeText={setNombre}
-                />
+                    <Text style={[styles.label, { color: colors.text }]}>Raza</Text>
+                    <TextInput
+                        style={[styles.input, !isEditable && styles.disabled, { borderColor: colors.border, color: colors.text, backgroundColor: isEditable ? colors.inputBackground : colors.card }]}
+                        editable={isEditable}
+                        value={raza}
+                        onChangeText={setRaza}
+                    />
 
-                <Text style={styles.label}>Raza</Text>
-                <TextInput
-                    style={[styles.input, !isEditable && styles.disabled]}
-                    editable={isEditable}
-                    value={raza}
-                    onChangeText={setRaza}
-                />
+                    <Text style={[styles.label, { color: colors.text }]}>Edad (años)</Text>
+                    <TextInput
+                        style={[styles.input, !isEditable && styles.disabled, { borderColor: colors.border, color: colors.text, backgroundColor: isEditable ? colors.inputBackground : colors.card }]}
+                        editable={isEditable}
+                        value={edad}
+                        keyboardType="numeric"
+                        onChangeText={setEdad}
+                    />
 
-                <Text style={styles.label}>Edad (años)</Text>
-                <TextInput
-                    style={[styles.input, !isEditable && styles.disabled]}
-                    editable={isEditable}
-                    value={edad}
-                    keyboardType="numeric"
-                    onChangeText={setEdad}
-                />
+                    <Text style={[styles.label, { color: colors.text }]}>Peso (kg) </Text>
+                    <TextInput
+                        style={[styles.input, !isEditable && styles.disabled, { borderColor: colors.border, color: colors.text, backgroundColor: isEditable ? colors.inputBackground : colors.card }]}
+                        editable={isEditable}
+                        value={peso}
+                        keyboardType="numeric"
+                        onChangeText={setPeso}
+                    />
 
-                <Text style={styles.label}>Peso (kg) </Text>
-                <TextInput
-                    style={[styles.input, !isEditable && styles.disabled]}
-                    editable={isEditable}
-                    value={peso}
-                    keyboardType="numeric"
-                    onChangeText={setPeso}
-                />
+                    <Text style={[styles.label, { color: colors.text }]}>Especie</Text>
+                    <TextInput
+                        style={[styles.input, styles.disabled, { borderColor: colors.border, color: colors.text, backgroundColor: colors.card }]}
+                        editable={false}
+                        value={especie}
+                    />
+                </View>
+                {isEditable && (
+                    <TouchableOpacity onPress={guardarCambios} style={styles.btnSave}>
+                        <Text style={styles.btnSaveText}>Guardar cambios</Text>
+                    </TouchableOpacity>
+                )}
 
-                <Text style={styles.label}>Especie</Text>
-                <TextInput
-                    style={[styles.input, styles.disabled]}
-                    editable={false}
-                    value={especie}
-                />
-            </View>
-            {isEditable && (
-                <TouchableOpacity onPress={guardarCambios} style={styles.btnSave}>
-                    <Text style={styles.btnSaveText}>Guardar cambios</Text>
-                </TouchableOpacity>
-            )}
-
-        </ScrollView>
+            </ScrollView>
         </KeyboardAvoidingView >
     );
 }

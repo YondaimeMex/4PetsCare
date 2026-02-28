@@ -4,6 +4,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert,
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
+import { useApp } from '../context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import 'react-native-get-random-values';
@@ -52,6 +53,7 @@ const especies = [
 
 export default function RegistroMascota() {
     const navigation = useNavigation();
+    const { colors, t, isDarkMode } = useApp();
 
     // campos
     const [nombreMascota, setNombreMascota] = useState('');
@@ -236,64 +238,64 @@ export default function RegistroMascota() {
     const isOverlayVisible = isMenuOpen || isNotificationsOpen;
 
     return (
-        <ScrollView contentContainerStyle={styles.scrollContent} style={styles.scrollContainer}>
-            <StatusBar style="auto" />
+        <ScrollView contentContainerStyle={styles.scrollContent} style={[styles.scrollContainer, { backgroundColor: colors.background }]}>
+            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
 
             <View style={styles.header}>
                 <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
-                    <MaterialIcons name="menu" size={32} />
+                    <MaterialIcons name="menu" size={32} color={colors.text} />
                 </TouchableOpacity>
 
                 <View style={styles.headerRight}>
-                    <TouchableOpacity accessible accessibilityLabel="Notificaciones" style={[styles.floatingBtn, styles.headerIcon]} onPress={toggleNotifications}>
-                        <Ionicons name="notifications" size={32} color="black" />
+                    <TouchableOpacity accessible accessibilityLabel="Notificaciones" style={[styles.floatingBtn, styles.headerIcon, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={toggleNotifications}>
+                        <Ionicons name="notifications" size={32} color={colors.text} />
                     </TouchableOpacity>
 
-                    <TouchableOpacity accessible accessibilityLabel="Perfil" style={[styles.floatingBtn, styles.headerIcon]} onPress={() => navigation.navigate('Perfil')}>
-                        <Ionicons name="person-circle-outline" size={32} color="black" />
+                    <TouchableOpacity accessible accessibilityLabel="Perfil" style={[styles.floatingBtn, styles.headerIcon, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => navigation.navigate('Perfil')}>
+                        <Ionicons name="person-circle-outline" size={32} color={colors.text} />
                     </TouchableOpacity>
                 </View>
             </View>
 
             {/* Formulario */}
-            <View style={styles.formCard}>
-                <Text style={styles.title}>¡Registra a tu mascota!</Text>
-                <Text style={styles.label}>Nombre de tu mascota</Text>
-                <TextInput style={styles.input} value={nombreMascota} onChangeText={setNombreMascota} placeholder="Ej. Toby" placeholderTextColor="#999" accessibilityLabel="Nombre de la mascota" />
+            <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.title, { color: colors.text }]}>¡Registra a tu mascota!</Text>
+                <Text style={[styles.label, { color: colors.text }]}>Nombre de tu mascota</Text>
+                <TextInput style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]} value={nombreMascota} onChangeText={setNombreMascota} placeholder="Ej. Toby" placeholderTextColor={colors.textMuted} accessibilityLabel="Nombre de la mascota" />
             </View>
 
-            <View style={styles.formCard}>
-                <Text style={styles.label}>¿Qué mascota es?</Text>
-                <TouchableOpacity style={styles.dropdownContainer} onPress={toggleDropdown} accessibilityRole="button" accessibilityLabel="Seleccionar especie">
-                    <TextInput style={styles.dropdownInput} value={especie} placeholder="Selecciona una especie" placeholderTextColor={especie ? '#000' : '#999'} editable={false} />
-                    <MaterialIcons name={isDropdownOpen ? 'arrow-drop-up' : 'arrow-drop-down'} size={24} color="black" style={styles.dropdownIcon} />
+            <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.label, { color: colors.text }]}>¿Qué mascota es?</Text>
+                <TouchableOpacity style={[styles.dropdownContainer, { backgroundColor: colors.inputBackground, borderColor: colors.border }]} onPress={toggleDropdown} accessibilityRole="button" accessibilityLabel="Seleccionar especie">
+                    <TextInput style={[styles.dropdownInput, { color: colors.text }]} value={especie} placeholder="Selecciona una especie" placeholderTextColor={colors.textMuted} editable={false} />
+                    <MaterialIcons name={isDropdownOpen ? 'arrow-drop-up' : 'arrow-drop-down'} size={24} color={colors.text} style={styles.dropdownIcon} />
                 </TouchableOpacity>
 
                 {isDropdownOpen && especies.map((option) => (
-                    <TouchableOpacity key={option.key} style={styles.dropdownItem} onPress={() => Selectespecie(option)}>
-                        <Text style={styles.dropdownText}>{option.label}</Text>
+                    <TouchableOpacity key={option.key} style={[styles.dropdownItem, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => Selectespecie(option)}>
+                        <Text style={[styles.dropdownText, { color: colors.text }]}>{option.label}</Text>
                     </TouchableOpacity>
                 ))}
             </View>
 
-            <View style={styles.formCard}>
-                <Text style={styles.label}>Raza de tu mascota</Text>
-                <TextInput style={styles.input} value={raza} onChangeText={setRaza} placeholder="Ej. Golden Retriever" placeholderTextColor="#999" />
+            <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.label, { color: colors.text }]}>Raza de tu mascota</Text>
+                <TextInput style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]} value={raza} onChangeText={setRaza} placeholder="Ej. Golden Retriever" placeholderTextColor={colors.textMuted} />
             </View>
 
-            <View style={styles.formCard}>
-                <Text style={styles.label}>Edad</Text>
-                <TextInput style={styles.input} value={edad} onChangeText={setEdad} placeholder="Ej. 5" placeholderTextColor="#999" keyboardType="numeric" />
+            <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.label, { color: colors.text }]}>Edad</Text>
+                <TextInput style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]} value={edad} onChangeText={setEdad} placeholder="Ej. 5" placeholderTextColor={colors.textMuted} keyboardType="numeric" />
             </View>
 
-            <View style={styles.formCard}>
-                <Text style={styles.label}>Peso (kg)</Text>
-                <TextInput style={styles.input} value={peso} onChangeText={setPeso} placeholder="Ej. 30" placeholderTextColor="#999" keyboardType="numeric" />
+            <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.label, { color: colors.text }]}>Peso (kg)</Text>
+                <TextInput style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]} value={peso} onChangeText={setPeso} placeholder="Ej. 30" placeholderTextColor={colors.textMuted} keyboardType="numeric" />
             </View>
 
             {/* Imagen */}
-            <View style={[styles.formCard, { alignItems: 'center' }]}>
-                <Text style={styles.label}>Imagen de tu mascota</Text>
+            <View style={[styles.formCard, { alignItems: 'center', backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.label, { color: colors.text }]}>Imagen de tu mascota</Text>
 
                 {imageUri ? (
                     <>
@@ -342,46 +344,46 @@ export default function RegistroMascota() {
             )}
 
             {/* Menu lateral */}
-            <View style={[styles.sideMenu, { transform: [{ translateX: isMenuOpen ? 0 : -300 }] }]}>
+            <View style={[styles.sideMenu, { transform: [{ translateX: isMenuOpen ? 0 : -300 }], backgroundColor: colors.card }]}>
                 <View style={styles.menuHeader}>
-                    <Text style={styles.menuTitle}>Menú</Text>
+                    <Text style={[styles.menuTitle, { color: colors.text }]}>Menú</Text>
                     <TouchableOpacity onPress={toggleMenu}>
-                        <Ionicons name="close" size={30} color="#333" />
+                        <Ionicons name="close" size={30} color={colors.text} />
                     </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Home')}>
-                    <Ionicons name="home" size={24} color="black" />
-                    <Text style={styles.menuItemText}>Inicio</Text>
+                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => navigation.navigate('Home')}>
+                    <Ionicons name="home" size={24} color={colors.text} />
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Inicio</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
+                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
                     <Ionicons name="paw-outline" size={30} color="#4BCF5C" />
-                    <Text style={styles.menuItemText}>Mascotas</Text>
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Mascotas</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
+                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
                     <Ionicons name="calendar-number" size={30} color="#007AFF" />
-                    <Text style={styles.menuItemText}>Calendario</Text>
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Calendario</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}>
+                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}>
                     <MaterialIcons name="tips-and-updates" size={30} color="#FF9500" />
-                    <Text style={styles.menuItemText}>Consejos</Text>
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Consejos</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
+                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
                     <MaterialIcons name="emergency" size={30} color="#FF3B30" />
-                    <Text style={styles.menuItemText}>Emergencias</Text>
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Emergencias</Text>
                 </TouchableOpacity>
             </View>
 
             {isNotificationsOpen && (
-                <View style={notificationStyles.notificationsContainer}>
-                    <Text style={notificationStyles.headerText}>Notificaciones</Text>
+                <View style={[notificationStyles.notificationsContainer, { backgroundColor: colors.card }]}>
+                    <Text style={[notificationStyles.headerText, { color: colors.text }]}>Notificaciones</Text>
                     <ScrollView style={notificationStyles.list}>
                         {notificaciones.length > 0 ? (
                             notificaciones.map((n, index) => (
                                 <NotificationItem key={index} text={n.text} date={n.date} />
                             ))
                         ) : (
-                            <Text style={{ textAlign: 'center', color: '#666', marginTop: 10 }}>No hay notificaciones.</Text>
+                            <Text style={{ textAlign: 'center', color: colors.textMuted, marginTop: 10 }}>No hay notificaciones.</Text>
                         )}
                     </ScrollView>
                 </View>

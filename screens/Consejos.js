@@ -3,6 +3,7 @@ import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-ic
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { useState, useEffect, useCallback } from 'react';
+import { useApp } from '../context';
 
 import NotificationService from './Notificaciones';
 
@@ -28,23 +29,24 @@ const NotificationItem = ({ text, date }) => (
 
 export default function Consejos() {
     const navigation = useNavigation();
+    const { colors, t, isDarkMode } = useApp();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [notificaciones, setNotificaciones] = useState([]);
     // Estado para guardar el consejo actual
-    const [currentTip, setCurrentTip] = useState(petTips[0]); 
+    const [currentTip, setCurrentTip] = useState(petTips[0]);
 
     // Función para actualizar el consejo
     const updateTip = useCallback(() => {
         // Generar un índice aleatorio
         const randomIndex = Math.floor(Math.random() * petTips.length);
-        
+
         // Seleccionar un nuevo consejo
         const newTip = petTips[randomIndex];
-        
+
         // Actualizar el estado
         setCurrentTip(newTip);
-        
+
         Alert.alert("Actualizado", "¡Aquí tienes un nuevo consejo!");
     }, []); // El array vacío asegura que la función solo se cree una vez
 
@@ -83,51 +85,51 @@ export default function Consejos() {
     const isOverlayVisible = isMenuOpen || isNotificationsOpen;
 
     return (
-        <View style={styles.container}>
-            <StatusBar style="auto" />
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
 
             {/* --- Encabezado */}
-            <View style={styles.header}>
+            <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
                 <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
-                    <MaterialIcons name="menu" size={32} color="black" />
+                    <MaterialIcons name="menu" size={32} color={colors.text} />
                 </TouchableOpacity>
                 <View style={styles.headerRight}>
                     <TouchableOpacity style={[styles.floatingBtn, styles.headerIcon]} onPress={toggleNotifications}>
-                        <Ionicons name="notifications" size={32} color="black" />
+                        <Ionicons name="notifications" size={32} color={colors.text} />
                     </TouchableOpacity>
                     <TouchableOpacity style={[styles.floatingBtn, styles.headerIcon]} onPress={() => navigation.navigate('Perfil')}>
-                        <Ionicons name="person-circle-outline" size={32} color="black" />
+                        <Ionicons name="person-circle-outline" size={32} color={colors.text} />
                     </TouchableOpacity>
                 </View>
             </View>
 
             {/* --- Contenido principal --- */}
             <ScrollView contentContainerStyle={styles.content}>
-                
+
                 {/* Primer Card: Contenido fijo */}
-                <View style={styles.card}>
-                    <Text style={styles.title}>Consejos Básicos</Text>
-                    <Text style={styles.cardText}>Cuida a tu mascota con amor, buena alimentación y visitas al veterinario. Mantén su espacio limpio y dale agua fresca siempre.</Text>
+                <View style={[styles.card, { backgroundColor: colors.card }]}>
+                    <Text style={[styles.title, { color: colors.text }]}>{t.tips || 'Consejos'} Básicos</Text>
+                    <Text style={[styles.cardText, { color: colors.text }]}>Cuida a tu mascota con amor, buena alimentación y visitas al veterinario. Mantén su espacio limpio y dale agua fresca siempre.</Text>
                 </View>
-                
+
                 {/* Segundo Card: Contenido dinámico */}
-                <View style={styles.dynamicCard}>
-                    <Text style={styles.dynamicTitle}>{currentTip.title}</Text>
-                    <Text style={styles.dynamicCardText}>{currentTip.text}</Text>
+                <View style={[styles.dynamicCard, { backgroundColor: colors.card }]}>
+                    <Text style={[styles.dynamicTitle, { color: colors.text }]}>{currentTip.title}</Text>
+                    <Text style={[styles.dynamicCardText, { color: colors.text }]}>{currentTip.text}</Text>
                 </View>
 
                 {/* Contenido adicional */}
-                <View style={styles.card}>
-                     <Text style={styles.cardText}>Juega con ella y mantenla limpia y protegida.</Text>
+                <View style={[styles.card, { backgroundColor: colors.card }]}>
+                    <Text style={[styles.cardText, { color: colors.text }]}>Juega con ella y mantenla limpia y protegida.</Text>
                 </View>
 
             </ScrollView>
 
             {/* --- Botón flotante central --- */}
-            <TouchableOpacity style={styles.floatingBtnCenter} onPress={updateTip}>
+            <TouchableOpacity style={[styles.floatingBtnCenter, { backgroundColor: colors.card }]} onPress={updateTip}>
                 <View style={{ alignItems: 'center' }}>
-                    <MaterialCommunityIcons name="restart" size={40} color="black" />
-                    <Text style={styles.vaccineButtonText}>Actualizar</Text>
+                    <MaterialCommunityIcons name="restart" size={40} color={colors.text} />
+                    <Text style={[styles.vaccineButtonText, { color: colors.text }]}>Actualizar</Text>
                 </View>
             </TouchableOpacity>
 
@@ -137,58 +139,60 @@ export default function Consejos() {
             )}
 
             {/* --- Menú lateral --- */}
-            <View style={[styles.sideMenu, { transform: [{ translateX: isMenuOpen ? 0 : -300 }] }]}>
-                <View style={styles.menuHeader}>
-                    <Text style={styles.menuTitle}>Menú</Text>
-                    <TouchableOpacity onPress={toggleMenu}>
-                        <Ionicons name="close" size={30} color="#333" />
+            {isMenuOpen && (
+                <View style={[styles.sideMenu, { backgroundColor: colors.background }]}>
+                    <View style={styles.menuHeader}>
+                        <Text style={[styles.menuTitle, { color: colors.text }]}>{t.menu || 'Menú'}</Text>
+                        <TouchableOpacity onPress={toggleMenu}>
+                            <Ionicons name="close" size={30} color={colors.text} />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Opciones de menú */}
+                    <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Home')}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="home" size={24} color={colors.text} />
+                            <Text style={[styles.menuItemText, { color: colors.text }]}>{t.home || 'Inicio'}</Text>
+                        </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="paw-outline" size={30} color="#4BCF5C" />
+                            <Text style={[styles.menuItemText, { color: colors.text }]}>{t.pets || 'Mascotas'}</Text>
+                        </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="calendar-number" size={30} color="#007AFF" />
+                            <Text style={[styles.menuItemText, { color: colors.text }]}>{t.calendar || 'Calendario'}</Text>
+                        </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.menuItem} onPress={() => alert('Ya te encuentras en consejos')}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <MaterialIcons name="tips-and-updates" size={30} color="#FF9500" />
+                            <Text style={[styles.menuItemText, { color: colors.text }]}>{t.tips || 'Consejos'}</Text>
+                        </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <MaterialIcons name="emergency" size={30} color="#FF3B30" />
+                            <Text style={[styles.menuItemText, { color: colors.text }]}>{t.emergencies || 'Emergencias'}</Text>
+                        </View>
                     </TouchableOpacity>
                 </View>
-
-                {/* Opciones de menú */}
-                <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Home')}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Ionicons name="home" size={24} color="black" />
-                        <Text style={styles.menuItemText}>Inicio</Text>
-                    </View>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Ionicons name="paw-outline" size={30} color="#4BCF5C" />
-                        <Text style={styles.menuItemText}>Mascotas</Text>
-                    </View>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Ionicons name="calendar-number" size={30} color="#007AFF" />
-                        <Text style={styles.menuItemText}>Calendario</Text>
-                    </View>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={() => alert('Ya te encuentras en consejos')}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <MaterialIcons name="tips-and-updates" size={30} color="#FF9500" />
-                        <Text style={styles.menuItemText}>Consejos</Text>
-                    </View>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <MaterialIcons name="emergency" size={30} color="#FF3B30" />
-                        <Text style={styles.menuItemText}>Emergencias</Text>
-                    </View>
-                </TouchableOpacity>
-            </View>
+            )}
 
             {/* --- Panel de notificaciones --- */}
             {isNotificationsOpen && (
-                <View style={notificationStyles.notificationsContainer}>
-                    <Text style={notificationStyles.headerText}>Notificaciones</Text>
+                <View style={[notificationStyles.notificationsContainer, { backgroundColor: colors.card }]}>
+                    <Text style={[notificationStyles.headerText, { color: colors.text }]}>{t.notifications || 'Notificaciones'}</Text>
                     <ScrollView style={notificationStyles.list}>
                         {notificaciones.length > 0 ? (
                             notificaciones.map((n, index) => (
                                 <NotificationItem key={index} text={n.text} date={n.date} />
                             ))
                         ) : (
-                            <Text style={{ textAlign: 'center', color: '#666', marginTop: 10 }}>No hay notificaciones.</Text>
+                            <Text style={{ textAlign: 'center', color: colors.textSecondary, marginTop: 10 }}>{t.noNotifications || 'No hay notificaciones.'}</Text>
                         )}
                     </ScrollView>
                 </View>

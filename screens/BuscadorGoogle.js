@@ -15,6 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { WebView } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useApp } from '../context';
 
 import NotificationService from './Notificaciones';
 
@@ -33,6 +34,7 @@ const NotificationItem = ({ text, date }) => (
 export default function BuscadorGoogle() {
 
     const navigation = useNavigation();
+    const { colors, t, isDarkMode } = useApp();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [notificaciones, setNotificaciones] = useState([]);
@@ -68,45 +70,32 @@ export default function BuscadorGoogle() {
     const isOverlayVisible = isMenuOpen || isNotificationsOpen;
 
     return (
-        <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
-        >
-            <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container}>
 
-                <StatusBar style="auto" />
+            <StatusBar style="auto" />
 
                 {/* HEADER */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
+                <TouchableOpacity>
                     <MaterialIcons name="menu" size={32} color="black" />
                 </TouchableOpacity>
 
                 <View style={styles.headerRight}>
-                    <TouchableOpacity style={styles.headerIcon} onPress={toggleNotifications}>
-                        <Ionicons name="notifications" size={32} color="black" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={styles.headerIcon}
-                        onPress={() => navigation.navigate('Perfil')}
-                    >
-                        <Ionicons name="person-circle-outline" size={32} color="black" />
-                    </TouchableOpacity>
+                    <Ionicons name="notifications" size={32} color="black" />
+                    <Ionicons name="person-circle-outline" size={32} color="black" />
                 </View>
             </View>
 
             {/* CONTENIDO */}
             <View style={styles.content}>
                 <View style={styles.centerMessageContainer}>
-                    <Text style={styles.centerMessage}>
+                    <Text style={[styles.centerMessage, { color: colors.text }]}>
                         Bienvenido al buscador de Google
                     </Text>
                     <MaterialCommunityIcons
                         name="dog"
                         size={40}
-                        color="black"
+                        color={colors.text}
                         style={{ marginTop: 20 }}
                     />
                 </View>
@@ -117,18 +106,18 @@ export default function BuscadorGoogle() {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 15 : 0}
             >
-                <View style={styles.inputContainer}>
-                    <View style={styles.inputRow}>
+                <View style={[styles.inputContainer, { backgroundColor: colors.card }]}>
+                    <View style={[styles.inputRow, { backgroundColor: isDarkMode ? colors.background : '#e9e9e9' }]}>
                         <TextInput
                             style={styles.input}
-                            placeholder="¿Qué quieres buscar en Google?"
+                            placeholder="Pregunta sobre mascotas"
                             placeholderTextColor="#9b9b9b"
                             value={message}
                             onChangeText={setMessage}
                         />
 
                         <TouchableOpacity
-                            style={styles.sendButton}
+                            style={[styles.sendButton, { backgroundColor: colors.card }]}
                             onPress={() => {
                                 if (!message.trim()) return;
 
@@ -139,7 +128,7 @@ export default function BuscadorGoogle() {
                                 setUrl(googleURL);
                             }}
                         >
-                            <MaterialCommunityIcons name="send" size={20} color="black" />
+                            <MaterialCommunityIcons name="send" size={20} color={colors.text} />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -147,7 +136,7 @@ export default function BuscadorGoogle() {
 
             {/* GOOGLE */}
             {url && (
-                <View style={styles.webViewContainer}>
+                <View style={[styles.webViewContainer, { backgroundColor: colors.background }]}>
                     <WebView source={{ uri: url }} />
                 </View>
             )}

@@ -5,6 +5,8 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useState, useEffect } from 'react';
 import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../lib/Supabase';
+import { useApp } from '../context';
 
 import NotificationService from './Notificaciones';
 
@@ -21,6 +23,7 @@ const NotificationItem = ({ text, date }) => (
 export default function HomeScreen() {
     const navigation = useNavigation();
     const isFocused = useIsFocused();
+    const { colors, t, isDarkMode } = useApp();
 
     // Estados
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -32,6 +35,11 @@ export default function HomeScreen() {
     const [appliedVacunas, setAppliedVacunas] = useState([]);
     const [appliedCitas, setAppliedCitas] = useState([]);
 
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        // No necesitas hacer nada más — el onAuthStateChange en App.js
+        // detecta el logout y cambia isLoggedIn a false automáticamente
+    };
 
     // Función auxiliar para formatear la fecha
     const formatDate = (dateString) => {
@@ -142,27 +150,34 @@ export default function HomeScreen() {
     const isOverlayVisible = isMenuOpen || isNotificationsOpen;
 
     return (
-        <View style={styles.container}>
-            <StatusBar style="auto" />
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
 
             {/* Encabezado con menú, notificaciones y perfil */}
-            <View style={styles.header}>
+            <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
                 {/* Botón menú hamburguesa */}
                 <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
-                    <MaterialIcons name="menu" size={32} color="black" />
+                    <MaterialIcons name="menu" size={32} color={colors.text} />
                 </TouchableOpacity>
 
                 {/* Íconos de notificaciones y perfil */}
                 <View style={styles.headerRight}>
                     <TouchableOpacity style={styles.headerIcon} onPress={toggleNotifications}>
-                        <Ionicons name="notifications" size={32} color="black" />
+                        <Ionicons name="notifications" size={32} color={colors.text} />
                     </TouchableOpacity>
 
                     <TouchableOpacity
                         style={styles.headerIcon}
                         onPress={() => navigation.navigate('Perfil')}
                     >
-                        <Ionicons name="person-circle-outline" size={32} color="black" />
+                        <Ionicons name="person-circle-outline" size={32} color={colors.text} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.menuItem, { borderBottomWidth: 0 }]}
+                        onPress={() => { toggleMenu(); handleLogout(); }}
+                    >
+                        <Ionicons name="log-out-outline" size={30} color="#FF3B30" />
+                        <Text style={[styles.menuItemText, { color: '#FF3B30' }]}>Cerrar Sesión</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -171,8 +186,8 @@ export default function HomeScreen() {
             <ScrollView contentContainerStyle={styles.content}>
 
                 {/* 1. Tarjeta: PRÓXIMAS VACUNAS */}
-                <View style={[styles.card, styles.cardUpcoming]}>
-                    <Text style={styles.title}>💉 Próximas Vacunas</Text>
+                <View style={[styles.card, styles.cardUpcoming, { backgroundColor: colors.card }]}>
+                    <Text style={[styles.title, { color: colors.text }]}>💉 {t.nextVaccine || 'Próximas Vacunas'}</Text>
                     {upcomingVacunas.length > 0 ? (
                         upcomingVacunas.map((cita, index) => (
                             <View key={index} style={styles.listItem}>
@@ -260,18 +275,18 @@ export default function HomeScreen() {
             </ScrollView>
 
             {/* Botón flotante izquierdo*/}
-            <TouchableOpacity style={styles.floatingBtnLeft} onPress={() => navigation.navigate('BuscadorGoogle')}>
-                <MaterialCommunityIcons name="google" size={24} color="black" />
+            <TouchableOpacity style={[styles.floatingBtnLeft, { backgroundColor: colors.card }]} onPress={() => navigation.navigate('BuscadorGoogle')}>
+                <MaterialCommunityIcons name="google" size={24} color={colors.text} />
             </TouchableOpacity>
 
             {/* Botón flotante central */}
-            <TouchableOpacity style={styles.floatingBtnCenter} onPress={() => navigation.navigate('Mapas')}>
-                <MaterialIcons name="map" size={24} color="black" />
+            <TouchableOpacity style={[styles.floatingBtnCenter, { backgroundColor: colors.card }]} onPress={() => navigation.navigate('Mapas')}>
+                <MaterialIcons name="map" size={24} color={colors.text} />
             </TouchableOpacity>
 
             {/* Botón flotante derecho*/}
-            <TouchableOpacity style={styles.floatingBtnRight} onPress={() => navigation.navigate('RegistroMascota')}>
-                <MaterialCommunityIcons name="plus-circle-outline" size={24} color="black" />
+            <TouchableOpacity style={[styles.floatingBtnRight, { backgroundColor: colors.card }]} onPress={() => navigation.navigate('RegistroMascota')}>
+                <MaterialCommunityIcons name="plus-circle-outline" size={24} color={colors.text} />
             </TouchableOpacity>
 
             {/* Fondo oscuro cuando se abre menú o notificaciones */}
@@ -284,46 +299,48 @@ export default function HomeScreen() {
             )}
 
             {/* Menú lateral */}
-            <View style={[
-                styles.sideMenu,
-                { transform: [{ translateX: isMenuOpen ? 0 : -300 }] }
-            ]}>
-                <View style={styles.menuHeader}>
-                    <Text style={styles.menuTitle}>Menú</Text>
-                    <TouchableOpacity onPress={toggleMenu}>
-                        <Ionicons name="close" size={30} color="#333" />
+            {isMenuOpen && (
+                <View style={[
+                    styles.sideMenu,
+                    { backgroundColor: colors.background }
+                ]}>
+                    <View style={styles.menuHeader}>
+                        <Text style={[styles.menuTitle, { color: colors.text }]}>{t.menu || 'Menú'}</Text>
+                        <TouchableOpacity onPress={toggleMenu}>
+                            <Ionicons name="close" size={30} color={colors.text} />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Opciones del menú */}
+                    <TouchableOpacity
+                        style={[styles.menuItem, { borderBottomColor: colors.border }]}
+                        onPress={() => { toggleMenu(); navigation.navigate('Home'); }}
+                    >
+                        <Ionicons name="home" size={24} color={colors.text} />
+                        <Text style={[styles.menuItemText, { color: colors.text }]}>{t.home || 'Inicio'}</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
+                        <Ionicons name="paw-outline" size={30} color={colors.success} />
+                        <Text style={[styles.menuItemText, { color: colors.text }]}>{t.pets || 'Mascotas'}</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
+                        <Ionicons name="calendar-number" size={30} color={colors.secondary} />
+                        <Text style={[styles.menuItemText, { color: colors.text }]}>{t.calendar || 'Calendario'}</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}>
+                        <MaterialIcons name="tips-and-updates" size={30} color={colors.warning} />
+                        <Text style={[styles.menuItemText, { color: colors.text }]}>{t.tips || 'Consejos'}</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
+                        <MaterialIcons name="emergency" size={30} color={colors.danger} />
+                        <Text style={[styles.menuItemText, { color: colors.text }]}>{t.emergencies || 'Emergencias'}</Text>
                     </TouchableOpacity>
                 </View>
-
-                {/* Opciones del menú */}
-                <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => { toggleMenu(); navigation.navigate('Home'); }}
-                >
-                    <Ionicons name="home" size={24} color="black" />
-                    <Text style={styles.menuItemText}>Inicio</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
-                    <Ionicons name="paw-outline" size={30} color="#4BCF5C" />
-                    <Text style={styles.menuItemText}>Mascotas</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
-                    <Ionicons name="calendar-number" size={30} color="#007AFF" />
-                    <Text style={styles.menuItemText}>Calendario</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}>
-                    <MaterialIcons name="tips-and-updates" size={30} color="#FF9500" />
-                    <Text style={styles.menuItemText}>Consejos</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
-                    <MaterialIcons name="emergency" size={30} color="#FF3B30" />
-                    <Text style={styles.menuItemText}>Emergencias</Text>
-                </TouchableOpacity>
-            </View>
+            )}
 
             {/* Panel de notificaciones */}
             {isNotificationsOpen && (

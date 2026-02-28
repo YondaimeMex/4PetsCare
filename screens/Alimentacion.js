@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  StyleSheet,
   Platform,
   Alert,
   KeyboardAvoidingView,
@@ -13,8 +12,11 @@ import {
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { StatusBar } from 'expo-status-bar';
+import { useApp } from '../context';
 
 export default function Alimentacion({ route }) {
+  const { colors, t, isDarkMode } = useApp();
   const { mascotaId } = route.params;
 
   // ---- ESTADOS ----
@@ -179,11 +181,14 @@ export default function Alimentacion({ route }) {
   }, [recordatorioActual?.alimentos]);
 
   // ---------------------- UI ----------------------
+  const styles = getStyles(colors);
+
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
+      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 200 }}
         style={styles.container}
@@ -196,7 +201,7 @@ export default function Alimentacion({ route }) {
             <Ionicons
               name={isEditable ? "close" : "create-outline"}
               size={28}
-              color="black"
+              color={colors.text}
             />
           </TouchableOpacity>
         </View>
@@ -330,10 +335,10 @@ export default function Alimentacion({ route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => ({
   container: {
     flex: 1,
-    backgroundColor: "#fafafa",
+    backgroundColor: colors.background,
     paddingHorizontal: 20,
     paddingTop: 40,
   },
@@ -344,24 +349,26 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 25,
     borderBottomWidth: 1,
-    borderColor: "#dbd6d6ff",
+    borderColor: colors.border,
   },
 
   title: {
     fontSize: 26,
     fontWeight: "bold",
     marginBottom: 10,
+    color: colors.text,
   },
 
   subtitle: {
     fontSize: 18,
     fontWeight: "600",
     marginVertical: 10,
+    color: colors.text,
   },
 
   section: {
     flexDirection: "column",
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 10,
     elevation: 2,
@@ -374,7 +381,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     marginBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
+    borderBottomColor: colors.border,
     paddingBottom: 8,
   },
 
@@ -390,12 +397,12 @@ const styles = StyleSheet.create({
 
   itemText: {
     fontSize: 10,
+    color: colors.textMuted,
   },
 
   itemTextActivo: {
-    color: "#000",
+    color: colors.text,
     fontWeight: "bold",
-
   },
 
   btnAddText: {
@@ -410,12 +417,13 @@ const styles = StyleSheet.create({
 
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: colors.border,
     borderRadius: 10,
     padding: 10,
     marginBottom: 20,
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     fontSize: 16,
+    color: colors.text,
   },
 
   rowButtons: {
@@ -459,7 +467,7 @@ const styles = StyleSheet.create({
   card: {
     width: "48%",
     height: 120,
-    backgroundColor: "#f1f1f1",
+    backgroundColor: colors.card,
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
@@ -467,7 +475,7 @@ const styles = StyleSheet.create({
   },
 
   btnCard: {
-    backgroundColor: "#ccc",
+    backgroundColor: colors.border,
     borderRadius: 20,
     paddingHorizontal: 15,
     paddingVertical: 5,
@@ -475,7 +483,7 @@ const styles = StyleSheet.create({
   },
 
   btnCardText: {
-    color: "#333",
+    color: colors.textMuted,
     fontSize: 12
   },
 
@@ -493,21 +501,18 @@ const styles = StyleSheet.create({
   itemRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     padding: 12,
     marginVertical: 4,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: colors.border,
   },
 
-  itemText: {
-    fontSize: 16,
-  },
-  itemFav: { fontSize: 16, paddingLeft: 5, marginBottom: 5 },
+  itemFav: { fontSize: 16, paddingLeft: 5, marginBottom: 5, color: colors.text },
   itemProhibido: { fontSize: 16, paddingLeft: 5, marginBottom: 5, color: "red" },
   btnAddItem: {
-    backgroundColor: "#0a84ff",
+    backgroundColor: colors.primary,
     padding: 10,
     borderRadius: 8,
     marginTop: 5,
@@ -515,6 +520,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   btnAddItemText: { color: "white", fontSize: 16 },
+  btnAdd: {
+    marginTop: 10,
+    alignItems: "center",
+  },
 });
 
 

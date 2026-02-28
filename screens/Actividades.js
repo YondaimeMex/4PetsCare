@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, Alert } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { StatusBar } from 'expo-status-bar';
+import { useApp } from '../context';
 
 export default function Actividades({ route }) {
+  const { colors, t, isDarkMode } = useApp();
   const mascotaId = route.params?.mascotaId;
 
   const [rutinas, setRutinas] = useState([{ id: 1, nombre: "Rutina 1", tiempo: "" }]);
@@ -85,19 +88,21 @@ export default function Actividades({ route }) {
   }, [mascotaId]);
 
   const rutinaSeleccionada = rutinas.find((r) => r.id === rutinaActiva);
+  const styles = getStyles(colors);
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
+      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
       <ScrollView style={styles.container}>
 
         {/* Encabezado */}
         <View style={styles.header}>
           <Text style={styles.title}>Actividades</Text>
           <TouchableOpacity onPress={() => setIsEditable(!isEditable)}>
-            <Ionicons name={isEditable ? "close" : "create-outline"} size={30} color="black" />
+            <Ionicons name={isEditable ? "close" : "create-outline"} size={30} color={colors.text} />
           </TouchableOpacity>
         </View>
 
@@ -178,11 +183,10 @@ export default function Actividades({ route }) {
   );
 }
 
-
-const styles = StyleSheet.create({
+const getStyles = (colors) => ({
   container: {
     flex: 1,
-    backgroundColor: "#fafafa",
+    backgroundColor: colors.background,
     paddingHorizontal: 20,
     paddingTop: 40,
   },
@@ -192,23 +196,24 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 25,
     borderBottomWidth: 1,
-    borderColor: "#dbd6d6ff",
+    borderColor: colors.border,
   },
   title: {
     fontSize: 26,
     fontWeight: "600",
     marginBottom: 5,
-
+    color: colors.text,
   },
   subtitle: {
     fontSize: 18,
     fontWeight: "600",
     marginVertical: 5,
-    marginBottom:15,
+    marginBottom: 15,
+    color: colors.text,
   },
   rutinaSection: {
     flexDirection: "column",
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 10,
     elevation: 2,
@@ -219,8 +224,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     marginBottom: 20,
     paddingBottom: 8,
-    borderBottomWidth:1,
-    borderBottomColor: "#ddd",
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   rutinaItem: {
     padding: 8,
@@ -231,11 +236,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#00ccff9e",
   },
   rutinaText: {
-    color: "#333",
+    color: colors.textMuted,
     fontSize: 14,
   },
   rutinaTextActiva: {
-    color: "#000",
+    color: colors.text,
     fontWeight: "bold",
     fontSize: 16,
   },
@@ -254,14 +259,14 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: colors.border,
     borderRadius: 10,
     padding: 10,
     height: 60,
-    marginBottom: 10,
-    backgroundColor: "#fff",
-    fontSize: 16,
     marginBottom: 20,
+    backgroundColor: colors.card,
+    fontSize: 16,
+    color: colors.text,
   },
   btnDelete: {
     backgroundColor: "#e74c3c",
@@ -277,15 +282,16 @@ const styles = StyleSheet.create({
   textArea: {
     height: 120,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: colors.border,
     borderRadius: 10,
     padding: 10,
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     fontSize: 16,
-    alignItems: "flex-start"
+    alignItems: "flex-start",
+    color: colors.text,
   },
   btnSave: {
-    backgroundColor: "#006affff",
+    backgroundColor: colors.primary,
     borderRadius: 25,
     paddingVertical: 12,
     alignItems: "center",

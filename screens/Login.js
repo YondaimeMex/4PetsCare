@@ -5,11 +5,14 @@ import { useNavigation } from '@react-navigation/native';
 import { useState, useEffect, useRef, useContext } from 'react';
 import React from 'react';
 import { AuthContext } from '../App';
+import { supabase } from '../lib/Supabase';
+import { useApp } from '../context';
 
-    const API_BASE_URL = "http://192.168.18.69:3000";
+
 export default function Login() {
     const navigation = useNavigation();
     const { setIsLoggedIn } = useContext(AuthContext);
+    const { colors, t, isDarkMode } = useApp();
 
     // Estados del formulario
     const [email, setEmail] = useState('');
@@ -46,59 +49,53 @@ export default function Login() {
 
     // Manejar inicio de sesión
     const handleLogin = async () => {
-    // Resetear errores
-    setErrors({ email: '', password: '' });
+        // Resetear errores
+        setErrors({ email: '', password: '' });
 
-    // Validar campos (igual que ya lo tenías)
-    let hasErrors = false;
-    if (!email.trim()) {
-        setErrors(prev => ({ ...prev, email: 'El correo es obligatorio' }));
-        hasErrors = true;
-    } else if (!isValidEmail(email)) {
-        setErrors(prev => ({ ...prev, email: 'Formato de correo inválido' }));
-        hasErrors = true;
-    }
-
-    if (!password) {
-        setErrors(prev => ({ ...prev, password: 'La contraseña es obligatoria' }));
-        hasErrors = true;
-    } else if (password.length < 6) {
-        setErrors(prev => ({ ...prev, password: 'Mínimo 6 caracteres' }));
-        hasErrors = true;
-    }
-
-    if (hasErrors) return;
-
-    setLoading(true);
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email, password }),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            Alert.alert('Error', data.message || 'Credenciales inválidas');
-            return;
+        // Validar campos (igual que ya lo tenías)
+        let hasErrors = false;
+        if (!email.trim()) {
+            setErrors(prev => ({ ...prev, email: 'El correo es obligatorio' }));
+            hasErrors = true;
+        } else if (!isValidEmail(email)) {
+            setErrors(prev => ({ ...prev, email: 'Formato de correo inválido' }));
+            hasErrors = true;
         }
 
-        // Si llegamos aquí, el login fue correcto
-        // data.token → JWT
-        // data.user  → { id, nombre, email, telefono }
-        console.log('Usuario logueado:', data.user);
-        setIsLoggedIn(true);
-    } catch (error) {
-        console.error(error);
-        Alert.alert('Error', 'No se pudo conectar con el servidor');
-    } finally {
-        setLoading(false);
-    }
-};
+        if (!password) {
+            setErrors(prev => ({ ...prev, password: 'La contraseña es obligatoria' }));
+            hasErrors = true;
+        } else if (password.length < 6) {
+            setErrors(prev => ({ ...prev, password: 'Mínimo 6 caracteres' }));
+            hasErrors = true;
+        }
+
+        if (hasErrors) return;
+
+        setLoading(true);
+
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: email.trim(),
+                password: password,
+            });
+
+            if (error) {
+                Alert.alert('Error', error.message || 'Credenciales inválidas');
+                return;
+            }
+            // Si llegamos aquí, el login fue correcto
+            // data.token → JWT
+            // data.user  → { id, nombre, email, telefono }
+            console.log('Usuario logueado:', data.user);
+            setIsLoggedIn(true);
+        } catch (error) {
+            console.error(error);
+            Alert.alert('Error', 'No se pudo conectar con el servidor');
+        } finally {
+            setLoading(false);
+        }
+    };
 
 
     // Navegar a registro
@@ -108,11 +105,11 @@ export default function Login() {
 
 
     return (
-        <View style={styles.container}>
-            <StatusBar style="light" backgroundColor="#4BCF5C" />
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
 
             {/* Encabezado con fondo gradiente */}
-            <View style={styles.headerBackground}>
+            <View style={[styles.headerBackground, { backgroundColor: colors.success }]}>
                 <Animated.View
                     style={[
                         styles.headerContent,
@@ -147,24 +144,24 @@ export default function Login() {
                             },
                         ]}
                     >
-                        <Text style={styles.formTitle}>Bienvenido</Text>
-                        <Text style={styles.formSubtitle}>Inicia sesión para acceder a tu cuenta</Text>
+                        <Text style={[styles.formTitle, { color: colors.text }]}>Bienvenido</Text>
+                        <Text style={[styles.formSubtitle, { color: colors.textMuted }]}>Inicia sesión para acceder a tu cuenta</Text>
 
                         {/* Campo Correo */}
                         <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Correo electrónico</Text>
-                            <View style={[styles.inputWrapper, errors.email && styles.inputWrapperError]}>
-                                <Ionicons name="mail-outline" size={22} color="#4BCF5C" style={styles.inputIcon} />
+                            <Text style={[styles.label, { color: colors.text }]}>Correo electrónico</Text>
+                            <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }, errors.email && styles.inputWrapperError]}>
+                                <Ionicons name="mail-outline" size={22} color={colors.success} style={styles.inputIcon} />
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { color: colors.text }]}
                                     value={email}
                                     onChangeText={setEmail}
                                     placeholder="tu@correo.com"
-                                    placeholderTextColor="#999"
+                                    placeholderTextColor={colors.textMuted}
                                     keyboardType="email-address"
                                     autoCapitalize="none"
                                     editable={!loading}
-                                    selectionColor="#4BCF5C"
+                                    selectionColor={colors.success}
                                 />
                             </View>
                             {errors.email ? (
@@ -177,18 +174,18 @@ export default function Login() {
 
                         {/* Campo Contraseña */}
                         <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Contraseña</Text>
-                            <View style={[styles.inputWrapper, errors.password && styles.inputWrapperError]}>
-                                <Ionicons name="lock-closed-outline" size={22} color="#4BCF5C" style={styles.inputIcon} />
+                            <Text style={[styles.label, { color: colors.text }]}>Contraseña</Text>
+                            <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }, errors.password && styles.inputWrapperError]}>
+                                <Ionicons name="lock-closed-outline" size={22} color={colors.success} style={styles.inputIcon} />
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, { color: colors.text }]}
                                     value={password}
                                     onChangeText={setPassword}
                                     placeholder="Mínimo 6 caracteres"
-                                    placeholderTextColor="#999"
+                                    placeholderTextColor={colors.textMuted}
                                     secureTextEntry={!showPassword}
                                     editable={!loading}
-                                    selectionColor="#4BCF5C"
+                                    selectionColor={colors.success}
                                 />
                                 <TouchableOpacity
                                     style={styles.eyeIcon}
@@ -199,7 +196,7 @@ export default function Login() {
                                     <Ionicons
                                         name={showPassword ? "eye-off-outline" : "eye-outline"}
                                         size={22}
-                                        color="#4BCF5C"
+                                        color={colors.success}
                                     />
                                 </TouchableOpacity>
                             </View>
@@ -217,12 +214,12 @@ export default function Login() {
                             onPress={() => navigation.navigate('Recuperación')}
                             disabled={loading}
                         >
-                            <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
+                            <Text style={[styles.forgotPasswordText, { color: colors.success }]}>¿Olvidaste tu contraseña?</Text>
                         </TouchableOpacity>
 
                         {/* Botón Iniciar Sesión */}
                         <TouchableOpacity
-                            style={[styles.loginButton, loading && styles.disabledButton]}
+                            style={[styles.loginButton, { backgroundColor: colors.success }, loading && styles.disabledButton]}
                             onPress={handleLogin}
                             disabled={loading}
                             activeOpacity={0.8}
@@ -242,36 +239,36 @@ export default function Login() {
 
                         {/* Separador */}
                         <View style={styles.separatorContainer}>
-                            <View style={styles.separatorLine} />
-                            <Text style={styles.separatorText}>¿No tienes cuenta?</Text>
-                            <View style={styles.separatorLine} />
+                            <View style={[styles.separatorLine, { backgroundColor: colors.border }]} />
+                            <Text style={[styles.separatorText, { color: colors.textMuted }]}>¿No tienes cuenta?</Text>
+                            <View style={[styles.separatorLine, { backgroundColor: colors.border }]} />
                         </View>
 
                         {/* Botón Registrarse */}
                         <TouchableOpacity
-                            style={[styles.registerButton, loading && styles.disabledButton]}
+                            style={[styles.registerButton, { backgroundColor: colors.card, borderColor: colors.success }, loading && styles.disabledButton]}
                             onPress={handleRegister}
                             disabled={loading}
                             activeOpacity={0.8}
                         >
                             <View style={styles.buttonContent}>
-                                <Ionicons name="person-add-outline" size={20} color="#4BCF5C" style={styles.buttonIcon} />
-                                <Text style={styles.registerButtonText}>Crear una cuenta</Text>
+                                <Ionicons name="person-add-outline" size={20} color={colors.success} style={styles.buttonIcon} />
+                                <Text style={[styles.registerButtonText, { color: colors.success }]}>Crear una cuenta</Text>
                             </View>
                         </TouchableOpacity>
 
 
 
                         {/* Pie de página */}
-                        <View style={styles.footer}>
-                            <Text style={styles.footerText}>Al continuar, aceptas nuestros</Text>
+                        <View style={[styles.footer, { borderTopColor: colors.border }]}>
+                            <Text style={[styles.footerText, { color: colors.textMuted }]}>Al continuar, aceptas nuestros</Text>
                             <View style={styles.footerLinks}>
                                 <TouchableOpacity>
-                                    <Text style={styles.footerLink}>Términos de servicio</Text>
+                                    <Text style={[styles.footerLink, { color: colors.success }]}>Términos de servicio</Text>
                                 </TouchableOpacity>
-                                <Text style={styles.footerText}> y </Text>
+                                <Text style={[styles.footerText, { color: colors.textMuted }]}> y </Text>
                                 <TouchableOpacity>
-                                    <Text style={styles.footerLink}>Política de privacidad</Text>
+                                    <Text style={[styles.footerLink, { color: colors.success }]}>Política de privacidad</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>

@@ -5,6 +5,7 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useApp } from '../context';
 
 // Importar el servicio de notificaciones
 import NotificationService from './Notificaciones';
@@ -19,6 +20,7 @@ const NotificationItem = ({ text, date }) => (
 export default function Mascotas() {
     const navigation = useNavigation();
     const isFocused = useIsFocused();
+    const { colors, t, isDarkMode } = useApp();
 
     // Función que carga la mascota desde AsyncStorage
     {/*const cargarMascota = async () => {
@@ -38,7 +40,7 @@ export default function Mascotas() {
             cargarMascota();
         }
     }, [isFocused]);*/}
-//
+    //
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [listaMascotas, setListaMascotas] = useState([]);
@@ -134,21 +136,21 @@ export default function Mascotas() {
 
 
     return (
-        <View style={styles.fullScreenContainer}>
-            <StatusBar style="auto" />
+        <View style={[styles.fullScreenContainer, { backgroundColor: colors.background }]}>
+            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
 
-            <View style={styles.header}>
+            <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
                 <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
-                    <MaterialIcons name="menu" size={32} color="black" />
+                    <MaterialIcons name="menu" size={32} color={colors.text} />
                 </TouchableOpacity>
 
                 <View style={styles.headerRight}>
                     <TouchableOpacity style={styles.headerIcon} onPress={toggleNotifications}>
-                        <Ionicons name="notifications" size={32} color="black" />
+                        <Ionicons name="notifications" size={32} color={colors.text} />
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('Perfil')}>
-                        <Ionicons name="person-circle-outline" size={32} color="black" />
+                        <Ionicons name="person-circle-outline" size={32} color={colors.text} />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -156,9 +158,9 @@ export default function Mascotas() {
             <ScrollView contentContainerStyle={styles.scrollContent} style={styles.scrollContainer}>
                 {listaMascotas.length === 0 ? (
                     <View style={{ padding: 30, alignItems: 'center' }}>
-                        <Text style={{ fontSize: 18, marginBottom: 12 }}>No tienes mascotas registradas.</Text>
-                        <TouchableOpacity style={[styles.saveButton, { width: 180 }]} onPress={() => navigation.navigate('RegistroMascota')}>
-                            <Text style={styles.saveButtonText}>Agregar Mascota</Text>
+                        <Text style={{ fontSize: 18, marginBottom: 12, color: colors.text }}>{t.noPets || 'No tienes mascotas registradas.'}</Text>
+                        <TouchableOpacity style={[styles.saveButton, { width: 180, backgroundColor: colors.primary }]} onPress={() => navigation.navigate('RegistroMascota')}>
+                            <Text style={styles.saveButtonText}>{t.addPet || 'Agregar Mascota'}</Text>
                         </TouchableOpacity>
                     </View>
                 ) : (
@@ -172,24 +174,24 @@ export default function Mascotas() {
                                 })
                             }
 
-                            style={styles.card}
+                            style={[styles.card, { backgroundColor: colors.card }]}
                         >
-                            <Text style={styles.detailTitle}>Mascota: "{m.nombre}"</Text>
+                            <Text style={[styles.detailTitle, { color: colors.text }]}>Mascota: "{m.nombre}"</Text>
                             <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>Edad:</Text>
-                                <Text style={styles.detailValue}>{m.edad || '-'}</Text>
+                                <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Edad:</Text>
+                                <Text style={[styles.detailValue, { color: colors.text }]}>{m.edad || '-'}</Text>
                             </View>
                             <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>Peso:</Text>
-                                <Text style={styles.detailValue}>{m.peso ? `${m.peso} kg` : '-'}</Text>
+                                <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Peso:</Text>
+                                <Text style={[styles.detailValue, { color: colors.text }]}>{m.peso ? `${m.peso} kg` : '-'}</Text>
                             </View>
                             <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>Raza:</Text>
-                                <Text style={styles.detailValue}>{m.raza || '-'}</Text>
+                                <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Raza:</Text>
+                                <Text style={[styles.detailValue, { color: colors.text }]}>{m.raza || '-'}</Text>
                             </View>
                             <View style={styles.detailRow}>
-                                <Text style={styles.detailLabel}>Mascota:</Text>
-                                <Text style={styles.detailValue}>{m.especie || '-'}</Text>
+                                <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Mascota:</Text>
+                                <Text style={[styles.detailValue, { color: colors.text }]}>{m.especie || '-'}</Text>
                             </View>
 
                             <Image
