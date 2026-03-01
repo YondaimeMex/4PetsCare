@@ -76,13 +76,17 @@ export default function BuscadorGoogle() {
 
             {/* HEADER */}
             <View style={styles.header}>
-                <TouchableOpacity>
+                <TouchableOpacity onPress={toggleMenu}>
                     <MaterialIcons name="menu" size={32} color="black" />
                 </TouchableOpacity>
 
                 <View style={styles.headerRight}>
-                    <Ionicons name="notifications" size={32} color="black" />
-                    <Ionicons name="person-circle-outline" size={32} color="black" />
+                    <TouchableOpacity onPress={toggleNotifications}>
+                        <Ionicons name="notifications" size={32} color="black" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => navigation.navigate('Perfil')}>
+                        <Ionicons name="person-circle-outline" size={32} color="black" />
+                    </TouchableOpacity>
                 </View>
             </View>
 
@@ -103,10 +107,11 @@ export default function BuscadorGoogle() {
 
             {/* INPUT FIJO Y ELEGANTE */}
             <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 15 : 0}
+                style={{width:'100%'}}
+                behavior={Platform.OS === 'ios' ? 'position' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
             >
-                <View style={[styles.inputContainer, { backgroundColor: colors.card }]}>
+                <View style={[styles.inputContainer, { backgroundColor: colors.card, paddingTop: 10 }]}>
                     <View style={[styles.inputRow, { backgroundColor: isDarkMode ? colors.background : '#e9e9e9' }]}>
                         <TextInput
                             style={styles.input}
@@ -232,6 +237,7 @@ const styles = StyleSheet.create({
         borderBottomColor: '#ddd',
         width: '100%',
         marginBottom: 30,
+        zIndex: 50,
     },
 
     headerRight: {
