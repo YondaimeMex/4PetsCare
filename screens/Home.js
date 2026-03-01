@@ -172,12 +172,12 @@ export default function HomeScreen() {
                     >
                         <Ionicons name="person-circle-outline" size={32} color={colors.text} />
                     </TouchableOpacity>
+
                     <TouchableOpacity
-                        style={[styles.menuItem, { borderBottomWidth: 0 }]}
+                        style={styles.headerIcon}
                         onPress={() => { toggleMenu(); handleLogout(); }}
                     >
                         <Ionicons name="log-out-outline" size={30} color="#FF3B30" />
-                        <Text style={[styles.menuItemText, { color: '#FF3B30' }]}>Cerrar Sesión</Text>
                     </TouchableOpacity>
                 </View>
             </View>

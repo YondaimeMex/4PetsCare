@@ -26,6 +26,7 @@ export const lightTheme = {
     textLight: '#666666',
     textMuted: '#999999',
     textWhite: '#FFFFFF',
+    
 
     // Bordes y sombras
     border: '#E0E0E0',
@@ -69,6 +70,7 @@ export const darkTheme = {
     textLight: '#B0B0B0',
     textMuted: '#808080',
     textWhite: '#FFFFFF',
+    placeholder: '#AAAAAA',
 
     // Bordes y sombras
     border: '#3D3D3D',
