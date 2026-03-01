@@ -19,8 +19,12 @@ import BuscadorGoogle from './screens/BuscadorGoogle';
 import PerfilMascotaStack from "./screens/PerfilMascotaStack";
 import EditarCita from './screens/EditarCita';
 import EditarVacuna from './screens/EditarVacuna';
+import EditarPerfil from './screens/EditarPerfil';
+import Configuracion from './screens/Configuracion';
 import NotificationService from './screens/Notificaciones';
 import Mapas from './screens/Mapas';
+import { supabase } from './lib/Supabase';
+import { AppProvider } from './context';
 export const AuthContext = createContext();
 
 const Stack = createNativeStackNavigator();
@@ -30,22 +34,16 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simular verificación de token/sesión
-    // En producción, verificarías aquí si hay una sesión activa
-    const checkAuth = async () => {
-      try {
-        // Aquí puedes llamar a tu backend para verificar si hay sesión activa
-        // const token = await AsyncStorage.getItem('userToken');
-        // setIsLoggedIn(!!token);
-        setIsLoggedIn(true); // Simulamos que el usuario ya está autenticado (Cambiar a false para probar pantalla de login)
-      } catch (error) {
-        console.error('Error verificando autenticación:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsLoggedIn(!!session);
+      setIsLoading(false);
+    });
 
-    checkAuth();
+    // Escuchar cambios de sesión (login / logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session);
+    });
+    return () => subscription.unsubscribe()
   }, []);
 
   if (isLoading) {
@@ -53,55 +51,59 @@ export default function App() {
   }
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, setIsLoggedIn }}>
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {!isLoggedIn ? (
-            <Stack.Group>
-              <Stack.Screen
-                name="Login"
-                component={Login}
-                options={{
-                  animationEnabled: false,
-                }}
-              />
-              <Stack.Screen
-                name="Registro"
-                component={Registro}
-                options={{
-                  animationEnabled: true,
-                }}
-              />
-              <Stack.Screen
-                name="Recuperación"
-                component={Recuperación}
-                options={{
-                  animationEnabled: true,
-                }}
-              />
-            </Stack.Group>
-          ) : (
-            <Stack.Group>
-              <Stack.Screen name="Home" component={Home} />
-              <Stack.Screen name="Perfil" component={Perfil} />
-              <Stack.Screen name="RegistroMascota" component={RegistroMascota} />
-              <Stack.Screen name="Mascotas" component={Mascotas} />
-              <Stack.Screen name="PerfilMascotaStack" component={PerfilMascotaStack} />
-              <Stack.Screen name="ConfirmacionVacuna" component={ConfirmacionVacuna} />
-              <Stack.Screen name="VacunaRegistrada" component={VacunaRegistrada} />
-              <Stack.Screen name="Calendario" component={Calendario} />
-              <Stack.Screen name="Consejos" component={Consejos} />
-              <Stack.Screen name="Emergencias" component={Emergencias} />
-              <Stack.Screen name="RegistroVeterinaria" component={RegistroVeterinaria} />
-              <Stack.Screen name="ProgramarCita" component={ProgramarCita} />
-              <Stack.Screen name="EditarCita" component={EditarCita} />
-              <Stack.Screen name="EditarVacuna" component={EditarVacuna} />
-              <Stack.Screen name="BuscadorGoogle" component={BuscadorGoogle} />
-              <Stack.Screen name="Mapas" component={Mapas} />
-            </Stack.Group>
-          )}
-        </Stack.Navigator>
-      </NavigationContainer>
-    </AuthContext.Provider>
+    <AppProvider>
+      <AuthContext.Provider value={{ isLoggedIn, setIsLoggedIn }}>
+        <NavigationContainer>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            {!isLoggedIn ? (
+              <Stack.Group>
+                <Stack.Screen
+                  name="Login"
+                  component={Login}
+                  options={{
+                    animationEnabled: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="Registro"
+                  component={Registro}
+                  options={{
+                    animationEnabled: true,
+                  }}
+                />
+                <Stack.Screen
+                  name="Recuperación"
+                  component={Recuperación}
+                  options={{
+                    animationEnabled: true,
+                  }}
+                />
+              </Stack.Group>
+            ) : (
+              <Stack.Group>
+                <Stack.Screen name="Home" component={Home} />
+                <Stack.Screen name="Perfil" component={Perfil} />
+                <Stack.Screen name="RegistroMascota" component={RegistroMascota} />
+                <Stack.Screen name="Mascotas" component={Mascotas} />
+                <Stack.Screen name="PerfilMascotaStack" component={PerfilMascotaStack} />
+                <Stack.Screen name="ConfirmacionVacuna" component={ConfirmacionVacuna} />
+                <Stack.Screen name="VacunaRegistrada" component={VacunaRegistrada} />
+                <Stack.Screen name="Calendario" component={Calendario} />
+                <Stack.Screen name="Consejos" component={Consejos} />
+                <Stack.Screen name="Emergencias" component={Emergencias} />
+                <Stack.Screen name="RegistroVeterinaria" component={RegistroVeterinaria} />
+                <Stack.Screen name="ProgramarCita" component={ProgramarCita} />
+                <Stack.Screen name="EditarCita" component={EditarCita} />
+                <Stack.Screen name="EditarVacuna" component={EditarVacuna} />
+                <Stack.Screen name="EditarPerfil" component={EditarPerfil} />
+                <Stack.Screen name="Configuracion" component={Configuracion} />
+                <Stack.Screen name="BuscadorGoogle" component={BuscadorGoogle} />
+                <Stack.Screen name="Mapas" component={Mapas} />
+              </Stack.Group>
+            )}
+          </Stack.Navigator>
+        </NavigationContainer>
+      </AuthContext.Provider>
+    </AppProvider>
   );
 }

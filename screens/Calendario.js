@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useApp } from '../context';
 
 import NotificationService from './Notificaciones';
 
@@ -78,6 +79,7 @@ const CitaDetailItem = ({ cita, onEdit, onDelete }) => (
 export default function Calendario() {
     const navigation = useNavigation();
     const isFocused = useIsFocused();
+    const { colors, t, isDarkMode } = useApp();
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -332,30 +334,30 @@ export default function Calendario() {
     const isOverlayVisible = isMenuOpen || isNotificationsOpen;
 
     return (
-        <View style={styles.container}>
-            <StatusBar style="auto" />
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
 
             {/* Encabezado */}
-            <View style={styles.header}>
+            <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
                 <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
-                    <MaterialIcons name="menu" size={32} color="black" />
+                    <MaterialIcons name="menu" size={32} color={colors.text} />
                 </TouchableOpacity>
 
                 <View style={styles.headerRight}>
                     <TouchableOpacity style={styles.headerIcon} onPress={toggleNotifications}>
-                        <Ionicons name="notifications" size={32} color="black" />
+                        <Ionicons name="notifications" size={32} color={colors.text} />
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('Perfil')}>
-                        <Ionicons name="person-circle-outline" size={32} color="black" />
+                        <Ionicons name="person-circle-outline" size={32} color={colors.text} />
                     </TouchableOpacity>
                 </View>
             </View>
 
             {/* Contenido */}
             <ScrollView contentContainerStyle={styles.content}>
-                <View style={styles.card}>
-                    <Text style={styles.title}>Calendario</Text>
-                    <Text style={styles.subtitle}>¡Aquí puedes ver tus citas programadas y campañas activas!</Text>
+                <View style={[styles.card, { backgroundColor: colors.card }]}>
+                    <Text style={[styles.title, { color: colors.text }]}>{t.calendar || 'Calendario'}</Text>
+                    <Text style={[styles.subtitle, { color: colors.textMuted }]}>¡Aquí puedes ver tus citas programadas y campañas activas!</Text>
                 </View>
 
                 <View style={{ paddingBottom: 30 }}>
@@ -364,15 +366,21 @@ export default function Calendario() {
                         markingType={'multi-dot'}
                         markedDates={getDisplayDates()}
                         theme={{
-                            todayTextColor: '#007AFF',
-                            arrowColor: '#4CAF50',
+                            backgroundColor: colors.background,
+                            calendarBackground: colors.card,
+                            textSectionTitleColor: colors.text,
+                            dayTextColor: colors.text,
+                            todayTextColor: colors.secondary,
+                            arrowColor: colors.primary,
                             textDayFontWeight: '500',
-                            selectedDayBackgroundColor: '#4CAF50',
-                            selectedDayTextColor: '#ffffff'
+                            selectedDayBackgroundColor: colors.primary,
+                            selectedDayTextColor: colors.textWhite,
+                            monthTextColor: colors.text,
+                            textDisabledColor: colors.textMuted,
                         }}
                         style={{
                             borderWidth: 1,
-                            borderColor: '#e0e0e0',
+                            borderColor: colors.border,
                             borderRadius: 10,
                             overflow: 'hidden'
                         }}

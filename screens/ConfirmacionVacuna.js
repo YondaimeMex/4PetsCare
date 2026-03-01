@@ -7,6 +7,7 @@ import { useState } from 'react';
 import React from 'react';
 import { Calendar } from 'react-native-calendars';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useApp } from '../context';
 
 import NotificationService from './Notificaciones';
 
@@ -22,6 +23,7 @@ export default function ConfirmacionVacuna() {
     const navigation = useNavigation();
     const route = useRoute();
     const { mascota } = route.params || {};
+    const { colors, t, isDarkMode } = useApp();
 
     // Estados del menú, notificaciones y calendario
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -122,34 +124,34 @@ export default function ConfirmacionVacuna() {
     const isOverlayVisible = isMenuOpen || isNotificationsOpen;
 
     return (
-        <View style={styles.container}>
-            <StatusBar style="auto" />
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
 
             {/* Encabezado con menú, notificaciones y perfil */}
-            <View style={styles.header}>
+            <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
                 <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
-                    <MaterialIcons name="menu" size={32} color="black" />
+                    <MaterialIcons name="menu" size={32} color={colors.text} />
                 </TouchableOpacity>
 
                 <View style={styles.headerRight}>
                     <TouchableOpacity style={styles.headerIcon} onPress={toggleNotifications}>
-                        <Ionicons name="notifications" size={32} color="black" />
+                        <Ionicons name="notifications" size={32} color={colors.text} />
                     </TouchableOpacity>
 
                     <TouchableOpacity
                         style={styles.headerIcon}
                         onPress={() => navigation.navigate('Perfil')}
                     >
-                        <Ionicons name="person-circle-outline" size={32} color="black" />
+                        <Ionicons name="person-circle-outline" size={32} color={colors.text} />
                     </TouchableOpacity>
                 </View>
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
                 {/* Título e instrucción */}
-                <View style={styles.card}>
-                    <Text style={styles.title}>¿La vacuna ya fue aplicada?</Text>
-                    <Text style={styles.subtitle}>Selecciona la fecha:</Text>
+                <View style={[styles.card, { backgroundColor: colors.card }]}>
+                    <Text style={[styles.title, { color: colors.text }]}>¿La vacuna ya fue aplicada?</Text>
+                    <Text style={[styles.subtitle, { color: colors.textMuted }]}>Selecciona la fecha:</Text>
                 </View>
 
                 {/* Calendario para elegir la fecha */}
@@ -161,55 +163,61 @@ export default function ConfirmacionVacuna() {
                         [selectedDate]: { selected: true, marked: true, selectedColor: '#4CAF50' }
                     }}
                     theme={{
-                        todayTextColor: '#007AFF',
+                        backgroundColor: colors.card,
+                        calendarBackground: colors.card,
+                        textSectionTitleColor: colors.textMuted,
+                        dayTextColor: colors.text,
+                        monthTextColor: colors.text,
+                        todayTextColor: colors.primary,
                         arrowColor: '#4CAF50',
+                        textDisabledColor: colors.textMuted
                     }}
                 />
 
                 {/* Muestra la fecha seleccionada */}
                 {selectedDate ? (
-                    <Text style={styles.dateText}>Fecha elegida: {selectedDate}</Text>
+                    <Text style={[styles.dateText, { color: colors.text }]}>Fecha elegida: {selectedDate}</Text>
                 ) : null}
 
                 {/* Seleccionar Veterinaria */}
-                <View style={[styles.card, { zIndex: 100 }]}>
-                    <Text style={styles.label}>Seleccione la veterinaria</Text>
+                <View style={[styles.card, { zIndex: 100, backgroundColor: colors.card }]}>
+                    <Text style={[styles.label, { color: colors.textMuted }]}>Seleccione la veterinaria</Text>
 
-                    <TouchableOpacity style={styles.dropdownTrigger} onPress={() => setIsDropdownOpen(!isDropdownOpen)}>
+                    <TouchableOpacity style={[styles.dropdownTrigger, { backgroundColor: colors.inputBackground, borderColor: colors.border }]} onPress={() => setIsDropdownOpen(!isDropdownOpen)}>
                         <TextInput
-                            style={styles.dropdownInputText}
+                            style={[styles.dropdownInputText, { color: colors.text }]}
                             value={selectedVeterinaria}
                             placeholder="Elige una veterinaria"
-                            placeholderTextColor="#999"
+                            placeholderTextColor={colors.textMuted}
                             editable={false}
                             pointerEvents="none"
                         />
                         <MaterialIcons
                             name={isDropdownOpen ? "arrow-drop-up" : "arrow-drop-down"}
                             size={24}
-                            color="#333"
+                            color={colors.text}
                         />
                     </TouchableOpacity>
 
                     {/* Lista desplegable */}
                     {isDropdownOpen && (
-                        <View style={styles.dropdownList}>
+                        <View style={[styles.dropdownList, { backgroundColor: colors.card, borderColor: colors.border }]}>
                             {veterinarias.length === 0 ? (
-                                <View style={styles.emptyStateBox}>
-                                    <Text style={styles.emptyStateText}>No hay veterinarias guardadas.</Text>
+                                <View style={[styles.emptyStateBox, { backgroundColor: colors.card }]}>
+                                    <Text style={[styles.emptyStateText, { color: colors.textMuted }]}>No hay veterinarias guardadas.</Text>
                                 </View>
                             ) : (
                                 <>
                                     {veterinarias.map((option, index) => (
                                         <TouchableOpacity
                                             key={index}
-                                            style={styles.dropdownItem}
+                                            style={[styles.dropdownItem, { borderBottomColor: colors.border }]}
                                             onPress={() => {
                                                 setSelectedVeterinaria(option.label);
                                                 setIsDropdownOpen(false);
                                             }}
                                         >
-                                            <Text style={styles.dropdownItemText}>{option.label}</Text>
+                                            <Text style={[styles.dropdownItemText, { color: colors.text }]}>{option.label}</Text>
                                         </TouchableOpacity>
                                     ))}
                                 </>
@@ -249,52 +257,52 @@ export default function ConfirmacionVacuna() {
             {/* Menú lateral */}
             <View style={[
                 styles.sideMenu,
-                { transform: [{ translateX: isMenuOpen ? 0 : -300 }] }
+                { transform: [{ translateX: isMenuOpen ? 0 : -300 }], backgroundColor: colors.card }
             ]}>
                 <View style={styles.menuHeader}>
-                    <Text style={styles.menuTitle}>Menú</Text>
+                    <Text style={[styles.menuTitle, { color: colors.text }]}>Menú</Text>
                     <TouchableOpacity onPress={toggleMenu}>
-                        <Ionicons name="close" size={30} color="#333" />
+                        <Ionicons name="close" size={30} color={colors.text} />
                     </TouchableOpacity>
                 </View>
 
                 {/* Opciones del menú */}
                 <TouchableOpacity
-                    style={styles.menuItem}
+                    style={[styles.menuItem, { borderBottomColor: colors.border }]}
                     onPress={() => navigation.navigate('Home')}
                 >
-                    <Ionicons name="home" size={24} color="black" />
-                    <Text style={styles.menuItemText}>Inicio</Text>
+                    <Ionicons name="home" size={24} color={colors.text} />
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Inicio</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
+                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
                     <Ionicons name="paw-outline" size={30} color="#4BCF5C" />
-                    <Text style={styles.menuItemText}>Mascotas</Text>
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Mascotas</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
+                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
                     <Ionicons name="calendar-number" size={30} color="#007AFF" />
-                    <Text style={styles.menuItemText}>Calendario</Text>
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Calendario</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}>
+                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}>
                     <MaterialIcons name="tips-and-updates" size={30} color="#FF9500" />
-                    <Text style={styles.menuItemText}>Consejos</Text>
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Consejos</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
+                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
                     <MaterialIcons name="emergency" size={30} color="#FF3B30" />
-                    <Text style={styles.menuItemText}>Emergencias</Text>
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Emergencias</Text>
                 </TouchableOpacity>
             </View>
 
             {/* Panel de notificaciones */}
             {isNotificationsOpen && (
-                <View style={notificationStyles.notificationsContainer}>
-                    <Text style={notificationStyles.headerText}>Notificaciones</Text>
+                <View style={[notificationStyles.notificationsContainer, { backgroundColor: colors.card }]}>
+                    <Text style={[notificationStyles.headerText, { color: colors.text }]}>Notificaciones</Text>
                     <ScrollView style={notificationStyles.list}>
                         {notificaciones.length > 0 ? (
                             notificaciones.map((n, index) => (
                                 <NotificationItem key={index} text={n.text} />
                             ))
                         ) : (
-                            <Text style={{ textAlign: 'center', color: '#666', marginTop: 10 }}>No hay notificaciones.</Text>
+                            <Text style={{ textAlign: 'center', color: colors.textMuted, marginTop: 10 }}>No hay notificaciones.</Text>
                         )}
                     </ScrollView>
                 </View>

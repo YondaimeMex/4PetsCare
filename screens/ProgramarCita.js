@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useApp } from '../context';
 
 import NotificationService from './Notificaciones';
 
@@ -19,6 +20,7 @@ const NotificationItem = ({ text }) => (
 export default function ProgramarCita() {
     const navigation = useNavigation();
     const isFocused = useIsFocused();
+    const { colors, t, isDarkMode } = useApp();
 
     // --- ESTADOS ---
     const [nombreUsuario, setNombreUsuario] = useState('');
@@ -144,66 +146,66 @@ export default function ProgramarCita() {
     const isOverlayVisible = isMenuOpen || isNotificationsOpen;
 
     return (
-        <View style={styles.mainContainer}>
-            <StatusBar style="auto" />
+        <View style={[styles.mainContainer, { backgroundColor: colors.background }]}>
+            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
 
             <ScrollView contentContainerStyle={styles.scrollContent}>
 
                 {/* --- ENCABEZADO --- */}
                 <View style={styles.headerContainer}>
                     <TouchableOpacity style={styles.iconButton} onPress={toggleMenu}>
-                        <MaterialIcons name="menu" size={32} color="#333" />
+                        <MaterialIcons name="menu" size={32} color={colors.text} />
                     </TouchableOpacity>
 
                     <View style={styles.headerRight}>
-                        <TouchableOpacity style={[styles.circleButton, styles.iconSpacing]} onPress={toggleNotifications}>
-                            <Ionicons name="notifications" size={28} color="#333" />
+                        <TouchableOpacity style={[styles.circleButton, styles.iconSpacing, { backgroundColor: colors.card }]} onPress={toggleNotifications}>
+                            <Ionicons name="notifications" size={28} color={colors.text} />
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.circleButton} onPress={() => navigation.navigate('Perfil')}>
-                            <Ionicons name="person-circle-outline" size={28} color="#333" />
+                        <TouchableOpacity style={[styles.circleButton, { backgroundColor: colors.card }]} onPress={() => navigation.navigate('Perfil')}>
+                            <Ionicons name="person-circle-outline" size={28} color={colors.text} />
                         </TouchableOpacity>
                     </View>
                 </View>
 
                 {/* --- FORMULARIO: NOMBRE --- */}
-                <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Programar Cita</Text>
-                    <Text style={styles.label}>Nombre del usuario:</Text>
+                <View style={[styles.card, { backgroundColor: colors.card }]}>
+                    <Text style={[styles.cardTitle, { color: colors.text }]}>Programar Cita</Text>
+                    <Text style={[styles.label, { color: colors.textMuted }]}>Nombre del usuario:</Text>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
                         value={nombreUsuario}
                         onChangeText={setNombreUsuario}
                         placeholder="Ej. Gabriel Perez Torres"
-                        placeholderTextColor="#999"
+                        placeholderTextColor={colors.textMuted}
                     />
                 </View>
 
                 {/* --- FORMULARIO: VETERINARIA --- */}
-                <View style={[styles.card, { zIndex: 100 }]}>
-                    <Text style={styles.label}>Seleccione la veterinaria</Text>
+                <View style={[styles.card, { zIndex: 100, backgroundColor: colors.card }]}>
+                    <Text style={[styles.label, { color: colors.textMuted }]}>Seleccione la veterinaria</Text>
 
-                    <TouchableOpacity style={styles.dropdownTrigger} onPress={() => setIsDropdownOpen(!isDropdownOpen)}>
+                    <TouchableOpacity style={[styles.dropdownTrigger, { backgroundColor: colors.inputBackground, borderColor: colors.border }]} onPress={() => setIsDropdownOpen(!isDropdownOpen)}>
                         <TextInput
-                            style={styles.dropdownInputText}
+                            style={[styles.dropdownInputText, { color: colors.text }]}
                             value={nombreVeterinaria}
                             placeholder="Elige una veterinaria"
-                            placeholderTextColor="#999"
+                            placeholderTextColor={colors.textMuted}
                             editable={false}
                             pointerEvents="none"
                         />
                         <MaterialIcons
                             name={isDropdownOpen ? "arrow-drop-up" : "arrow-drop-down"}
                             size={24}
-                            color="#333"
+                            color={colors.text}
                         />
                     </TouchableOpacity>
 
                     {/* --- LISTA DESPLEGABLE --- */}
                     {isDropdownOpen && (
-                        <View style={styles.dropdownList}>
+                        <View style={[styles.dropdownList, { backgroundColor: colors.card, borderColor: colors.border }]}>
                             {veterinarias.length === 0 ? (
-                                <View style={styles.emptyStateBox}>
-                                    <Text style={styles.emptyStateText}>No hay veterinarias guardadas.</Text>
+                                <View style={[styles.emptyStateBox, { backgroundColor: colors.card }]}>
+                                    <Text style={[styles.emptyStateText, { color: colors.textMuted }]}>No hay veterinarias guardadas.</Text>
                                     <TouchableOpacity
                                         style={styles.registerLinkButton}
                                         onPress={() => {
@@ -221,12 +223,12 @@ export default function ProgramarCita() {
                                     {veterinarias.map((option, index) => (
                                         <TouchableOpacity
                                             key={index}
-                                            style={styles.dropdownItem}
+                                            style={[styles.dropdownItem, { borderBottomColor: colors.border }]}
                                             onPress={() => selectVeterinaria(option)}
                                         >
-                                            <Text style={styles.dropdownItemText}>{option.label}</Text>
+                                            <Text style={[styles.dropdownItemText, { color: colors.text }]}>{option.label}</Text>
                                         </TouchableOpacity>
-                                    ))}
+                                    ))})
 
                                     {/* Boton para agregar mas */}
                                     <TouchableOpacity
@@ -246,17 +248,23 @@ export default function ProgramarCita() {
                 </View>
 
                 {/* --- CALENDARIO --- */}
-                <View style={styles.card}>
-                    <Text style={styles.label}>Calendario</Text>
+                <View style={[styles.card, { backgroundColor: colors.card }]}>
+                    <Text style={[styles.label, { color: colors.textMuted }]}>Calendario</Text>
                     <View style={styles.calendarWrapper}>
                         <Calendar
                             onDayPress={day => setSelectedDate(day.dateString)}
                             markingType={'simple'}
                             markedDates={getMarkedDates()}
                             theme={{
-                                todayTextColor: '#007AFF',
+                                backgroundColor: colors.card,
+                                calendarBackground: colors.card,
+                                textSectionTitleColor: colors.textMuted,
+                                dayTextColor: colors.text,
+                                monthTextColor: colors.text,
+                                todayTextColor: colors.primary,
                                 arrowColor: '#4CAF50',
-                                textDayFontWeight: '500'
+                                textDayFontWeight: '500',
+                                textDisabledColor: colors.textMuted
                             }}
                         />
                         {selectedDate ? (
@@ -285,54 +293,54 @@ export default function ProgramarCita() {
             )}
 
             {/* --- MENÚ LATERAL ACTUALIZADO --- */}
-            <View style={[styles.sideMenu, { transform: [{ translateX: isMenuOpen ? 0 : -300 }] }]}>
+            <View style={[styles.sideMenu, { transform: [{ translateX: isMenuOpen ? 0 : -300 }], backgroundColor: colors.card }]}>
                 <View style={styles.menuHeader}>
-                    <Text style={styles.menuTitle}>Menú</Text>
+                    <Text style={[styles.menuTitle, { color: colors.text }]}>Menú</Text>
                     <TouchableOpacity onPress={toggleMenu}>
-                        <Ionicons name="close" size={30} color="#333" />
+                        <Ionicons name="close" size={30} color={colors.text} />
                     </TouchableOpacity>
                 </View>
 
                 {/* Opción Home/Inicio */}
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Home'); }}>
-                    <Ionicons name="home" size={28} color="#333" />
-                    <Text style={styles.menuItemText}>Inicio</Text>
+                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Home'); }}>
+                    <Ionicons name="home" size={28} color={colors.text} />
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Inicio</Text>
                 </TouchableOpacity>
 
                 {/* Opción Mascotas */}
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
+                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
                     <Ionicons name="paw-outline" size={28} color="#4BCF5C" />
-                    <Text style={styles.menuItemText}>Mascotas</Text>
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Mascotas</Text>
                 </TouchableOpacity>
 
                 {/* Opción Calendario */}
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
+                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
                     <Ionicons name="calendar-number" size={28} color="#007AFF" />
-                    <Text style={styles.menuItemText}>Calendario</Text>
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Calendario</Text>
                 </TouchableOpacity>
 
                 {/* Opción Consejos */}
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}>
+                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}>
                     <MaterialIcons name="tips-and-updates" size={28} color="#FF9500" />
-                    <Text style={styles.menuItemText}>Consejos</Text>
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Consejos</Text>
                 </TouchableOpacity>
 
                 {/* Opción Emergencias */}
-                <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
+                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
                     <MaterialIcons name="emergency" size={28} color="#FF3B30" />
-                    <Text style={styles.menuItemText}>Emergencias</Text>
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>Emergencias</Text>
                 </TouchableOpacity>
             </View>
 
             {/* --- PANEL DE NOTIFICACIONES --- */}
             {isNotificationsOpen && (
-                <View style={notificationStyles.container}>
-                    <Text style={notificationStyles.header}>Notificaciones</Text>
+                <View style={[notificationStyles.container, { backgroundColor: colors.card }]}>
+                    <Text style={[notificationStyles.header, { color: colors.text, borderBottomColor: colors.border }]}>Notificaciones</Text>
                     <ScrollView style={notificationStyles.list}>
                         {notificaciones.length > 0 ? (
                             notificaciones.map((n, index) => <NotificationItem key={index} text={n.text} />)
                         ) : (
-                            <Text style={notificationStyles.emptyText}>No hay notificaciones.</Text>
+                            <Text style={[notificationStyles.emptyText, { color: colors.textMuted }]}>No hay notificaciones.</Text>
                         )}
                     </ScrollView>
                 </View>
