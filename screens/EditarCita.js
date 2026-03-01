@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { useNavigation, useRoute, useIsFocused } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useApp } from '../context';
 
 import NotificationService from './Notificaciones';
+import { useApp } from '../context';
 
-// --- COMPONENTE AUXILIAR: Item de Notificación ---
+// Componente para notificaciones
 const NotificationItem = ({ text }) => (
     <View style={notificationStyles.itemContainer}>
         <View style={notificationStyles.bullet} />
@@ -17,25 +17,37 @@ const NotificationItem = ({ text }) => (
     </View>
 );
 
-export default function ProgramarCita() {
+export default function EditarCita() {
     const navigation = useNavigation();
+    const route = useRoute();
     const isFocused = useIsFocused();
+    const { cita } = route.params || {};
     const { colors, t, isDarkMode } = useApp();
 
-    // --- ESTADOS ---
+    // Estados del formulario
     const [nombreUsuario, setNombreUsuario] = useState('');
     const [nombreVeterinaria, setVeterinaria] = useState('');
     const [selectedDate, setSelectedDate] = useState('');
     const [veterinarias, setVeterinarias] = useState([]);
+    const [loading, setLoading] = useState(false);
 
-    // --- ESTADOS UI ---
+    // Estados UI
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [notificaciones, setNotificaciones] = useState([]);
-    const [loading, setLoading] = useState(false);
 
-    // --- CARGA DE VETERINARIAS ---
+    // Cargar datos iniciales
+    useEffect(() => {
+        if (isFocused && cita) {
+            setNombreUsuario(cita.usuario || '');
+            setVeterinaria(cita.veterinaria || '');
+            setSelectedDate(cita.fecha || '');
+            loadVeterinarias();
+        }
+    }, [isFocused, cita]);
+
+    // Cargar veterinarias
     const loadVeterinarias = async () => {
         try {
             const jsonValue = await AsyncStorage.getItem('@veterinarias');
@@ -47,18 +59,13 @@ export default function ProgramarCita() {
         }
     };
 
-    useEffect(() => {
-        if (isFocused) {
-            loadVeterinarias();
-        }
-    }, [isFocused]);
-
-    // --- MANEJADORES ---
+    // Seleccionar veterinaria
     const selectVeterinaria = (option) => {
         setVeterinaria(option.label);
         setIsDropdownOpen(false);
     };
 
+    // Obtener fechas marcadas para el calendario
     const getMarkedDates = () => {
         if (!selectedDate) return {};
         return {
@@ -66,7 +73,7 @@ export default function ProgramarCita() {
         };
     };
 
-    // --- GUARDAR CITA ---
+    // Guardar cambios
     const handleSave = async () => {
         if (!nombreUsuario || !nombreVeterinaria || !selectedDate) {
             Alert.alert('Faltan datos', 'Ingresa nombre, veterinaria y fecha.');
@@ -79,49 +86,41 @@ export default function ProgramarCita() {
             const citasRaw = await AsyncStorage.getItem('@citas');
             const citas = citasRaw ? JSON.parse(citasRaw) : [];
 
-            const nuevaCita = {
-                id: Date.now().toString(), // ← CAMBIA A STRING
+            // Eliminar la cita antigua
+            const updatedCitas = citas.filter(c =>
+                !(c.fecha === cita.fecha &&
+                    c.usuario === cita.usuario &&
+                    c.veterinaria === cita.veterinaria &&
+                    c.tipo === 'Cita')
+            );
+
+            // Agregar la cita actualizada
+            const citaActualizada = {
+                ...cita,
                 usuario: nombreUsuario,
                 veterinaria: nombreVeterinaria,
                 fecha: selectedDate,
-                tipo: 'Cita' // ← ESTO ES CRÍTICO
+                tipo: 'Cita'
             };
 
-            console.log('Guardando cita:', nuevaCita); // ← DEBUG
-
-            const nuevasCitas = [...citas, nuevaCita];
-            await AsyncStorage.setItem('@citas', JSON.stringify(nuevasCitas));
-
-            // Verificar que se guardó
-            const verificar = await AsyncStorage.getItem('@citas');
-            console.log('Datos guardados en AsyncStorage:', verificar); // ← DEBUG
+            updatedCitas.push(citaActualizada);
+            await AsyncStorage.setItem('@citas', JSON.stringify(updatedCitas));
 
             setLoading(false);
             Alert.alert(
-                'Cita guardada',
-                `¡Cita en ${nombreVeterinaria} registrada para el ${selectedDate}!`,
+                'Éxito',
+                `¡Cita actualizada para el ${selectedDate}!`,
                 [{ text: "OK", onPress: () => navigation.navigate('Calendario') }]
             );
 
-            setNombreUsuario('');
-            setVeterinaria('');
-            setSelectedDate('');
-
         } catch (error) {
-            console.error("Error guardando cita:", error);
+            console.error("Error guardando cambios:", error);
             setLoading(false);
-            Alert.alert("Error", "No se pudo guardar la cita.");
+            Alert.alert("Error", "No se pudieron guardar los cambios.");
         }
     };
-    // --- DEBUG ---
-    const clearVetsForTesting = async () => {
-        await AsyncStorage.removeItem('@veterinarias');
-        setVeterinarias([]);
-        setVeterinaria('');
-        Alert.alert("Reset", "Lista de veterinarias borrada.");
-    };
 
-    // --- MENÚS ---
+    // Menús
     const toggleMenu = () => {
         const newState = !isMenuOpen;
         setIsMenuOpen(newState);
@@ -151,14 +150,14 @@ export default function ProgramarCita() {
 
             <ScrollView contentContainerStyle={styles.scrollContent}>
 
-                {/* --- ENCABEZADO --- */}
+                {/* Encabezado */}
                 <View style={styles.headerContainer}>
-                    <TouchableOpacity style={styles.iconButton} onPress={toggleMenu}>
-                        <MaterialIcons name="menu" size={32} color={colors.text} />
+                    <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+                        <Ionicons name="arrow-back" size={28} color={colors.text} />
                     </TouchableOpacity>
 
                     <View style={styles.headerRight}>
-                        <TouchableOpacity style={[styles.circleButton, styles.iconSpacing, { backgroundColor: colors.card }]} onPress={toggleNotifications}>
+                        <TouchableOpacity style={[styles.circleButton, { backgroundColor: colors.card }, styles.iconSpacing]} onPress={toggleNotifications}>
                             <Ionicons name="notifications" size={28} color={colors.text} />
                         </TouchableOpacity>
                         <TouchableOpacity style={[styles.circleButton, { backgroundColor: colors.card }]} onPress={() => navigation.navigate('Perfil')}>
@@ -167,12 +166,16 @@ export default function ProgramarCita() {
                     </View>
                 </View>
 
-                {/* --- FORMULARIO: NOMBRE --- */}
+                {/* Título */}
                 <View style={[styles.card, { backgroundColor: colors.card }]}>
-                    <Text style={[styles.cardTitle, { color: colors.text }]}>Programar Cita</Text>
+                    <Text style={[styles.cardTitle, { color: colors.text }]}>Editar Cita</Text>
+                </View>
+
+                {/* Campo Usuario */}
+                <View style={[styles.card, { backgroundColor: colors.card }]}>
                     <Text style={[styles.label, { color: colors.textMuted }]}>Nombre del usuario:</Text>
                     <TextInput
-                        style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
+                        style={[styles.input, { backgroundColor: isDarkMode ? colors.background : '#f9f9f9', borderColor: colors.border, color: colors.text }]}
                         value={nombreUsuario}
                         onChangeText={setNombreUsuario}
                         placeholder="Ej. Gabriel Perez Torres"
@@ -180,11 +183,11 @@ export default function ProgramarCita() {
                     />
                 </View>
 
-                {/* --- FORMULARIO: VETERINARIA --- */}
-                <View style={[styles.card, { zIndex: 100, backgroundColor: colors.card }]}>
+                {/* Campo Veterinaria */}
+                <View style={[styles.card, { backgroundColor: colors.card, zIndex: 100 }]}>
                     <Text style={[styles.label, { color: colors.textMuted }]}>Seleccione la veterinaria</Text>
 
-                    <TouchableOpacity style={[styles.dropdownTrigger, { backgroundColor: colors.inputBackground, borderColor: colors.border }]} onPress={() => setIsDropdownOpen(!isDropdownOpen)}>
+                    <TouchableOpacity style={[styles.dropdownTrigger, { backgroundColor: isDarkMode ? colors.background : '#f9f9f9', borderColor: colors.border }]} onPress={() => setIsDropdownOpen(!isDropdownOpen)}>
                         <TextInput
                             style={[styles.dropdownInputText, { color: colors.text }]}
                             value={nombreVeterinaria}
@@ -200,26 +203,15 @@ export default function ProgramarCita() {
                         />
                     </TouchableOpacity>
 
-                    {/* --- LISTA DESPLEGABLE --- */}
+                    {/* Lista desplegable */}
                     {isDropdownOpen && (
                         <View style={[styles.dropdownList, { backgroundColor: colors.card, borderColor: colors.border }]}>
                             {veterinarias.length === 0 ? (
                                 <View style={[styles.emptyStateBox, { backgroundColor: colors.card }]}>
                                     <Text style={[styles.emptyStateText, { color: colors.textMuted }]}>No hay veterinarias guardadas.</Text>
-                                    <TouchableOpacity
-                                        style={styles.registerLinkButton}
-                                        onPress={() => {
-                                            setIsDropdownOpen(false);
-                                            navigation.navigate('RegistroVeterinaria');
-                                        }}
-                                    >
-                                        <Text style={styles.registerLinkText}>Registrar Veterinaria</Text>
-                                        <MaterialIcons name="arrow-forward" size={16} color="white" style={{ marginLeft: 5 }} />
-                                    </TouchableOpacity>
                                 </View>
                             ) : (
                                 <>
-                                    {/* Lista de veterinarias existentes */}
                                     {veterinarias.map((option, index) => (
                                         <TouchableOpacity
                                             key={index}
@@ -228,28 +220,16 @@ export default function ProgramarCita() {
                                         >
                                             <Text style={[styles.dropdownItemText, { color: colors.text }]}>{option.label}</Text>
                                         </TouchableOpacity>
-                                    ))})
-
-                                    {/* Boton para agregar mas */}
-                                    <TouchableOpacity
-                                        style={styles.dropdownFooterItem}
-                                        onPress={() => {
-                                            setIsDropdownOpen(false);
-                                            navigation.navigate('RegistroVeterinaria');
-                                        }}
-                                    >
-                                        <MaterialIcons name="add-circle-outline" size={20} color="#4CAF50" />
-                                        <Text style={styles.dropdownFooterText}>Agregar nueva veterinaria</Text>
-                                    </TouchableOpacity>
+                                    ))}
                                 </>
                             )}
                         </View>
                     )}
                 </View>
 
-                {/* --- CALENDARIO --- */}
+                {/* Calendario */}
                 <View style={[styles.card, { backgroundColor: colors.card }]}>
-                    <Text style={[styles.label, { color: colors.textMuted }]}>Calendario</Text>
+                    <Text style={[styles.label, { color: colors.textMuted }]}>Fecha de la cita</Text>
                     <View style={styles.calendarWrapper}>
                         <Calendar
                             onDayPress={day => setSelectedDate(day.dateString)}
@@ -260,40 +240,50 @@ export default function ProgramarCita() {
                                 calendarBackground: colors.card,
                                 textSectionTitleColor: colors.textMuted,
                                 dayTextColor: colors.text,
-                                monthTextColor: colors.text,
                                 todayTextColor: colors.primary,
-                                arrowColor: '#4CAF50',
+                                arrowColor: colors.success,
+                                monthTextColor: colors.text,
                                 textDayFontWeight: '500',
                                 textDisabledColor: colors.textMuted
                             }}
                         />
                         {selectedDate ? (
-                            <Text style={styles.selectedDateText}>Fecha elegida: {selectedDate}</Text>
+                            <Text style={[styles.selectedDateText, { color: colors.primary }]}>Fecha elegida: {selectedDate}</Text>
                         ) : null}
                     </View>
                 </View>
 
-                {/* --- BOTÓN GUARDAR --- */}
-                <TouchableOpacity
-                    style={[styles.saveButton, loading && styles.buttonDisabled]}
-                    onPress={handleSave}
-                    disabled={loading}
-                >
-                    {loading ? (
-                        <ActivityIndicator color="#fff" />
-                    ) : (
-                        <Text style={styles.saveButtonText}>Programar Cita</Text>
-                    )}
-                </TouchableOpacity>
+                {/* Botones de acción */}
+                <View style={styles.buttonContainer}>
+                    <TouchableOpacity
+                        style={[styles.saveButton, { backgroundColor: colors.success }, loading && styles.buttonDisabled]}
+                        onPress={handleSave}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color="#fff" />
+                        ) : (
+                            <Text style={styles.saveButtonText}>Guardar cambios</Text>
+                        )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.cancelButton, { backgroundColor: isDarkMode ? colors.card : '#f0f0f0', borderColor: colors.border }]}
+                        onPress={() => navigation.goBack()}
+                        disabled={loading}
+                    >
+                        <Text style={[styles.cancelButtonText, { color: colors.text }]}>Cancelar</Text>
+                    </TouchableOpacity>
+                </View>
             </ScrollView>
 
-            {/* --- OVERLAY Y MENÚ LATERAL --- */}
+            {/* Overlay y menú */}
             {isOverlayVisible && (
                 <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={handleOverlayClick} />
             )}
 
-            {/* --- MENÚ LATERAL ACTUALIZADO --- */}
-            <View style={[styles.sideMenu, { transform: [{ translateX: isMenuOpen ? 0 : -300 }], backgroundColor: colors.card }]}>
+            {/* Menú lateral */}
+            <View style={[styles.sideMenu, { backgroundColor: colors.card, transform: [{ translateX: isMenuOpen ? 0 : -300 }] }]}>
                 <View style={styles.menuHeader}>
                     <Text style={[styles.menuTitle, { color: colors.text }]}>Menú</Text>
                     <TouchableOpacity onPress={toggleMenu}>
@@ -301,38 +291,18 @@ export default function ProgramarCita() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Opción Home/Inicio */}
                 <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Home'); }}>
                     <Ionicons name="home" size={28} color={colors.text} />
                     <Text style={[styles.menuItemText, { color: colors.text }]}>Inicio</Text>
                 </TouchableOpacity>
 
-                {/* Opción Mascotas */}
-                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
-                    <Ionicons name="paw-outline" size={28} color="#4BCF5C" />
-                    <Text style={[styles.menuItemText, { color: colors.text }]}>Mascotas</Text>
-                </TouchableOpacity>
-
-                {/* Opción Calendario */}
                 <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
-                    <Ionicons name="calendar-number" size={28} color="#007AFF" />
+                    <Ionicons name="calendar-number" size={28} color={colors.primary} />
                     <Text style={[styles.menuItemText, { color: colors.text }]}>Calendario</Text>
-                </TouchableOpacity>
-
-                {/* Opción Consejos */}
-                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}>
-                    <MaterialIcons name="tips-and-updates" size={28} color="#FF9500" />
-                    <Text style={[styles.menuItemText, { color: colors.text }]}>Consejos</Text>
-                </TouchableOpacity>
-
-                {/* Opción Emergencias */}
-                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
-                    <MaterialIcons name="emergency" size={28} color="#FF3B30" />
-                    <Text style={[styles.menuItemText, { color: colors.text }]}>Emergencias</Text>
                 </TouchableOpacity>
             </View>
 
-            {/* --- PANEL DE NOTIFICACIONES --- */}
+            {/* Notificaciones */}
             {isNotificationsOpen && (
                 <View style={[notificationStyles.container, { backgroundColor: colors.card }]}>
                     <Text style={[notificationStyles.header, { color: colors.text, borderBottomColor: colors.border }]}>Notificaciones</Text>
@@ -350,7 +320,6 @@ export default function ProgramarCita() {
 }
 
 const styles = StyleSheet.create({
-    // --- Contenedor principal ---
     mainContainer: {
         flex: 1,
         backgroundColor: '#f2f2f2'
@@ -361,8 +330,6 @@ const styles = StyleSheet.create({
         paddingBottom: 50,
         alignItems: 'center'
     },
-
-    // --- Header ---
     headerContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -373,7 +340,7 @@ const styles = StyleSheet.create({
     headerRight: {
         flexDirection: 'row'
     },
-    iconButton: {
+    backButton: {
         padding: 5
     },
     circleButton: {
@@ -383,8 +350,9 @@ const styles = StyleSheet.create({
         elevation: 3,
         marginLeft: 10
     },
-
-    // --- Cards ---
+    iconSpacing: {
+        marginRight: 10
+    },
     card: {
         backgroundColor: '#fff',
         width: '100%',
@@ -397,8 +365,7 @@ const styles = StyleSheet.create({
         fontSize: 22,
         fontWeight: 'bold',
         color: '#333',
-        textAlign: 'center',
-        marginBottom: 20
+        textAlign: 'center'
     },
     label: {
         fontSize: 16,
@@ -416,8 +383,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#333'
     },
-
-    // --- Dropdown ---
     dropdownTrigger: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -451,25 +416,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#333'
     },
-
-    // --- Botón dentro de la lista ---
-    dropdownFooterItem: {
-        padding: 15,
-        backgroundColor: '#F1F8E9',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderTopWidth: 1,
-        borderTopColor: '#eee'
-    },
-    dropdownFooterText: {
-        fontSize: 16,
-        color: '#4CAF50',
-        fontWeight: 'bold',
-        marginLeft: 8
-    },
-
-    // --- Estado vacío ---
     emptyStateBox: {
         padding: 20,
         alignItems: 'center',
@@ -480,21 +426,6 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         fontSize: 14
     },
-    registerLinkButton: {
-        backgroundColor: '#007AFF',
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderRadius: 20
-    },
-    registerLinkText: {
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 14
-    },
-
-    // --- Calendario ---
     calendarWrapper: {
         marginTop: 5
     },
@@ -505,16 +436,27 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontWeight: '600'
     },
-
-    // --- Botones ---
+    buttonContainer: {
+        width: '100%',
+        gap: 10,
+        marginBottom: 20
+    },
     saveButton: {
         backgroundColor: '#4CAF50',
         width: '100%',
         paddingVertical: 16,
         borderRadius: 10,
         alignItems: 'center',
-        marginTop: 10,
         elevation: 4
+    },
+    cancelButton: {
+        backgroundColor: '#f0f0f0',
+        width: '100%',
+        paddingVertical: 16,
+        borderRadius: 10,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#ddd'
     },
     buttonDisabled: {
         backgroundColor: '#A5D6A7'
@@ -524,21 +466,11 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold'
     },
-    miniFloatingButton: {
-        position: 'absolute',
-        right: -10,
-        top: 35,
-        backgroundColor: '#4CAF50',
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 5,
-        zIndex: 10
+    cancelButtonText: {
+        color: '#333',
+        fontSize: 18,
+        fontWeight: 'bold'
     },
-
-    // --- Overlay ---
     overlay: {
         position: 'absolute',
         top: 0,
@@ -548,8 +480,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0,0,0,0.5)',
         zIndex: 1000
     },
-
-    // --- Menú lateral ---
     sideMenu: {
         position: 'absolute',
         top: 0,
@@ -589,7 +519,6 @@ const styles = StyleSheet.create({
 });
 
 const notificationStyles = StyleSheet.create({
-    // --- Contenedor principal ---
     container: {
         position: 'absolute',
         top: 90,
@@ -602,8 +531,6 @@ const notificationStyles = StyleSheet.create({
         zIndex: 2000,
         elevation: 8
     },
-
-    // --- Header ---
     header: {
         fontSize: 18,
         fontWeight: 'bold',
@@ -614,8 +541,6 @@ const notificationStyles = StyleSheet.create({
         borderBottomColor: '#eee',
         paddingBottom: 10
     },
-
-    // --- Lista ---
     list: {
         flexGrow: 0
     },
@@ -640,8 +565,6 @@ const notificationStyles = StyleSheet.create({
         lineHeight: 20,
         flex: 1
     },
-
-    // --- Estado vacío ---
     emptyText: {
         textAlign: 'center',
         color: '#999',
