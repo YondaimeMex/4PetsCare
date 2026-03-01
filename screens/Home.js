@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { MaterialIcons, Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons, MaterialCommunityIcons, FontAwesome5, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useState, useEffect } from 'react';
@@ -266,7 +266,7 @@ export default function HomeScreen() {
 
             {/* Botón flotante central */}
             <TouchableOpacity style={styles.floatingBtnCenter} onPress={() => navigation.navigate('Mapas')}>
-                <MaterialIcons name="map" size={24} color="black" />
+                <Feather name="map-pin" size={24} color="black" />
             </TouchableOpacity>
 
             {/* Botón flotante derecho*/}
@@ -289,7 +289,7 @@ export default function HomeScreen() {
                 { transform: [{ translateX: isMenuOpen ? 0 : -300 }] }
             ]}>
                 <View style={styles.menuHeader}>
-                    <Text style={styles.menuTitle}>Menú</Text>
+                    <Text style={styles.menuTitle}>4PetsCare</Text>
                     <TouchableOpacity onPress={toggleMenu}>
                         <Ionicons name="close" size={30} color="#333" />
                     </TouchableOpacity>

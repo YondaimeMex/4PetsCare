@@ -76,7 +76,7 @@ export default function Salud({ route }) {
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Salud</Text>
+        <Text style={styles.title}>Salud <MaterialIcons name="health-and-safety" size={24} color="black" /></Text>
         <TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
           <Ionicons
             name={isEditing ? "close" : "create-outline"}
