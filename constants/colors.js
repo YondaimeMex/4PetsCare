@@ -29,6 +29,7 @@ export const lightTheme = {
     textLight: '#666666',
     textMuted: '#999999',
     textWhite: '#FFFFFF',
+    
 
     // Bordes y sombras
     border: '#E0E0E0',
@@ -78,6 +79,7 @@ export const darkTheme = {
     textLight: '#A3B3AB',      // Gris verdoso claro
     textMuted: '#6B7C73',      // Gris verdoso medio
     textWhite: '#FFFFFF',
+    placeholder: '#AAAAAA',
 
     // Bordes y sombras (más sutiles)
     border: '#2E3B35',         // Borde sutil verdoso

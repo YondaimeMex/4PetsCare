@@ -3,12 +3,13 @@ import {
     View,
     Text,
     TouchableOpacity,
+    StyleSheet,
     TextInput,
     Platform,
     KeyboardAvoidingView
 } from 'react-native';
 
-import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { WebView } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,35 +17,20 @@ import { useApp } from '../context';
 
 export default function Mapa() {
     const { colors, t, isDarkMode } = useApp();
-
     const [message, setMessage] = useState('');
     const [url, setUrl] = useState(
         'https://www.google.com/maps/search/veterinarias'
     );
 
-    const styles = getStyles(colors);
-
     return (
         <SafeAreaView style={styles.container}>
 
-            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
-
-            {/* HEADER */}
-            <View style={styles.header}>
-                <TouchableOpacity>
-                    <MaterialIcons name="menu" size={32} color={colors.text} />
-                </TouchableOpacity>
-
-                <View style={styles.headerRight}>
-                    <Ionicons name="notifications" size={32} color={colors.text} />
-                    <Ionicons name="person-circle-outline" size={32} color={colors.text} />
-                </View>
-            </View>
+            <StatusBar style="auto" />
 
             {/* TEXTO CENTRAL */}
             <View style={styles.content}>
                 <View style={styles.centerMessageContainer}>
-                    <Text style={styles.centerMessage}>
+                    <Text style={[styles.centerMessage, { color: colors.text }]}>
                         Veterinarias cercanas
                     </Text>
                     <MaterialCommunityIcons
@@ -61,8 +47,8 @@ export default function Mapa() {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 15 : 0}
             >
-                <View style={styles.inputContainer}>
-                    <View style={styles.inputRow}>
+                <View style={[styles.inputContainer, { backgroundColor: colors.card }]}>
+                    <View style={[styles.inputRow, { backgroundColor: isDarkMode ? colors.background : '#e9e9e9' }]}>
                         <TextInput
                             style={styles.input}
                             placeholder="Buscar veterinarias"
@@ -72,7 +58,7 @@ export default function Mapa() {
                         />
 
                         <TouchableOpacity
-                            style={styles.sendButton}
+                            style={[styles.sendButton, { backgroundColor: colors.card }]}
                             onPress={() => {
                                 if (!message.trim()) return;
 
@@ -91,31 +77,105 @@ export default function Mapa() {
 
             {/* MAPA */}
             {url && (
-                <View style={styles.webViewContainer}>
+                <View style={[styles.webViewContainer, { backgroundColor: colors.background }]}>
                     <WebView source={{ uri: url }} />
                 </View>
             )}
-
         </SafeAreaView>
     );
 }
 
-const getStyles = (colors) => ({
+// ================== ESTILOS ==================
+
+const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background
+        backgroundColor: '#fff',
     },
 
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'center',
         paddingHorizontal: 20,
-        paddingTop: 15
+        paddingTop: 50,
+        paddingBottom: 10,
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#ddd',
+        width: '100%',
+        marginBottom: 30,
+        zIndex: 50,
     },
 
     headerRight: {
         flexDirection: 'row',
-        gap: 15
+        width: '45%',
+        justifyContent: 'space-between',
+    },
+
+    menuHamburguesa: {
+        padding: 5,
+    },
+
+    headerIcon: {
+        padding: 5,
+    },
+
+    overlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: '#00000080',
+        zIndex: 10,
+    },
+
+    sideMenu: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        bottom: 0,
+        width: 280,
+        backgroundColor: '#fff',
+        padding: 20,
+        zIndex: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 4, height: 0 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        elevation: 10,
+        flex: 1,
+    },
+
+    menuHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 30,
+        paddingTop: 30,
+    },
+
+    menuTitle: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+
+    menuItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 50,
+        paddingHorizontal: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+
+    menuItemText: {
+        fontSize: 18,
+        marginLeft: 15,
+        color: '#333',
     },
 
     content: {
@@ -129,20 +189,19 @@ const getStyles = (colors) => ({
 
     centerMessage: {
         fontSize: 20,
-        fontWeight: '700',
-        color: colors.text
+        fontWeight: '700'
     },
 
     inputContainer: {
         paddingBottom: Platform.OS === 'android' ? 12 : 25,
         paddingTop: 10,
-        backgroundColor: colors.background
+        backgroundColor: '#fff'
     },
 
     inputRow: {
         width: '92%',
         height: 54,
-        backgroundColor: colors.inputBackground,
+        backgroundColor: '#e9e9e9',
         borderRadius: 28,
         flexDirection: 'row',
         alignItems: 'center',
@@ -152,15 +211,14 @@ const getStyles = (colors) => ({
 
     input: {
         flex: 1,
-        fontSize: 15,
-        color: colors.text
+        fontSize: 15
     },
 
     sendButton: {
         width: 48,
         height: 40,
         borderRadius: 20,
-        backgroundColor: colors.card,
+        backgroundColor: '#fff',
         justifyContent: 'center',
         alignItems: 'center'
     },
@@ -171,7 +229,57 @@ const getStyles = (colors) => ({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: colors.background,
+        backgroundColor: '#fff',
         zIndex: 100
     }
+});
+
+// Estilos para las notificaciones
+const notificationStyles = StyleSheet.create({
+    notificationsContainer: {
+        position: 'absolute',
+        top: 100,
+        right: 30,
+        width: 300,
+        maxHeight: 400,
+        backgroundColor: '#e0e0e0',
+        borderRadius: 10,
+        padding: 15,
+        zIndex: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
+    },
+    headerText: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        marginBottom: 10,
+        color: 'black',
+    },
+    list: {
+        flexGrow: 0,
+    },
+    notificationItem: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#ccc',
+    },
+    bullet: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: 'red',
+        marginRight: 10,
+        marginTop: 5,
+        flexShrink: 0,
+    },
+    notificationText: {
+        fontSize: 16,
+        flexShrink: 1,
+    },
 });

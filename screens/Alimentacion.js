@@ -244,6 +244,7 @@ export default function Alimentacion({ route }) {
             <TextInput
               style={styles.input}
               placeholder="Porción"
+              placeholderTextColor={colors.placeholder}
               value={recordatorioActual?.porcion}
               editable={isEditable}
               onChangeText={(t) => actualizarCampo("porcion", t)}
@@ -253,7 +254,7 @@ export default function Alimentacion({ route }) {
               style={styles.input}
               onPress={() => isEditable && setMostrarPicker(true)}
             >
-              <Text>
+              <Text style={{ color: recordatorioActual ? colors.text : colors.placeholder }}>
                 Horario: {formatearHora(recordatorioActual?.hora || new Date())}
               </Text>
             </TouchableOpacity>
@@ -268,7 +269,7 @@ export default function Alimentacion({ route }) {
                 mode="time"
                 is24Hour={true}
                 display="default"
-                onChange={onChangeHora}
+                onChange={onChangeHora} 
               />
 
             )}
@@ -291,11 +292,13 @@ export default function Alimentacion({ route }) {
               </TouchableOpacity>
             )}
           </View>
+
           {favoritos.map((fav, i) => (
             <TextInput
               key={i}
               style={styles.input}
               placeholder="Alimento favorito"
+              placeholderTextColor={colors.placeholder}
               value={fav}
               editable={isEditable}
               onChangeText={(t) => actualizarFavorito(t, i)}
@@ -318,6 +321,7 @@ export default function Alimentacion({ route }) {
               key={i}
               style={styles.input}
               placeholder="Alimento prohibido"
+              placeholderTextColor={colors.placeholder}
               value={p}
               editable={isEditable}
               onChangeText={(t) => actualizarProhibido(t, i)}
