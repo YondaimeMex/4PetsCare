@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '../../constants';
+import { spacing, typography, borderRadius, lightTheme } from '../../constants';
+import { useApp } from '../../context';
 
 export default function PetCard({
     name,
@@ -14,34 +15,37 @@ export default function PetCard({
     onVaccinePress,
     style,
 }) {
+    const { colors: contextColors } = useApp();
+    const colors = contextColors || lightTheme;
+
     return (
-        <View style={[styles.card, style]}>
-            <Text style={styles.title}>Mascota: "{name}"</Text>
+        <View style={[styles.card, { backgroundColor: colors.card }, style]}>
+            <Text style={[styles.title, { color: colors.text }]}>Mascota: "{name}"</Text>
 
             <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Edad:</Text>
-                <Text style={styles.detailValue}>{age}</Text>
+                <Text style={[styles.detailLabel, { color: colors.textLight }]}>Edad:</Text>
+                <Text style={[styles.detailValue, { color: colors.text }]}>{age}</Text>
             </View>
 
             <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Peso:</Text>
-                <Text style={styles.detailValue}>{weight}</Text>
+                <Text style={[styles.detailLabel, { color: colors.textLight }]}>Peso:</Text>
+                <Text style={[styles.detailValue, { color: colors.text }]}>{weight}</Text>
             </View>
 
             <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Raza:</Text>
-                <Text style={styles.detailValue}>{breed}</Text>
+                <Text style={[styles.detailLabel, { color: colors.textLight }]}>Raza:</Text>
+                <Text style={[styles.detailValue, { color: colors.text }]}>{breed}</Text>
             </View>
 
             <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Tipo:</Text>
-                <Text style={styles.detailValue}>{type}</Text>
+                <Text style={[styles.detailLabel, { color: colors.textLight }]}>Tipo:</Text>
+                <Text style={[styles.detailValue, { color: colors.text }]}>{type}</Text>
             </View>
 
             {nextVaccine && (
                 <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Próx Vacuna:</Text>
-                    <Text style={styles.detailValue}>{nextVaccine}</Text>
+                    <Text style={[styles.detailLabel, { color: colors.textLight }]}>Próx Vacuna:</Text>
+                    <Text style={[styles.detailValue, { color: colors.text }]}>{nextVaccine}</Text>
                 </View>
             )}
 
@@ -53,7 +57,10 @@ export default function PetCard({
             )}
 
             {onVaccinePress && (
-                <TouchableOpacity style={styles.vaccineButton} onPress={onVaccinePress}>
+                <TouchableOpacity 
+                    style={[styles.vaccineButton, { backgroundColor: colors.background }]} 
+                    onPress={onVaccinePress}
+                >
                     <FontAwesome5 name="syringe" size={18} color={colors.secondary} />
                     <Ionicons
                         name="checkmark-circle"
@@ -69,7 +76,6 @@ export default function PetCard({
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: colors.card,
         padding: spacing.lg,
         borderRadius: borderRadius.md,
         marginBottom: spacing.lg,
@@ -102,7 +108,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginTop: spacing.md,
         padding: spacing.sm,
-        backgroundColor: colors.background,
         borderRadius: borderRadius.md,
         alignSelf: 'flex-start',
     },

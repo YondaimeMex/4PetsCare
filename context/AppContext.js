@@ -41,11 +41,19 @@ export function AppProvider({ children }) {
     const [language, setLanguage] = useState('es');
     const [isLanguageLoaded, setIsLanguageLoaded] = useState(false);
 
-    // Colores actuales basados en el tema
-    const colors = isDarkMode ? darkTheme : lightTheme;
+    // Colores actuales basados en el tema (con fallback de seguridad)
+    const colors = (isDarkMode ? darkTheme : lightTheme) || lightTheme || {
+        primary: '#43A047',
+        card: '#F8F9FA',
+        background: '#FFFFFF',
+        text: '#333333',
+        textMuted: '#999999',
+        border: '#E0E0E0',
+        textWhite: '#FFFFFF',
+    };
 
     // Traducciones actuales basadas en el idioma
-    const t = translations[language] || translations['es'];
+    const t = translations[language] || translations['es'] || {};
 
     // Función helper para obtener traducción
     const translate = useCallback((key) => {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useApp } from '../../context';
-import { spacing, typography, borderRadius } from '../../constants';
+import { spacing, typography, borderRadius, lightTheme } from '../../constants';
 
 // Componente para cada notificación
 const NotificationItem = ({ text, colors }) => (
@@ -12,7 +12,8 @@ const NotificationItem = ({ text, colors }) => (
 );
 
 export default function NotificationsPanel() {
-    const { isNotificationsOpen, notifications, colors, t } = useApp();
+    const { isNotificationsOpen, notifications, colors: contextColors, t } = useApp();
+    const colors = contextColors || lightTheme;
 
     if (!isNotificationsOpen) return null;
 

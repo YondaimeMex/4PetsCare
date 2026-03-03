@@ -5,6 +5,7 @@ import Header from './Header';
 import SideMenu from './SideMenu';
 import NotificationsPanel from './NotificationsPanel';
 import { useApp } from '../../context';
+import { lightTheme } from '../../constants';
 
 export default function ScreenWrapper({
     children,
@@ -15,7 +16,8 @@ export default function ScreenWrapper({
     showHeader = true,
     style,
 }) {
-    const { isOverlayVisible, closeAll, colors, isDarkMode } = useApp();
+    const { isOverlayVisible, closeAll, colors: contextColors, isDarkMode } = useApp();
+    const colors = contextColors || lightTheme;
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }, style]}>

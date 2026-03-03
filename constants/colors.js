@@ -3,13 +3,16 @@
 // Tema claro
 export const lightTheme = {
     // Colores primarios
-    primary: '#4CAF50',        // Verde principal
+    primary: '#43A047',        // Verde principal (más profundo)
     primaryLight: '#81C784',
     primaryDark: '#388E3C',
 
     // Colores secundarios
     secondary: '#007AFF',      // Azul
     secondaryLight: '#5AC8FA',
+
+    // Acento cálido
+    accent: '#FF8A65',         // Coral para CTAs especiales
 
     // Estados
     warning: '#FF9500',        // Naranja
@@ -19,7 +22,7 @@ export const lightTheme = {
     // Fondos
     background: '#FFFFFF',
     backgroundLight: '#F5F5F5',
-    card: '#E8E8E8',
+    card: '#F8F9FA',           // Gris más suave
 
     // Texto
     text: '#333333',
@@ -41,49 +44,58 @@ export const lightTheme = {
 
     // Notificaciones
     notificationDot: '#FF3B30',
+
+    // Input
+    inputBackground: '#FFFFFF',
 };
 
 // Tema oscuro
 export const darkTheme = {
     // Colores primarios
-    primary: '#66BB6A',        // Verde más brillante para oscuro
-    primaryLight: '#81C784',
-    primaryDark: '#388E3C',
+    primary: '#4ADE80',        // Verde vibrante para oscuro (mejor contraste)
+    primaryLight: '#86EFAC',
+    primaryDark: '#22C55E',
 
     // Colores secundarios
-    secondary: '#64B5F6',      // Azul más brillante
-    secondaryLight: '#90CAF9',
+    secondary: '#60A5FA',      // Azul vibrante
+    secondaryLight: '#93C5FD',
+
+    // Acento cálido
+    accent: '#FB923C',         // Naranja coral vibrante
 
     // Estados
-    warning: '#FFB74D',        // Naranja
-    danger: '#EF5350',         // Rojo
-    success: '#81C784',        // Verde éxito
+    warning: '#FBBF24',        // Amarillo dorado
+    danger: '#F87171',         // Rojo suave
+    success: '#4ADE80',        // Verde éxito
 
-    // Fondos
-    background: '#121212',
-    backgroundLight: '#1E1E1E',
-    card: '#2D2D2D',
+    // Fondos (con tinte verdoso cálido)
+    background: '#0F1512',     // Negro con tinte verde sutil
+    backgroundLight: '#1A201D',
+    card: '#232B27',           // Gris verdoso para cards
 
-    // Texto
-    text: '#FFFFFF',
-    textLight: '#B0B0B0',
-    textMuted: '#808080',
+    // Texto (mejor jerarquía)
+    text: '#F1F5F3',           // Blanco suave con tinte verde
+    textLight: '#A3B3AB',      // Gris verdoso claro
+    textMuted: '#6B7C73',      // Gris verdoso medio
     textWhite: '#FFFFFF',
 
-    // Bordes y sombras
-    border: '#3D3D3D',
-    borderLight: '#2D2D2D',
+    // Bordes y sombras (más sutiles)
+    border: '#2E3B35',         // Borde sutil verdoso
+    borderLight: '#252E2A',
     shadow: '#000000',
 
     // Overlay
-    overlay: 'rgba(0, 0, 0, 0.7)',
+    overlay: 'rgba(0, 0, 0, 0.75)',
 
     // Chat
-    chatUser: '#2E5428',
-    chatBot: '#2D2D2D',
+    chatUser: '#1F3A24',       // Verde oscuro para burbujas del usuario
+    chatBot: '#232B27',
 
     // Notificaciones
-    notificationDot: '#EF5350',
+    notificationDot: '#F87171',
+
+    // Input
+    inputBackground: '#1A201D',
 };
 
 // Colores por defecto (tema claro para compatibilidad)

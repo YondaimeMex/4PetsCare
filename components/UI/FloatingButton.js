@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
-import { spacing, borderRadius } from '../../constants';
+import { spacing, borderRadius, lightTheme } from '../../constants';
 import { useApp } from '../../context';
 
 export default function FloatingButton({
@@ -10,7 +10,8 @@ export default function FloatingButton({
     position = 'right', // 'left', 'right', 'center'
     style,
 }) {
-    const { colors } = useApp();
+    const { colors: contextColors } = useApp();
+    const colors = contextColors || lightTheme;
 
     const positionStyle = {
         left: { left: spacing.lg },

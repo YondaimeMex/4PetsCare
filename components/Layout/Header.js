@@ -3,7 +3,7 @@ import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../../context';
-import { spacing, iconSizes } from '../../constants';
+import { spacing, iconSizes, lightTheme } from '../../constants';
 
 export default function Header({
     showMenu = true,
@@ -12,7 +12,8 @@ export default function Header({
     showBack = false,
 }) {
     const navigation = useNavigation();
-    const { toggleMenu, toggleNotifications, colors } = useApp();
+    const { toggleMenu, toggleNotifications, colors: contextColors } = useApp();
+    const colors = contextColors || lightTheme;
 
     return (
         <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>

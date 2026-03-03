@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { ScreenWrapper, Card, Button } from '../components';
 import { spacing, typography, borderRadius } from '../constants';
 import { useApp } from '../context';
+import { supabase } from '../lib/Supabase';
 
 export default function Perfil() {
   const navigation = useNavigation();
@@ -81,7 +82,9 @@ export default function Perfil() {
             title={t.logout}
             variant="outline"
             icon={<MaterialIcons name="logout" size={20} color={colors.danger} />}
-            onPress={() => alert('Cerrar sesion')}
+            onPress={async () => {
+              await supabase.auth.signOut();
+            }}
             style={[styles.logoutButton, { borderColor: colors.danger }]}
           />
         </View>

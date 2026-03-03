@@ -1,38 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context';
-
+import { ScreenWrapper, Card, Button } from '../components';
+import { spacing, typography, borderRadius, lightTheme } from '../constants';
 import NotificationService from './Notificaciones';
-
-// --- COMPONENTE AUXILIAR: Item de Notificación ---
-const NotificationItem = ({ text }) => (
-    <View style={notificationStyles.itemContainer}>
-        <View style={notificationStyles.bullet} />
-        <Text style={notificationStyles.itemText}>{text}</Text>
-    </View>
-);
 
 export default function ProgramarCita() {
     const navigation = useNavigation();
     const isFocused = useIsFocused();
-    const { colors, t, isDarkMode } = useApp();
+    const { colors: contextColors, t } = useApp();
+    const colors = contextColors || lightTheme;
 
     // --- ESTADOS ---
     const [nombreUsuario, setNombreUsuario] = useState('');
     const [nombreVeterinaria, setVeterinaria] = useState('');
     const [selectedDate, setSelectedDate] = useState('');
+    const [selectedTime, setSelectedTime] = useState(new Date());
+    const [showTimePicker, setShowTimePicker] = useState(false);
     const [veterinarias, setVeterinarias] = useState([]);
-
-    // --- ESTADOS UI ---
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-    const [notificaciones, setNotificaciones] = useState([]);
     const [loading, setLoading] = useState(false);
 
     // --- CARGA DE VETERINARIAS ---
@@ -62,50 +53,72 @@ export default function ProgramarCita() {
     const getMarkedDates = () => {
         if (!selectedDate) return {};
         return {
-            [selectedDate]: { selected: true, selectedColor: '#4CAF50' }
+            [selectedDate]: { selected: true, selectedColor: colors.primary }
         };
+    };
+
+    const formatTime = (date) => {
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const formattedHours = hours % 12 || 12;
+        const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+        return `${formattedHours}:${formattedMinutes} ${ampm}`;
+    };
+
+    const onTimeChange = (event, selected) => {
+        setShowTimePicker(Platform.OS === 'ios');
+        if (selected) {
+            setSelectedTime(selected);
+        }
     };
 
     // --- GUARDAR CITA ---
     const handleSave = async () => {
-        if (!nombreUsuario || !nombreVeterinaria || !selectedDate) {
-            Alert.alert('Faltan datos', 'Ingresa nombre, veterinaria y fecha.');
+        const usuario = nombreUsuario.trim();
+        const vet = nombreVeterinaria.trim();
+
+        if (!usuario || !vet || !selectedDate) {
+            Alert.alert(
+                'Faltan datos',
+                `Por favor completa todos los campos:\n${!usuario ? '- Nombre del usuario\n' : ''}${!vet ? '- Veterinaria\n' : ''}${!selectedDate ? '- Fecha' : ''}`
+            );
             return;
         }
 
         setLoading(true);
+
+        const horaFormateada = `${selectedTime.getHours().toString().padStart(2, '0')}:${selectedTime.getMinutes().toString().padStart(2, '0')}`;
 
         try {
             const citasRaw = await AsyncStorage.getItem('@citas');
             const citas = citasRaw ? JSON.parse(citasRaw) : [];
 
             const nuevaCita = {
-                id: Date.now().toString(), // ← CAMBIA A STRING
-                usuario: nombreUsuario,
-                veterinaria: nombreVeterinaria,
+                id: Date.now().toString(),
+                usuario: usuario,
+                veterinaria: vet,
                 fecha: selectedDate,
-                tipo: 'Cita' // ← ESTO ES CRÍTICO
+                hora: horaFormateada,
+                tipo: 'Cita'
             };
-
-            console.log('Guardando cita:', nuevaCita); // ← DEBUG
 
             const nuevasCitas = [...citas, nuevaCita];
             await AsyncStorage.setItem('@citas', JSON.stringify(nuevasCitas));
 
-            // Verificar que se guardó
-            const verificar = await AsyncStorage.getItem('@citas');
-            console.log('Datos guardados en AsyncStorage:', verificar); // ← DEBUG
+            await NotificationService.scheduleAppointmentNotification(nuevaCita, 24);
 
             setLoading(false);
             Alert.alert(
                 'Cita guardada',
-                `¡Cita en ${nombreVeterinaria} registrada para el ${selectedDate}!`,
+                `¡Cita en ${vet} registrada para el ${selectedDate} a las ${formatTime(selectedTime)}!`,
                 [{ text: "OK", onPress: () => navigation.navigate('Calendario') }]
             );
 
             setNombreUsuario('');
             setVeterinaria('');
             setSelectedDate('');
+            setSelectedTime(new Date());
 
         } catch (error) {
             console.error("Error guardando cita:", error);
@@ -113,539 +126,292 @@ export default function ProgramarCita() {
             Alert.alert("Error", "No se pudo guardar la cita.");
         }
     };
-    // --- DEBUG ---
-    const clearVetsForTesting = async () => {
-        await AsyncStorage.removeItem('@veterinarias');
-        setVeterinarias([]);
-        setVeterinaria('');
-        Alert.alert("Reset", "Lista de veterinarias borrada.");
-    };
-
-    // --- MENÚS ---
-    const toggleMenu = () => {
-        const newState = !isMenuOpen;
-        setIsMenuOpen(newState);
-        if (newState) setIsNotificationsOpen(false);
-    };
-
-    const toggleNotifications = async () => {
-        const newState = !isNotificationsOpen;
-        setIsNotificationsOpen(newState);
-        if (newState) {
-            setIsMenuOpen(false);
-            const allNotifications = await NotificationService.getNotifications();
-            setNotificaciones(allNotifications);
-        }
-    };
-
-    const handleOverlayClick = () => {
-        setIsMenuOpen(false);
-        setIsNotificationsOpen(false);
-    };
-
-    const isOverlayVisible = isMenuOpen || isNotificationsOpen;
 
     return (
-        <View style={[styles.mainContainer, { backgroundColor: colors.background }]}>
-            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+        <ScreenWrapper showBack={true}>
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.content}
+                showsVerticalScrollIndicator={false}
+            >
+                {/* Título */}
+                <Text style={[styles.screenTitle, { color: colors.text }]}>
+                    Programar Cita
+                </Text>
 
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-
-                {/* --- ENCABEZADO --- */}
-                <View style={styles.headerContainer}>
-                    <TouchableOpacity style={styles.iconButton} onPress={toggleMenu}>
-                        <MaterialIcons name="menu" size={32} color={colors.text} />
-                    </TouchableOpacity>
-
-                    <View style={styles.headerRight}>
-                        <TouchableOpacity style={[styles.circleButton, styles.iconSpacing, { backgroundColor: colors.card }]} onPress={toggleNotifications}>
-                            <Ionicons name="notifications" size={28} color={colors.text} />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.circleButton, { backgroundColor: colors.card }]} onPress={() => navigation.navigate('Perfil')}>
-                            <Ionicons name="person-circle-outline" size={28} color={colors.text} />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                {/* --- FORMULARIO: NOMBRE --- */}
-                <View style={[styles.card, { backgroundColor: colors.card }]}>
-                    <Text style={[styles.cardTitle, { color: colors.text }]}>Programar Cita</Text>
+                {/* Campo: Nombre del usuario */}
+                <Card>
                     <Text style={[styles.label, { color: colors.textMuted }]}>Nombre del usuario:</Text>
                     <TextInput
                         style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
                         value={nombreUsuario}
                         onChangeText={setNombreUsuario}
-                        placeholder="Ej. Gabriel Perez Torres"
+                        placeholder="Ej. Gabriel Pérez"
                         placeholderTextColor={colors.textMuted}
                     />
-                </View>
+                </Card>
 
-                {/* --- FORMULARIO: VETERINARIA --- */}
-                <View style={[styles.card, { zIndex: 100, backgroundColor: colors.card }]}>
-                    <Text style={[styles.label, { color: colors.textMuted }]}>Seleccione la veterinaria</Text>
+                {/* Campo: Veterinaria */}
+                <Card style={{ zIndex: 100 }}>
+                    <Text style={[styles.label, { color: colors.textMuted }]}>Seleccione la veterinaria:</Text>
 
-                    <TouchableOpacity style={[styles.dropdownTrigger, { backgroundColor: colors.inputBackground, borderColor: colors.border }]} onPress={() => setIsDropdownOpen(!isDropdownOpen)}>
-                        <TextInput
-                            style={[styles.dropdownInputText, { color: colors.text }]}
-                            value={nombreVeterinaria}
-                            placeholder="Elige una veterinaria"
-                            placeholderTextColor={colors.textMuted}
-                            editable={false}
-                            pointerEvents="none"
-                        />
+                    <TouchableOpacity
+                        style={[styles.dropdownTrigger, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}
+                        onPress={() => setIsDropdownOpen(!isDropdownOpen)}
+                    >
+                        <Text style={[styles.dropdownText, { color: nombreVeterinaria ? colors.text : colors.textMuted }]}>
+                            {nombreVeterinaria || 'Elige una veterinaria'}
+                        </Text>
                         <MaterialIcons
-                            name={isDropdownOpen ? "arrow-drop-up" : "arrow-drop-down"}
+                            name={isDropdownOpen ? "keyboard-arrow-up" : "keyboard-arrow-down"}
                             size={24}
                             color={colors.text}
                         />
                     </TouchableOpacity>
 
-                    {/* --- LISTA DESPLEGABLE --- */}
                     {isDropdownOpen && (
                         <View style={[styles.dropdownList, { backgroundColor: colors.card, borderColor: colors.border }]}>
                             {veterinarias.length === 0 ? (
-                                <View style={[styles.emptyStateBox, { backgroundColor: colors.card }]}>
-                                    <Text style={[styles.emptyStateText, { color: colors.textMuted }]}>No hay veterinarias guardadas.</Text>
+                                <View style={styles.emptyDropdown}>
+                                    <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                                        No hay veterinarias guardadas.
+                                    </Text>
                                     <TouchableOpacity
-                                        style={styles.registerLinkButton}
+                                        style={[styles.addVetButton, { backgroundColor: colors.secondary }]}
                                         onPress={() => {
                                             setIsDropdownOpen(false);
                                             navigation.navigate('RegistroVeterinaria');
                                         }}
                                     >
-                                        <Text style={styles.registerLinkText}>Registrar Veterinaria</Text>
-                                        <MaterialIcons name="arrow-forward" size={16} color="white" style={{ marginLeft: 5 }} />
+                                        <MaterialIcons name="add" size={18} color={colors.textWhite} />
+                                        <Text style={[styles.addVetButtonText, { color: colors.textWhite }]}>
+                                            Registrar Veterinaria
+                                        </Text>
                                     </TouchableOpacity>
                                 </View>
                             ) : (
                                 <>
-                                    {/* Lista de veterinarias existentes */}
                                     {veterinarias.map((option, index) => (
                                         <TouchableOpacity
                                             key={index}
                                             style={[styles.dropdownItem, { borderBottomColor: colors.border }]}
                                             onPress={() => selectVeterinaria(option)}
                                         >
-                                            <Text style={[styles.dropdownItemText, { color: colors.text }]}>{option.label}</Text>
+                                            <Text style={[styles.dropdownItemText, { color: colors.text }]}>
+                                                {option.label}
+                                            </Text>
                                         </TouchableOpacity>
-                                    ))})
-
-                                    {/* Boton para agregar mas */}
+                                    ))}
                                     <TouchableOpacity
-                                        style={styles.dropdownFooterItem}
+                                        style={[styles.dropdownFooter, { borderTopColor: colors.border }]}
                                         onPress={() => {
                                             setIsDropdownOpen(false);
                                             navigation.navigate('RegistroVeterinaria');
                                         }}
                                     >
-                                        <MaterialIcons name="add-circle-outline" size={20} color="#4CAF50" />
-                                        <Text style={styles.dropdownFooterText}>Agregar nueva veterinaria</Text>
+                                        <MaterialIcons name="add-circle-outline" size={20} color={colors.success} />
+                                        <Text style={[styles.dropdownFooterText, { color: colors.success }]}>
+                                            Agregar nueva veterinaria
+                                        </Text>
                                     </TouchableOpacity>
                                 </>
                             )}
                         </View>
                     )}
-                </View>
+                </Card>
 
-                {/* --- CALENDARIO --- */}
-                <View style={[styles.card, { backgroundColor: colors.card }]}>
-                    <Text style={[styles.label, { color: colors.textMuted }]}>Calendario</Text>
-                    <View style={styles.calendarWrapper}>
-                        <Calendar
-                            onDayPress={day => setSelectedDate(day.dateString)}
-                            markingType={'simple'}
-                            markedDates={getMarkedDates()}
-                            theme={{
-                                backgroundColor: colors.card,
-                                calendarBackground: colors.card,
-                                textSectionTitleColor: colors.textMuted,
-                                dayTextColor: colors.text,
-                                monthTextColor: colors.text,
-                                todayTextColor: colors.primary,
-                                arrowColor: '#4CAF50',
-                                textDayFontWeight: '500',
-                                textDisabledColor: colors.textMuted
-                            }}
+                {/* Campo: Calendario */}
+                <Card>
+                    <Text style={[styles.label, { color: colors.textMuted }]}>Fecha de la cita:</Text>
+                    <Calendar
+                        onDayPress={day => setSelectedDate(day.dateString)}
+                        markingType={'simple'}
+                        markedDates={getMarkedDates()}
+                        theme={{
+                            backgroundColor: colors.card,
+                            calendarBackground: colors.card,
+                            textSectionTitleColor: colors.textMuted,
+                            dayTextColor: colors.text,
+                            monthTextColor: colors.text,
+                            todayTextColor: colors.secondary,
+                            arrowColor: colors.primary,
+                            textDayFontWeight: '500',
+                            textDisabledColor: colors.textMuted,
+                            selectedDayBackgroundColor: colors.primary,
+                            selectedDayTextColor: colors.textWhite,
+                        }}
+                        style={[styles.calendar, { borderColor: colors.border }]}
+                    />
+                    {selectedDate && (
+                        <Text style={[styles.selectedDateText, { color: colors.secondary }]}>
+                            Fecha elegida: {selectedDate}
+                        </Text>
+                    )}
+                </Card>
+
+                {/* Campo: Hora */}
+                <Card>
+                    <Text style={[styles.label, { color: colors.textMuted }]}>Hora de la cita:</Text>
+                    <TouchableOpacity
+                        style={[styles.timePicker, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}
+                        onPress={() => setShowTimePicker(true)}
+                    >
+                        <Ionicons name="time-outline" size={24} color={colors.primary} />
+                        <Text style={[styles.timeText, { color: colors.text }]}>
+                            {formatTime(selectedTime)}
+                        </Text>
+                        <MaterialIcons name="keyboard-arrow-down" size={24} color={colors.textMuted} />
+                    </TouchableOpacity>
+
+                    {showTimePicker && (
+                        <DateTimePicker
+                            value={selectedTime}
+                            mode="time"
+                            is24Hour={false}
+                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                            onChange={onTimeChange}
                         />
-                        {selectedDate ? (
-                            <Text style={styles.selectedDateText}>Fecha elegida: {selectedDate}</Text>
-                        ) : null}
-                    </View>
-                </View>
+                    )}
+                </Card>
 
-                {/* --- BOTÓN GUARDAR --- */}
+                {/* Botón Guardar */}
                 <TouchableOpacity
-                    style={[styles.saveButton, loading && styles.buttonDisabled]}
+                    style={[styles.saveButton, { backgroundColor: colors.success }, loading && styles.buttonDisabled]}
                     onPress={handleSave}
                     disabled={loading}
                 >
                     {loading ? (
-                        <ActivityIndicator color="#fff" />
+                        <ActivityIndicator color={colors.textWhite} />
                     ) : (
-                        <Text style={styles.saveButtonText}>Programar Cita</Text>
+                        <>
+                            <Ionicons name="checkmark-circle" size={24} color={colors.textWhite} />
+                            <Text style={styles.saveButtonText}>Programar Cita</Text>
+                        </>
                     )}
                 </TouchableOpacity>
             </ScrollView>
-
-            {/* --- OVERLAY Y MENÚ LATERAL --- */}
-            {isOverlayVisible && (
-                <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={handleOverlayClick} />
-            )}
-
-            {/* --- MENÚ LATERAL ACTUALIZADO --- */}
-            <View style={[styles.sideMenu, { transform: [{ translateX: isMenuOpen ? 0 : -300 }], backgroundColor: colors.card }]}>
-                <View style={styles.menuHeader}>
-                    <Text style={[styles.menuTitle, { color: colors.text }]}>Menú</Text>
-                    <TouchableOpacity onPress={toggleMenu}>
-                        <Ionicons name="close" size={30} color={colors.text} />
-                    </TouchableOpacity>
-                </View>
-
-                {/* Opción Home/Inicio */}
-                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Home'); }}>
-                    <Ionicons name="home" size={28} color={colors.text} />
-                    <Text style={[styles.menuItemText, { color: colors.text }]}>Inicio</Text>
-                </TouchableOpacity>
-
-                {/* Opción Mascotas */}
-                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
-                    <Ionicons name="paw-outline" size={28} color="#4BCF5C" />
-                    <Text style={[styles.menuItemText, { color: colors.text }]}>Mascotas</Text>
-                </TouchableOpacity>
-
-                {/* Opción Calendario */}
-                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
-                    <Ionicons name="calendar-number" size={28} color="#007AFF" />
-                    <Text style={[styles.menuItemText, { color: colors.text }]}>Calendario</Text>
-                </TouchableOpacity>
-
-                {/* Opción Consejos */}
-                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}>
-                    <MaterialIcons name="tips-and-updates" size={28} color="#FF9500" />
-                    <Text style={[styles.menuItemText, { color: colors.text }]}>Consejos</Text>
-                </TouchableOpacity>
-
-                {/* Opción Emergencias */}
-                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
-                    <MaterialIcons name="emergency" size={28} color="#FF3B30" />
-                    <Text style={[styles.menuItemText, { color: colors.text }]}>Emergencias</Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* --- PANEL DE NOTIFICACIONES --- */}
-            {isNotificationsOpen && (
-                <View style={[notificationStyles.container, { backgroundColor: colors.card }]}>
-                    <Text style={[notificationStyles.header, { color: colors.text, borderBottomColor: colors.border }]}>Notificaciones</Text>
-                    <ScrollView style={notificationStyles.list}>
-                        {notificaciones.length > 0 ? (
-                            notificaciones.map((n, index) => <NotificationItem key={index} text={n.text} />)
-                        ) : (
-                            <Text style={[notificationStyles.emptyText, { color: colors.textMuted }]}>No hay notificaciones.</Text>
-                        )}
-                    </ScrollView>
-                </View>
-            )}
-        </View>
+        </ScreenWrapper>
     );
 }
 
 const styles = StyleSheet.create({
-    // --- Contenedor principal ---
-    mainContainer: {
+    scrollView: {
         flex: 1,
-        backgroundColor: '#f2f2f2'
     },
-    scrollContent: {
-        paddingHorizontal: 20,
-        paddingTop: 50,
-        paddingBottom: 50,
-        alignItems: 'center'
+    content: {
+        padding: spacing.lg,
+        paddingBottom: spacing.xxl,
     },
-
-    // --- Header ---
-    headerContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        width: '100%',
-        marginBottom: 25
-    },
-    headerRight: {
-        flexDirection: 'row'
-    },
-    iconButton: {
-        padding: 5
-    },
-    circleButton: {
-        backgroundColor: '#fff',
-        padding: 8,
-        borderRadius: 25,
-        elevation: 3,
-        marginLeft: 10
-    },
-
-    // --- Cards ---
-    card: {
-        backgroundColor: '#fff',
-        width: '100%',
-        padding: 20,
-        borderRadius: 12,
-        marginBottom: 20,
-        elevation: 2
-    },
-    cardTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#333',
+    screenTitle: {
+        ...typography.title,
         textAlign: 'center',
-        marginBottom: 20
+        marginBottom: spacing.lg,
     },
     label: {
-        fontSize: 16,
-        color: '#555',
-        marginBottom: 8,
-        fontWeight: '600'
+        ...typography.label,
+        marginBottom: spacing.xs,
     },
     input: {
-        backgroundColor: '#f9f9f9',
         borderWidth: 1,
-        borderColor: '#e0e0e0',
-        borderRadius: 8,
+        borderRadius: borderRadius.sm,
         height: 50,
-        paddingHorizontal: 15,
-        fontSize: 16,
-        color: '#333'
+        paddingHorizontal: spacing.md,
+        ...typography.body,
     },
-
-    // --- Dropdown ---
     dropdownTrigger: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f9f9f9',
+        justifyContent: 'space-between',
         borderWidth: 1,
-        borderColor: '#e0e0e0',
-        borderRadius: 8,
+        borderRadius: borderRadius.sm,
         height: 50,
-        paddingHorizontal: 10
+        paddingHorizontal: spacing.md,
     },
-    dropdownInputText: {
-        flex: 1,
-        fontSize: 16,
-        color: '#333'
+    dropdownText: {
+        ...typography.body,
     },
     dropdownList: {
-        marginTop: 5,
+        marginTop: spacing.xs,
         borderWidth: 1,
-        borderColor: '#e0e0e0',
-        borderRadius: 8,
-        backgroundColor: '#fff',
+        borderRadius: borderRadius.sm,
         overflow: 'hidden',
-        elevation: 4
     },
     dropdownItem: {
-        padding: 15,
+        padding: spacing.md,
         borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0'
     },
     dropdownItemText: {
-        fontSize: 16,
-        color: '#333'
+        ...typography.body,
     },
-
-    // --- Botón dentro de la lista ---
-    dropdownFooterItem: {
-        padding: 15,
-        backgroundColor: '#F1F8E9',
+    dropdownFooter: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
+        padding: spacing.md,
         borderTopWidth: 1,
-        borderTopColor: '#eee'
     },
     dropdownFooterText: {
-        fontSize: 16,
-        color: '#4CAF50',
-        fontWeight: 'bold',
-        marginLeft: 8
+        ...typography.body,
+        fontWeight: '600',
+        marginLeft: spacing.xs,
     },
-
-    // --- Estado vacío ---
-    emptyStateBox: {
-        padding: 20,
+    emptyDropdown: {
+        padding: spacing.lg,
         alignItems: 'center',
-        backgroundColor: '#fdfdfd'
     },
-    emptyStateText: {
-        color: '#888',
-        marginBottom: 12,
-        fontSize: 14
+    emptyText: {
+        ...typography.bodySmall,
+        marginBottom: spacing.md,
     },
-    registerLinkButton: {
-        backgroundColor: '#007AFF',
+    addVetButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderRadius: 20
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.round,
     },
-    registerLinkText: {
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 14
+    addVetButtonText: {
+        ...typography.buttonText,
+        marginLeft: spacing.xs,
     },
-
-    // --- Calendario ---
-    calendarWrapper: {
-        marginTop: 5
+    calendar: {
+        borderWidth: 1,
+        borderRadius: borderRadius.sm,
     },
     selectedDateText: {
-        marginTop: 15,
-        fontSize: 16,
-        color: '#007AFF',
+        ...typography.body,
+        fontWeight: '600',
         textAlign: 'center',
-        fontWeight: '600'
+        marginTop: spacing.md,
     },
-
-    // --- Botones ---
-    saveButton: {
-        backgroundColor: '#4CAF50',
-        width: '100%',
-        paddingVertical: 16,
-        borderRadius: 10,
+    timePicker: {
+        flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 10,
-        elevation: 4
+        justifyContent: 'space-between',
+        borderWidth: 1,
+        borderRadius: borderRadius.sm,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.md,
+    },
+    timeText: {
+        ...typography.subtitle,
+        flex: 1,
+        marginLeft: spacing.sm,
+    },
+    saveButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.md,
+        marginTop: spacing.lg,
     },
     buttonDisabled: {
-        backgroundColor: '#A5D6A7'
+        opacity: 0.6,
     },
     saveButtonText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold'
+        ...typography.buttonText,
+        color: '#FFFFFF',
+        marginLeft: spacing.sm,
     },
-    miniFloatingButton: {
-        position: 'absolute',
-        right: -10,
-        top: 35,
-        backgroundColor: '#4CAF50',
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 5,
-        zIndex: 10
-    },
-
-    // --- Overlay ---
-    overlay: {
-        position: 'absolute',
-        top: 0,
-        bottom: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        zIndex: 1000
-    },
-
-    // --- Menú lateral ---
-    sideMenu: {
-        position: 'absolute',
-        top: 0,
-        bottom: 0,
-        left: 0,
-        width: 280,
-        backgroundColor: '#fff',
-        padding: 25,
-        zIndex: 2000,
-        elevation: 10
-    },
-    menuHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: 30,
-        marginBottom: 40
-    },
-    menuTitle: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#333'
-    },
-    menuItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 50,
-        paddingHorizontal: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0'
-    },
-    menuItemText: {
-        fontSize: 18,
-        marginLeft: 15,
-        color: '#444'
-    },
-});
-
-const notificationStyles = StyleSheet.create({
-    // --- Contenedor principal ---
-    container: {
-        position: 'absolute',
-        top: 90,
-        right: 20,
-        width: 300,
-        maxHeight: 400,
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 15,
-        zIndex: 2000,
-        elevation: 8
-    },
-
-    // --- Header ---
-    header: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        textAlign: 'center',
-        marginBottom: 15,
-        color: '#333',
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
-        paddingBottom: 10
-    },
-
-    // --- Lista ---
-    list: {
-        flexGrow: 0
-    },
-    itemContainer: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f5f5f5'
-    },
-    bullet: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: '#FF5252',
-        marginRight: 10,
-        marginTop: 6
-    },
-    itemText: {
-        fontSize: 14,
-        color: '#555',
-        lineHeight: 20,
-        flex: 1
-    },
-
-    // --- Estado vacío ---
-    emptyText: {
-        textAlign: 'center',
-        color: '#999',
-        marginTop: 20,
-        marginBottom: 20
-    }
 });

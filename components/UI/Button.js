@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
-import { colors, spacing, typography, borderRadius } from '../../constants';
+import { spacing, typography, borderRadius, lightTheme } from '../../constants';
+import { useApp } from '../../context';
 
 export default function Button({
     onPress,
@@ -11,6 +12,9 @@ export default function Button({
     disabled = false,
     style,
 }) {
+    const { colors: contextColors } = useApp();
+    const colors = contextColors || lightTheme;
+
     const variantStyles = {
         primary: {
             backgroundColor: colors.primary,

@@ -3,11 +3,12 @@ import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../../context';
-import { spacing, typography, iconSizes, borderRadius } from '../../constants';
+import { spacing, typography, iconSizes, borderRadius, lightTheme } from '../../constants';
 
 export default function SideMenu() {
     const navigation = useNavigation();
-    const { isMenuOpen, closeMenu, colors, t } = useApp();
+    const { isMenuOpen, closeMenu, colors: contextColors, t } = useApp();
+    const colors = contextColors || lightTheme;
 
     const menuItems = [
         { name: 'Home', label: t.home, icon: 'home', iconType: 'ionicons', color: colors.text },

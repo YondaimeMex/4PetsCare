@@ -1,5 +1,8 @@
 // Sistema de tipografía para 4PetsCare
-import colors from './colors';
+import { lightTheme } from './colors';
+
+// Usar lightTheme como colores por defecto para la tipografía
+const colors = lightTheme;
 
 export const typography = {
     // Títulos

@@ -1,11 +1,10 @@
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
-import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../context';
-
-import NotificationService from './Notificaciones';
+import { ScreenWrapper, Card, FloatingButton } from '../components';
+import { spacing, typography, borderRadius, lightTheme } from '../constants';
 
 // Lista de consejos disponibles
 const petTips = [
@@ -19,392 +18,151 @@ const petTips = [
     { title: 'Control de Parásitos 🐛', text: 'Mantén un calendario estricto para desparasitación interna y externa (pulgas y garrapatas), siguiendo las indicaciones de tu veterinario.' },
 ];
 
-
-const NotificationItem = ({ text, date }) => (
-    <View style={notificationStyles.notificationItem}>
-        <View style={notificationStyles.bullet} />
-        <Text style={notificationStyles.notificationText}>{text} {"\n"}<Text style={{ fontSize: 12, color: '#555' }}>{date}</Text></Text>
-    </View>
-);
-
 export default function Consejos() {
     const navigation = useNavigation();
-    const { colors, t, isDarkMode } = useApp();
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-    const [notificaciones, setNotificaciones] = useState([]);
+    const { colors: contextColors, t } = useApp();
+    const colors = contextColors || lightTheme;
+
     // Estado para guardar el consejo actual
     const [currentTip, setCurrentTip] = useState(petTips[0]);
 
     // Función para actualizar el consejo
     const updateTip = useCallback(() => {
-        // Generar un índice aleatorio
         const randomIndex = Math.floor(Math.random() * petTips.length);
-
-        // Seleccionar un nuevo consejo
         const newTip = petTips[randomIndex];
-
-        // Actualizar el estado
         setCurrentTip(newTip);
-
-        Alert.alert("Actualizado", "¡Aquí tienes un nuevo consejo!");
-    }, []); // El array vacío asegura que la función solo se cree una vez
+        Alert.alert(t.updated || "Actualizado", t.tipsUpdated || "¡Aquí tienes un nuevo consejo!");
+    }, [t]);
 
     // Cargar el primer consejo al iniciar el componente
     useEffect(() => {
-        updateTip();
-    }, [updateTip]);
-
-
-    const toggleMenu = () => {
-        const newState = !isMenuOpen;
-        setIsMenuOpen(newState);
-        if (newState) setIsNotificationsOpen(false);
-    };
-
-    const toggleNotifications = async () => {
-        const newState = !isNotificationsOpen;
-        setIsNotificationsOpen(newState);
-        if (newState) {
-            setIsMenuOpen(false);
-            try {
-                const allNotifications = await NotificationService.getNotifications();
-                setNotificaciones(allNotifications);
-            } catch (error) {
-                console.error("Error al cargar notificaciones:", error);
-                setNotificaciones([]);
-            }
-        }
-    };
-
-    const handleOverlayClick = () => {
-        if (isMenuOpen) toggleMenu();
-        if (isNotificationsOpen) toggleNotifications();
-    };
-
-    const isOverlayVisible = isMenuOpen || isNotificationsOpen;
+        const randomIndex = Math.floor(Math.random() * petTips.length);
+        setCurrentTip(petTips[randomIndex]);
+    }, []);
 
     return (
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
-            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+        <ScreenWrapper>
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.content}
+                showsVerticalScrollIndicator={false}
+            >
+                {/* Card: Consejos Básicos */}
+                <Card>
+                    <Text style={[styles.title, { color: colors.text }]}>
+                        {t.tips || 'Consejos'} Básicos
+                    </Text>
+                    <Text style={[styles.cardText, { color: colors.textLight }]}>
+                        Cuida a tu mascota con amor, buena alimentación y visitas al veterinario.
+                        Mantén su espacio limpio y dale agua fresca siempre.
+                    </Text>
+                </Card>
 
-            {/* --- Encabezado */}
-            <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-                <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
-                    <MaterialIcons name="menu" size={32} color={colors.text} />
-                </TouchableOpacity>
-                <View style={styles.headerRight}>
-                    <TouchableOpacity style={[styles.floatingBtn, styles.headerIcon]} onPress={toggleNotifications}>
-                        <Ionicons name="notifications" size={32} color={colors.text} />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.floatingBtn, styles.headerIcon]} onPress={() => navigation.navigate('Perfil')}>
-                        <Ionicons name="person-circle-outline" size={32} color={colors.text} />
-                    </TouchableOpacity>
-                </View>
-            </View>
+                {/* Card: Consejo Dinámico */}
+                <Card style={[styles.dynamicCard, { borderLeftColor: colors.warning }]}>
+                    <Text style={[styles.dynamicTitle, { color: colors.warning }]}>
+                        {currentTip.title}
+                    </Text>
+                    <Text style={[styles.dynamicCardText, { color: colors.text }]}>
+                        {currentTip.text}
+                    </Text>
+                </Card>
 
-            {/* --- Contenido principal --- */}
-            <ScrollView contentContainerStyle={styles.content}>
+                {/* Card: Consejo adicional */}
+                <Card>
+                    <Text style={[styles.cardText, { color: colors.textLight }]}>
+                        Juega con ella y mantenla limpia y protegida. El amor y la atención
+                        son tan importantes como la alimentación adecuada.
+                    </Text>
+                </Card>
 
-                {/* Primer Card: Contenido fijo */}
-                <View style={[styles.card, { backgroundColor: colors.card }]}>
-                    <Text style={[styles.title, { color: colors.text }]}>{t.tips || 'Consejos'} Básicos</Text>
-                    <Text style={[styles.cardText, { color: colors.text }]}>Cuida a tu mascota con amor, buena alimentación y visitas al veterinario. Mantén su espacio limpio y dale agua fresca siempre.</Text>
-                </View>
-
-                {/* Segundo Card: Contenido dinámico */}
-                <View style={[styles.dynamicCard, { backgroundColor: colors.card }]}>
-                    <Text style={[styles.dynamicTitle, { color: colors.text }]}>{currentTip.title}</Text>
-                    <Text style={[styles.dynamicCardText, { color: colors.text }]}>{currentTip.text}</Text>
-                </View>
-
-                {/* Contenido adicional */}
-                <View style={[styles.card, { backgroundColor: colors.card }]}>
-                    <Text style={[styles.cardText, { color: colors.text }]}>Juega con ella y mantenla limpia y protegida.</Text>
-                </View>
-
+                {/* Card: Tips rápidos */}
+                <Card style={[styles.tipsCard, { borderLeftColor: colors.success }]}>
+                    <Text style={[styles.tipsTitle, { color: colors.success }]}>
+                        💡 Tips Rápidos
+                    </Text>
+                    <View style={styles.tipItem}>
+                        <Text style={[styles.tipBullet, { color: colors.primary }]}>•</Text>
+                        <Text style={[styles.tipText, { color: colors.text }]}>
+                            Pasea a tu perro al menos 2 veces al día
+                        </Text>
+                    </View>
+                    <View style={styles.tipItem}>
+                        <Text style={[styles.tipBullet, { color: colors.primary }]}>•</Text>
+                        <Text style={[styles.tipText, { color: colors.text }]}>
+                            Cambia el agua del bebedero cada día
+                        </Text>
+                    </View>
+                    <View style={styles.tipItem}>
+                        <Text style={[styles.tipBullet, { color: colors.primary }]}>•</Text>
+                        <Text style={[styles.tipText, { color: colors.text }]}>
+                            Revisa las orejas de tu mascota semanalmente
+                        </Text>
+                    </View>
+                </Card>
             </ScrollView>
 
-            {/* --- Botón flotante central --- */}
-            <TouchableOpacity style={[styles.floatingBtnCenter, { backgroundColor: colors.card }]} onPress={updateTip}>
-                <View style={{ alignItems: 'center' }}>
-                    <MaterialCommunityIcons name="restart" size={40} color={colors.text} />
-                    <Text style={[styles.vaccineButtonText, { color: colors.text }]}>Actualizar</Text>
-                </View>
-            </TouchableOpacity>
-
-            {/* --- Overlay --- */}
-            {isOverlayVisible && (
-                <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={handleOverlayClick} />
-            )}
-
-            {/* --- Menú lateral --- */}
-            {isMenuOpen && (
-                <View style={[styles.sideMenu, { backgroundColor: colors.background }]}>
-                    <View style={styles.menuHeader}>
-                        <Text style={[styles.menuTitle, { color: colors.text }]}>{t.menu || 'Menú'}</Text>
-                        <TouchableOpacity onPress={toggleMenu}>
-                            <Ionicons name="close" size={30} color={colors.text} />
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Opciones de menú */}
-                    <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Home')}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Ionicons name="home" size={24} color={colors.text} />
-                            <Text style={[styles.menuItemText, { color: colors.text }]}>{t.home || 'Inicio'}</Text>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Ionicons name="paw-outline" size={30} color="#4BCF5C" />
-                            <Text style={[styles.menuItemText, { color: colors.text }]}>{t.pets || 'Mascotas'}</Text>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Ionicons name="calendar-number" size={30} color="#007AFF" />
-                            <Text style={[styles.menuItemText, { color: colors.text }]}>{t.calendar || 'Calendario'}</Text>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.menuItem} onPress={() => alert('Ya te encuentras en consejos')}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <MaterialIcons name="tips-and-updates" size={30} color="#FF9500" />
-                            <Text style={[styles.menuItemText, { color: colors.text }]}>{t.tips || 'Consejos'}</Text>
-                        </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.menuItem} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <MaterialIcons name="emergency" size={30} color="#FF3B30" />
-                            <Text style={[styles.menuItemText, { color: colors.text }]}>{t.emergencies || 'Emergencias'}</Text>
-                        </View>
-                    </TouchableOpacity>
-                </View>
-            )}
-
-            {/* --- Panel de notificaciones --- */}
-            {isNotificationsOpen && (
-                <View style={[notificationStyles.notificationsContainer, { backgroundColor: colors.card }]}>
-                    <Text style={[notificationStyles.headerText, { color: colors.text }]}>{t.notifications || 'Notificaciones'}</Text>
-                    <ScrollView style={notificationStyles.list}>
-                        {notificaciones.length > 0 ? (
-                            notificaciones.map((n, index) => (
-                                <NotificationItem key={index} text={n.text} date={n.date} />
-                            ))
-                        ) : (
-                            <Text style={{ textAlign: 'center', color: colors.textSecondary, marginTop: 10 }}>{t.noNotifications || 'No hay notificaciones.'}</Text>
-                        )}
-                    </ScrollView>
-                </View>
-            )}
-        </View>
+            {/* Botón flotante para actualizar consejo */}
+            <FloatingButton
+                position="center"
+                icon={<MaterialCommunityIcons name="refresh" size={28} color={colors.text} />}
+                label={t.refresh || "Actualizar"}
+                onPress={updateTip}
+                style={{ backgroundColor: colors.warning }}
+            />
+        </ScreenWrapper>
     );
 }
 
-// --- Estilos ---
 const styles = StyleSheet.create({
-    container: {
+    scrollView: {
         flex: 1,
-        backgroundColor: '#fff'
     },
     content: {
-        paddingHorizontal: 20,
-        paddingBottom: 150,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingTop: 50,
-        paddingBottom: 10,
-        backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#ddd',
-        width: '100%',
-        marginBottom: 30
-    },
-    headerRight: {
-        flexDirection: 'row',
-        width: '45%',
-        justifyContent: 'space-between'
-    },
-    menuHamburguesa: {
-        padding: 5
-    },
-    headerIcon: {
-        padding: 15
-    },
-    overlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: '#00000080',
-        zIndex: 10
-    },
-    sideMenu: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        bottom: 0,
-        width: 280,
-        backgroundColor: '#fff',
-        padding: 20,
-        zIndex: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 4, height: 0 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
-        elevation: 10,
-        flex: 1
-    },
-    menuHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 30,
-        paddingTop: 30
-    },
-    menuTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#333'
-    },
-    menuItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 50,
-        paddingHorizontal: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee'
-    },
-    menuItemText: {
-        fontSize: 18,
-        marginLeft: 15,
-        color: '#333'
-    },
-    // Estilo para el card fijo
-    card: {
-        backgroundColor: '#e0e0e0',
-        padding: 20,
-        borderRadius: 10,
-        marginBottom: 20
-    },
-    cardText: {
-        fontSize: 16,
-        lineHeight: 22
-    },
-    // Estilo para el card dinámico
-    dynamicCard: {
-        backgroundColor: '#FFEBEE',
-        padding: 20,
-        borderRadius: 10,
-        marginBottom: 20,
-        borderLeftWidth: 5,
-        borderLeftColor: '#FF9500',
-    },
-    dynamicTitle: {
-        fontWeight: 'bold',
-        fontSize: 18,
-        marginBottom: 8,
-        color: '#D15700',
-    },
-    dynamicCardText: {
-        fontSize: 16,
-        lineHeight: 22,
+        padding: spacing.lg,
+        paddingBottom: 120,
     },
     title: {
-        fontWeight: 'bold',
-        fontSize: 20,
-        marginBottom: 10,
-        textAlign: 'center'
-    },
-    floatingBtn: {
-        backgroundColor: '#fff',
-        padding: 18,
-        borderRadius: 50,
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-        borderWidth: 1,
-        borderColor: '#ccc'
-    },
-    floatingBtnCenter: {
-        position: 'absolute',
-        bottom: 60,
-        left: '50%',
-        transform: [{ translateX: -40 }],
-        backgroundColor: '#FF9500',
-        borderRadius: 50,
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        width: 80,
-        height: 80,
-        justifyContent: 'center',
-        alignItems: 'center',
-        flexDirection: 'column'
-    },
-    vaccineButtonText: {
-        fontSize: 12,
-        marginTop: 2,
+        ...typography.title,
         textAlign: 'center',
-        color: 'black',
-        fontWeight: 'bold',
+        marginBottom: spacing.sm,
     },
-});
-
-const notificationStyles = StyleSheet.create({
-    notificationsContainer: {
-        position: 'absolute',
-        top: 100,
-        right: 30,
-        width: 300,
-        maxHeight: 400,
-        backgroundColor: '#e0e0e0',
-        borderRadius: 10,
-        padding: 15,
-        zIndex: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5
-    },
-    headerText: {
-        fontSize: 18,
-        fontWeight: 'bold',
+    cardText: {
+        ...typography.body,
+        lineHeight: 24,
         textAlign: 'center',
-        marginBottom: 10,
-        color: 'black'
     },
-    list: {
-        flexGrow: 0
+    dynamicCard: {
+        borderLeftWidth: 5,
     },
-    notificationItem: {
+    dynamicTitle: {
+        ...typography.subtitle,
+        marginBottom: spacing.sm,
+    },
+    dynamicCardText: {
+        ...typography.body,
+        lineHeight: 24,
+    },
+    tipsCard: {
+        borderLeftWidth: 5,
+    },
+    tipsTitle: {
+        ...typography.subtitle,
+        marginBottom: spacing.md,
+    },
+    tipItem: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#ccc'
+        marginBottom: spacing.sm,
     },
-    bullet: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: 'red',
-        marginRight: 10,
-        marginTop: 5,
-        flexShrink: 0
+    tipBullet: {
+        fontSize: 20,
+        marginRight: spacing.sm,
+        lineHeight: 24,
     },
-    notificationText: {
-        fontSize: 16,
-        flexShrink: 1
+    tipText: {
+        ...typography.body,
+        flex: 1,
+        lineHeight: 24,
     },
 });
