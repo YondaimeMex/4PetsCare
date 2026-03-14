@@ -1,17 +1,77 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, KeyboardAvoidingView, Platform, Animated, ActivityIndicator } from 'react-native';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+    View,
+    Text,
+    TouchableOpacity,
+    StyleSheet,
+    ScrollView,
+    TextInput,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ActivityIndicator,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useState, useEffect, useRef } from 'react';
-import React from 'react';
 import { useApp } from '../context';
+import { ScreenWrapper } from '../components';
 
-export default function Recuperación() {
+function Field({
+    label,
+    icon,
+    value,
+    onChangeText,
+    placeholder,
+    secureTextEntry,
+    keyboardType,
+    maxLength,
+    editable,
+    error,
+    rightAction,
+    theme,
+}) {
+    return (
+        <View style={styles.fieldWrap}>
+            <Text style={[styles.label, { color: theme.muted }]}>{label}</Text>
+            <View
+                style={[
+                    styles.inputRow,
+                    {
+                        backgroundColor: theme.inputBg,
+                        borderColor: error ? theme.danger : theme.border,
+                    },
+                ]}
+            >
+                <Ionicons name={icon} size={18} color={theme.brandSoft} style={styles.leftIcon} />
+                <TextInput
+                    style={[styles.input, { color: theme.text }]}
+                    value={value}
+                    onChangeText={onChangeText}
+                    placeholder={placeholder}
+                    placeholderTextColor={theme.muted}
+                    secureTextEntry={secureTextEntry}
+                    keyboardType={keyboardType}
+                    maxLength={maxLength}
+                    editable={editable}
+                    autoCapitalize="none"
+                />
+                {rightAction}
+            </View>
+            {error ? (
+                <View style={styles.errorRow}>
+                    <Ionicons name="alert-circle-outline" size={14} color={theme.danger} />
+                    <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
+                </View>
+            ) : null}
+        </View>
+    );
+}
+
+export default function Recuperacion() {
     const navigation = useNavigation();
-    const { colors, t, isDarkMode } = useApp();
+    const { colors } = useApp();
 
-    // Estados principales
-    const [step, setStep] = useState(1); // 1: Ingreso de email, 2: Código de verificación, 3: Nueva contraseña
+    const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
@@ -20,60 +80,39 @@ export default function Recuperación() {
     const [errors, setErrors] = useState({});
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const [timeLeft, setTimeLeft] = useState(300); // 5 minutos
+    const [timeLeft, setTimeLeft] = useState(300);
 
-    // Animaciones
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnim = useRef(new Animated.Value(50)).current;
+    const theme = useMemo(() => ({
+        brand: colors?.primaryDark || '#2F6E4F',
+        brandSoft: colors?.primary || '#43A047',
+        accent: colors?.accent || '#FF7F5A',
+        bg: colors?.backgroundLight || '#F6F8F4',
+        card: colors?.background || '#FFFFFF',
+        border: colors?.border || '#E4E9E5',
+        text: colors?.text || '#22352D',
+        muted: colors?.textMuted || '#5D6E64',
+        inputBg: colors?.inputBackground || '#F6F8F4',
+        danger: colors?.danger || '#E53935',
+    }), [colors]);
 
-    useEffect(() => {
-        // Animación de entrada
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 800,
-                useNativeDriver: true,
-            }),
-            Animated.timing(slideAnim, {
-                toValue: 0,
-                duration: 800,
-                useNativeDriver: true,
-            }),
-        ]).start();
-    }, [step]);
-
-    // Timer para el código de verificación
     useEffect(() => {
         let timer;
         if (step === 2 && timeLeft > 0) {
-            timer = setInterval(() => {
-                setTimeLeft(prev => prev - 1);
-            }, 1000);
-        } else if (timeLeft === 0 && step === 2) {
-            setTimeLeft(0);
+            timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
         }
         return () => clearInterval(timer);
     }, [step, timeLeft]);
 
-    // Validar formato de email
-    const isValidEmail = (email) => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-    };
+    const isValidEmail = (rawEmail) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail);
 
-    // Validar contraseña segura
-    const isValidPassword = (password) => {
-        return password.length >= 6;
-    };
+    const isValidPassword = (rawPassword) => rawPassword.length >= 6;
 
-    // Formatear tiempo restante
     const formatTime = (seconds) => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
         return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     };
 
-    // Paso 1: Solicitar recuperación de contraseña
     const handleRequestReset = async () => {
         setErrors({});
 
@@ -89,24 +128,16 @@ export default function Recuperación() {
 
         setLoading(true);
         try {
-            // Aquí iría la llamada a tu API para enviar código
-            // const response = await authAPI.requestPasswordReset(email);
-
-            // Simulación de delay
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            // Avanzar al siguiente paso
+            await new Promise((resolve) => setTimeout(resolve, 1200));
             setStep(2);
             setTimeLeft(300);
-
-        } catch (error) {
+        } catch {
             Alert.alert('Error', 'No se pudo enviar el código. Inténtalo de nuevo.');
         } finally {
             setLoading(false);
         }
     };
 
-    // Paso 2: Verificar código
     const handleVerifyCode = async () => {
         setErrors({});
 
@@ -122,572 +153,430 @@ export default function Recuperación() {
 
         setLoading(true);
         try {
-            // Aquí iría la llamada a tu API para verificar código
-            // const response = await authAPI.verifyCode(email, verificationCode);
-
-            // Simulación de delay
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            // Avanzar al siguiente paso
+            await new Promise((resolve) => setTimeout(resolve, 1000));
             setStep(3);
-
-        } catch (error) {
+        } catch {
             Alert.alert('Error', 'Código inválido. Inténtalo de nuevo.');
         } finally {
             setLoading(false);
         }
     };
 
-    // Paso 3: Cambiar contraseña
     const handleResetPassword = async () => {
         setErrors({});
 
         if (!newPassword) {
-            setErrors(prev => ({ ...prev, newPassword: 'La contraseña es obligatoria' }));
+            setErrors((prev) => ({ ...prev, newPassword: 'La contraseña es obligatoria' }));
             return;
         }
 
         if (!isValidPassword(newPassword)) {
-            setErrors(prev => ({ ...prev, newPassword: 'Mínimo 6 caracteres' }));
+            setErrors((prev) => ({ ...prev, newPassword: 'Mínimo 6 caracteres' }));
             return;
         }
 
         if (!confirmPassword) {
-            setErrors(prev => ({ ...prev, confirmPassword: 'Confirmar contraseña es obligatorio' }));
+            setErrors((prev) => ({ ...prev, confirmPassword: 'Confirmar contraseña es obligatorio' }));
             return;
         }
 
         if (newPassword !== confirmPassword) {
-            setErrors(prev => ({ ...prev, confirmPassword: 'Las contraseñas no coinciden' }));
+            setErrors((prev) => ({ ...prev, confirmPassword: 'Las contraseñas no coinciden' }));
             return;
         }
 
         setLoading(true);
         try {
-            // Aquí iría la llamada a tu API para cambiar contraseña
-            // const response = await authAPI.resetPassword(email, verificationCode, newPassword);
-
-            // Simulación de delay
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            // Éxito
+            await new Promise((resolve) => setTimeout(resolve, 1200));
             Alert.alert('Éxito', 'Tu contraseña ha sido cambiada correctamente', [
                 {
                     text: 'Ir a Login',
                     onPress: () => navigation.navigate('Login'),
                 },
             ]);
-
-        } catch (error) {
+        } catch {
             Alert.alert('Error', 'No se pudo cambiar la contraseña. Inténtalo de nuevo.');
         } finally {
             setLoading(false);
         }
     };
 
-    // Reenviar código
     const handleResendCode = async () => {
         setLoading(true);
         try {
-            // Aquí iría la llamada a tu API para reenviar código
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            await new Promise((resolve) => setTimeout(resolve, 1200));
             setTimeLeft(300);
             Alert.alert('Éxito', 'Se ha reenviado el código a tu correo');
-        } catch (error) {
+        } catch {
             Alert.alert('Error', 'No se pudo reenviar el código');
         } finally {
             setLoading(false);
         }
     };
 
-    // Volver al paso anterior
     const handleGoBack = () => {
         if (step > 1) {
-            setStep(step - 1);
+            setStep((prev) => prev - 1);
             setErrors({});
-        } else {
-            navigation.goBack();
+            return;
         }
+        navigation.goBack();
     };
 
+    const stepTitle = step === 1 ? 'Recupera tu acceso' : step === 2 ? 'Verifica tu código' : 'Crea nueva contraseña';
+
     return (
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
-            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
-
-            {/* Encabezado con fondo gradiente */}
-            <View style={[styles.headerBackground, { backgroundColor: colors.success }]}>
-                <Animated.View
-                    style={[
-                        styles.headerContent,
-                        {
-                            opacity: fadeAnim,
-                            transform: [{ translateY: slideAnim }],
-                        },
-                    ]}
-                >
-                    <Ionicons name="key-outline" size={60} color="#fff" />
-                    <Text style={styles.appName}>Recuperar Contraseña</Text>
-                    <Text style={styles.tagline}>Paso {step} de 3</Text>
-                </Animated.View>
-            </View>
-
-            {/* Formulario */}
+        <ScreenWrapper showHeader={false}>
             <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.keyboardView}
+                style={[styles.container, { backgroundColor: theme.bg }]}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
-                    <Animated.View
-                        style={[
-                            styles.formContainer,
-                            {
-                                opacity: fadeAnim,
-                                transform: [{ translateY: slideAnim }],
-                            },
-                        ]}
-                    >
-                        {/* PASO 1: Solicitar código */}
-                        {step === 1 && (
-                            <>
-                                <View>
-                                    <Text style={[styles.formTitle, { color: colors.text }]}>Ingresa tu correo</Text>
-                                    <Text style={[styles.formSubtitle, { color: colors.textMuted }]}>Te enviaremos un código para recuperar tu contraseña</Text>
-
-                                    <View style={styles.inputContainer}>
-                                        <Text style={[styles.label, { color: colors.text }]}>Correo electrónico</Text>
-                                        <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }, errors.email && styles.inputWrapperError]}>
-                                            <Ionicons name="mail-outline" size={22} color={colors.success} style={styles.inputIcon} />
-                                            <TextInput
-                                                style={[styles.input, { color: colors.text }]}
-                                                value={email}
-                                                onChangeText={setEmail}
-                                                placeholder="tu@correo.com"
-                                                placeholderTextColor={colors.textMuted}
-                                                keyboardType="email-address"
-                                                autoCapitalize="none"
-                                                editable={!loading}
-                                                selectionColor={colors.success}
-                                            />
-                                        </View>
-                                        {errors.email ? (
-                                            <View style={styles.errorContainer}>
-                                                <Ionicons name="alert-circle" size={16} color="#FF3B30" />
-                                                <Text style={styles.errorText}>{errors.email}</Text>
-                                            </View>
-                                        ) : null}
-                                    </View>
+                    <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
+                        <View style={styles.heroGlowTop} />
+                        <View style={styles.heroGlowBottom} />
+                        <Ionicons name="key-outline" size={34} color="#FFFFFF" />
+                        <Text style={styles.heroKicker}>RECUPERACIÓN</Text>
+                        <Text style={styles.heroTitle}>{stepTitle}</Text>
+                        <View style={styles.stepPills}>
+                            {[1, 2, 3].map((n) => (
+                                <View
+                                    key={n}
+                                    style={[
+                                        styles.stepPill,
+                                        { backgroundColor: n <= step ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.12)' },
+                                    ]}
+                                >
+                                    <Text style={styles.stepPillText}>{n}</Text>
                                 </View>
+                            ))}
+                        </View>
+                    </View>
 
+                    <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        {step === 1 ? (
+                            <>
+                                <Field
+                                    label="Correo electrónico"
+                                    icon="mail-outline"
+                                    value={email}
+                                    onChangeText={setEmail}
+                                    placeholder="tu@correo.com"
+                                    keyboardType="email-address"
+                                    editable={!loading}
+                                    error={errors.email}
+                                    theme={theme}
+                                />
+                                <Text style={[styles.helperText, { color: theme.muted }]}>Te enviaremos un código de 6 dígitos.</Text>
                                 <TouchableOpacity
-                                    style={[styles.submitButton, { backgroundColor: colors.success }, loading && styles.disabledButton]}
+                                    style={[styles.primaryButton, { backgroundColor: theme.brand }, loading && styles.disabled]}
                                     onPress={handleRequestReset}
                                     disabled={loading}
-                                    activeOpacity={0.8}
                                 >
                                     {loading ? (
-                                        <View style={styles.loadingContainer}>
-                                            <ActivityIndicator size="small" color="#fff" />
-                                            <Text style={styles.buttonText}>Enviando...</Text>
-                                        </View>
+                                        <ActivityIndicator color="#FFFFFF" />
                                     ) : (
-                                        <View style={styles.buttonContent}>
-                                            <Text style={styles.buttonText}>Enviar código</Text>
-                                            <Ionicons name="arrow-forward" size={20} color="#fff" style={styles.buttonIcon} />
-                                        </View>
+                                        <>
+                                            <Text style={styles.primaryButtonText}>Enviar código</Text>
+                                            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+                                        </>
                                     )}
                                 </TouchableOpacity>
                             </>
-                        )}
+                        ) : null}
 
-                        {/* PASO 2: Verificar código */}
-                        {step === 2 && (
+                        {step === 2 ? (
                             <>
-                                <View>
-                                    <Text style={[styles.formTitle, { color: colors.text }]}>Verifica tu código</Text>
-                                    <Text style={[styles.formSubtitle, { color: colors.textMuted }]}>Hemos enviado un código de 6 dígitos a {email}</Text>
+                                <Field
+                                    label="Código de verificación"
+                                    icon="shield-checkmark-outline"
+                                    value={verificationCode}
+                                    onChangeText={setVerificationCode}
+                                    placeholder="000000"
+                                    keyboardType="number-pad"
+                                    maxLength={6}
+                                    editable={!loading}
+                                    error={errors.verificationCode}
+                                    theme={theme}
+                                />
 
-                                    <View style={styles.inputContainer}>
-                                        <Text style={[styles.label, { color: colors.text }]}>Código de verificación</Text>
-                                        <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }, errors.verificationCode && styles.inputWrapperError]}>
-                                            <Ionicons name="shield-checkmark-outline" size={22} color={colors.success} style={styles.inputIcon} />
-                                            <TextInput
-                                                style={[styles.input, { color: colors.text }]}
-                                                value={verificationCode}
-                                                onChangeText={setVerificationCode}
-                                                placeholder="000000"
-                                                placeholderTextColor={colors.textMuted}
-                                                keyboardType="number-pad"
-                                                maxLength={6}
-                                                editable={!loading}
-                                                selectionColor={colors.success}
-                                            />
-                                        </View>
-                                        {errors.verificationCode ? (
-                                            <View style={styles.errorContainer}>
-                                                <Ionicons name="alert-circle" size={16} color="#FF3B30" />
-                                                <Text style={styles.errorText}>{errors.verificationCode}</Text>
-                                            </View>
-                                        ) : null}
-                                    </View>
-
-                                    {/* Timer */}
-                                    <View style={[styles.timerContainer, { backgroundColor: isDarkMode ? colors.card : '#e8f5e9' }]}>
-                                        <Ionicons name="hourglass-outline" size={18} color={colors.success} />
-                                        <Text style={[styles.timerText, { color: colors.text }]}>
-                                            Código válido por: <Text style={[styles.timerBold, { color: colors.success }]}>{formatTime(timeLeft)}</Text>
-                                        </Text>
-                                    </View>
-                                </View>
-
-                                <View>
-                                    <TouchableOpacity
-                                        style={[styles.submitButton, { backgroundColor: colors.success }, loading && styles.disabledButton]}
-                                        onPress={handleVerifyCode}
-                                        disabled={loading}
-                                        activeOpacity={0.8}
-                                    >
-                                        {loading ? (
-                                            <View style={styles.loadingContainer}>
-                                                <ActivityIndicator size="small" color="#fff" />
-                                                <Text style={styles.buttonText}>Verificando...</Text>
-                                            </View>
-                                        ) : (
-                                            <View style={styles.buttonContent}>
-                                                <Text style={styles.buttonText}>Verificar código</Text>
-                                                <Ionicons name="arrow-forward" size={20} color="#fff" style={styles.buttonIcon} />
-                                            </View>
-                                        )}
-                                    </TouchableOpacity>
-
-                                    {timeLeft === 0 ? (
-                                        <TouchableOpacity
-                                            style={styles.resendButton}
-                                            onPress={handleResendCode}
-                                            disabled={loading}
-                                        >
-                                            <Text style={[styles.resendText, { color: colors.success }]}>¿No recibiste el código? Reenviar</Text>
-                                        </TouchableOpacity>
-                                    ) : (
-                                        <Text style={[styles.resendDisabled, { color: colors.textMuted }]}>¿No recibiste el código? Espera para reenviar</Text>
-                                    )}
-                                </View>
-                            </>
-                        )}
-
-                        {/* PASO 3: Nueva contraseña */}
-                        {step === 3 && (
-                            <>
-                                <View>
-                                    <Text style={[styles.formTitle, { color: colors.text }]}>Nueva contraseña</Text>
-                                    <Text style={[styles.formSubtitle, { color: colors.textMuted }]}>Crea una nueva contraseña segura para tu cuenta</Text>
-
-                                    <View style={styles.inputContainer}>
-                                        <Text style={[styles.label, { color: colors.text }]}>Nueva contraseña</Text>
-                                        <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }, errors.newPassword && styles.inputWrapperError]}>
-                                            <Ionicons name="lock-closed-outline" size={22} color={colors.success} style={styles.inputIcon} />
-                                            <TextInput
-                                                style={[styles.input, { color: colors.text }]}
-                                                value={newPassword}
-                                                onChangeText={setNewPassword}
-                                                placeholder="Mínimo 6 caracteres"
-                                                placeholderTextColor={colors.textMuted}
-                                                secureTextEntry={!showPassword}
-                                                editable={!loading}
-                                                selectionColor={colors.success}
-                                            />
-                                            <TouchableOpacity
-                                                style={styles.eyeIcon}
-                                                onPress={() => setShowPassword(!showPassword)}
-                                                disabled={loading}
-                                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                            >
-                                                <Ionicons
-                                                    name={showPassword ? "eye-off-outline" : "eye-outline"}
-                                                    size={22}
-                                                    color={colors.success}
-                                                />
-                                            </TouchableOpacity>
-                                        </View>
-                                        {errors.newPassword ? (
-                                            <View style={styles.errorContainer}>
-                                                <Ionicons name="alert-circle" size={16} color="#FF3B30" />
-                                                <Text style={styles.errorText}>{errors.newPassword}</Text>
-                                            </View>
-                                        ) : null}
-                                    </View>
-
-                                    <View style={styles.inputContainer}>
-                                        <Text style={[styles.label, { color: colors.text }]}>Confirmar contraseña</Text>
-                                        <View style={[styles.inputWrapper, { backgroundColor: colors.card, borderColor: colors.border }, errors.confirmPassword && styles.inputWrapperError]}>
-                                            <Ionicons name="lock-closed-outline" size={22} color={colors.success} style={styles.inputIcon} />
-                                            <TextInput
-                                                style={[styles.input, { color: colors.text }]}
-                                                value={confirmPassword}
-                                                onChangeText={setConfirmPassword}
-                                                placeholder="Confirma tu contraseña"
-                                                placeholderTextColor={colors.textMuted}
-                                                secureTextEntry={!showConfirmPassword}
-                                                editable={!loading}
-                                                selectionColor={colors.success}
-                                            />
-                                            <TouchableOpacity
-                                                style={styles.eyeIcon}
-                                                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                                                disabled={loading}
-                                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                            >
-                                                <Ionicons
-                                                    name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
-                                                    size={22}
-                                                    color={colors.success}
-                                                />
-                                            </TouchableOpacity>
-                                        </View>
-                                        {errors.confirmPassword ? (
-                                            <View style={styles.errorContainer}>
-                                                <Ionicons name="alert-circle" size={16} color="#FF3B30" />
-                                                <Text style={styles.errorText}>{errors.confirmPassword}</Text>
-                                            </View>
-                                        ) : null}
-                                    </View>
+                                <View style={[styles.timerBox, { backgroundColor: `${theme.brand}14` }]}>
+                                    <Ionicons name="hourglass-outline" size={16} color={theme.brand} />
+                                    <Text style={[styles.timerText, { color: theme.text }]}>
+                                        Código válido por <Text style={{ color: theme.brand, fontWeight: '700' }}>{formatTime(timeLeft)}</Text>
+                                    </Text>
                                 </View>
 
                                 <TouchableOpacity
-                                    style={[styles.submitButton, { backgroundColor: colors.success }, loading && styles.disabledButton]}
-                                    onPress={handleResetPassword}
+                                    style={[styles.primaryButton, { backgroundColor: theme.brand }, loading && styles.disabled]}
+                                    onPress={handleVerifyCode}
                                     disabled={loading}
-                                    activeOpacity={0.8}
                                 >
                                     {loading ? (
-                                        <View style={styles.loadingContainer}>
-                                            <ActivityIndicator size="small" color="#fff" />
-                                            <Text style={styles.buttonText}>Cambiando...</Text>
-                                        </View>
+                                        <ActivityIndicator color="#FFFFFF" />
                                     ) : (
-                                        <View style={styles.buttonContent}>
-                                            <Text style={styles.buttonText}>Cambiar contraseña</Text>
-                                            <Ionicons name="arrow-forward" size={20} color="#fff" style={styles.buttonIcon} />
-                                        </View>
+                                        <>
+                                            <Text style={styles.primaryButtonText}>Verificar código</Text>
+                                            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+                                        </>
+                                    )}
+                                </TouchableOpacity>
+
+                                {timeLeft === 0 ? (
+                                    <TouchableOpacity onPress={handleResendCode} disabled={loading}>
+                                        <Text style={[styles.resendText, { color: theme.brandSoft }]}>Reenviar código</Text>
+                                    </TouchableOpacity>
+                                ) : (
+                                    <Text style={[styles.helperTextCenter, { color: theme.muted }]}>Podrás reenviar cuando termine el temporizador</Text>
+                                )}
+                            </>
+                        ) : null}
+
+                        {step === 3 ? (
+                            <>
+                                <Field
+                                    label="Nueva contraseña"
+                                    icon="lock-closed-outline"
+                                    value={newPassword}
+                                    onChangeText={setNewPassword}
+                                    placeholder="Mínimo 6 caracteres"
+                                    secureTextEntry={!showPassword}
+                                    editable={!loading}
+                                    error={errors.newPassword}
+                                    theme={theme}
+                                    rightAction={
+                                        <TouchableOpacity
+                                            style={styles.eyeAction}
+                                            onPress={() => setShowPassword((prev) => !prev)}
+                                            disabled={loading}
+                                        >
+                                            <Ionicons
+                                                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                                                size={18}
+                                                color={theme.muted}
+                                            />
+                                        </TouchableOpacity>
+                                    }
+                                />
+
+                                <Field
+                                    label="Confirmar contraseña"
+                                    icon="lock-closed-outline"
+                                    value={confirmPassword}
+                                    onChangeText={setConfirmPassword}
+                                    placeholder="Repite la contraseña"
+                                    secureTextEntry={!showConfirmPassword}
+                                    editable={!loading}
+                                    error={errors.confirmPassword}
+                                    theme={theme}
+                                    rightAction={
+                                        <TouchableOpacity
+                                            style={styles.eyeAction}
+                                            onPress={() => setShowConfirmPassword((prev) => !prev)}
+                                            disabled={loading}
+                                        >
+                                            <Ionicons
+                                                name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                                                size={18}
+                                                color={theme.muted}
+                                            />
+                                        </TouchableOpacity>
+                                    }
+                                />
+
+                                <TouchableOpacity
+                                    style={[styles.primaryButton, { backgroundColor: theme.brand }, loading && styles.disabled]}
+                                    onPress={handleResetPassword}
+                                    disabled={loading}
+                                >
+                                    {loading ? (
+                                        <ActivityIndicator color="#FFFFFF" />
+                                    ) : (
+                                        <>
+                                            <Text style={styles.primaryButtonText}>Cambiar contraseña</Text>
+                                            <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                                        </>
                                     )}
                                 </TouchableOpacity>
                             </>
-                        )}
+                        ) : null}
 
-                        {/* Botón volver */}
-                        <TouchableOpacity
-                            style={styles.backButton}
-                            onPress={handleGoBack}
-                            disabled={loading}
-                            activeOpacity={0.7}
-                        >
-                            <Ionicons name="arrow-back" size={20} color={colors.success} />
-                            <Text style={[styles.backButtonText, { color: colors.success }]}>
+                        <TouchableOpacity style={styles.backRow} onPress={handleGoBack} disabled={loading}>
+                            <Ionicons name="arrow-back" size={18} color={theme.brandSoft} />
+                            <Text style={[styles.backText, { color: theme.brandSoft }]}>
                                 {step === 1 ? 'Volver a Login' : 'Paso anterior'}
                             </Text>
                         </TouchableOpacity>
-                    </Animated.View>
+                    </View>
                 </ScrollView>
             </KeyboardAvoidingView>
-        </View>
+        </ScreenWrapper>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8f9fa',
-    },
-    headerBackground: {
-        backgroundColor: '#4BCF5C',
-        paddingTop: 40,
-        paddingBottom: 50,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#4BCF5C',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
-    },
-    headerContent: {
-        alignItems: 'center',
-    },
-    appName: {
-        fontSize: 32,
-        fontWeight: 'bold',
-        color: '#fff',
-        marginTop: 15,
-        letterSpacing: 1,
-    },
-    tagline: {
-        fontSize: 14,
-        color: '#e8f5e9',
-        marginTop: 8,
-        fontWeight: '500',
-    },
-    keyboardView: {
-        flex: 1,
     },
     scrollContent: {
-        paddingHorizontal: 20,
-        paddingVertical: 30,
-        flexGrow: 1,
+        padding: 16,
+        paddingBottom: 40,
     },
-    formContainer: {
-        flex: 1,
-        justifyContent: 'space-between',
+    heroCard: {
+        borderRadius: 18,
+        paddingHorizontal: 18,
+        paddingTop: 20,
+        paddingBottom: 22,
+        marginBottom: 14,
+        overflow: 'hidden',
     },
-    formTitle: {
-        fontSize: 26,
-        fontWeight: 'bold',
-        color: '#333',
-        marginBottom: 8,
+    heroGlowTop: {
+        position: 'absolute',
+        right: -28,
+        top: -34,
+        width: 120,
+        height: 120,
+        borderRadius: 999,
+        backgroundColor: 'rgba(255,255,255,0.1)',
     },
-    formSubtitle: {
-        fontSize: 15,
-        color: '#666',
-        marginBottom: 30,
+    heroGlowBottom: {
+        position: 'absolute',
+        left: -30,
+        bottom: -38,
+        width: 110,
+        height: 110,
+        borderRadius: 999,
+        backgroundColor: 'rgba(0,0,0,0.08)',
     },
-    inputContainer: {
-        marginBottom: 22,
+    heroKicker: {
+        color: 'rgba(255,255,255,0.74)',
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 1,
+        marginTop: 10,
+        marginBottom: 4,
+    },
+    heroTitle: {
+        color: '#FFFFFF',
+        fontSize: 23,
+        fontWeight: '800',
+    },
+    stepPills: {
+        flexDirection: 'row',
+        gap: 8,
+        marginTop: 12,
+    },
+    stepPill: {
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    stepPillText: {
+        color: '#FFFFFF',
+        fontWeight: '700',
+        fontSize: 12,
+    },
+    formCard: {
+        borderRadius: 16,
+        borderWidth: 1,
+        padding: 14,
+    },
+    fieldWrap: {
+        marginBottom: 12,
     },
     label: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: 10,
-        textTransform: 'uppercase',
+        fontSize: 11,
+        fontWeight: '700',
         letterSpacing: 0.5,
+        marginBottom: 6,
     },
-    inputWrapper: {
+    inputRow: {
+        minHeight: 46,
+        borderWidth: 1,
+        borderRadius: 10,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#e0e0e0',
-        paddingHorizontal: 14,
-        height: 52,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
+        paddingHorizontal: 10,
     },
-    inputWrapperError: {
-        borderColor: '#FF3B30',
-    },
-    inputIcon: {
-        marginRight: 12,
+    leftIcon: {
+        marginRight: 8,
     },
     input: {
         flex: 1,
-        fontSize: 15,
-        color: '#333',
-        fontWeight: '500',
+        fontSize: 14,
+        paddingVertical: 10,
     },
-    eyeIcon: {
-        padding: 8,
-        marginLeft: 8,
+    eyeAction: {
+        padding: 6,
     },
-    errorContainer: {
+    errorRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 8,
-        paddingHorizontal: 4,
+        marginTop: 5,
     },
     errorText: {
-        color: '#FF3B30',
         fontSize: 12,
-        fontWeight: '600',
-        marginLeft: 6,
+        marginLeft: 5,
     },
-    timerContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#e8f5e9',
-        paddingVertical: 12,
-        paddingHorizontal: 14,
-        borderRadius: 10,
-        marginTop: 20,
+    helperText: {
+        fontSize: 12,
+        marginBottom: 10,
     },
-    timerText: {
-        fontSize: 14,
-        color: '#333',
-        marginLeft: 10,
-    },
-    timerBold: {
-        fontWeight: 'bold',
-        color: '#4BCF5C',
-    },
-    submitButton: {
-        width: '100%',
-        backgroundColor: '#4BCF5C',
-        paddingVertical: 15,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 20,
-        shadowColor: '#4BCF5C',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.4,
-        shadowRadius: 8,
-        elevation: 6,
-    },
-    disabledButton: {
-        opacity: 0.6,
-    },
-    buttonContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    buttonIcon: {
-        marginLeft: 10,
-    },
-    buttonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-        letterSpacing: 0.5,
-    },
-    loadingContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    resendButton: {
-        paddingVertical: 12,
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    resendText: {
-        color: '#4BCF5C',
-        fontSize: 14,
-        fontWeight: '600',
-        textDecorationLine: 'underline',
-    },
-    resendDisabled: {
-        color: '#999',
+    helperTextCenter: {
         fontSize: 12,
         textAlign: 'center',
-        marginBottom: 20,
-        fontStyle: 'italic',
+        marginTop: 4,
     },
-    backButton: {
+    timerBox: {
         flexDirection: 'row',
-        paddingVertical: 12,
+        alignItems: 'center',
+        borderRadius: 10,
+        paddingVertical: 10,
+        paddingHorizontal: 10,
+        marginBottom: 10,
+    },
+    timerText: {
+        marginLeft: 8,
+        fontSize: 13,
+    },
+    primaryButton: {
+        minHeight: 48,
+        borderRadius: 12,
+        marginTop: 6,
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 10,
+        gap: 8,
     },
-    backButtonText: {
-        color: '#4BCF5C',
-        fontSize: 14,
-        fontWeight: '600',
-        marginLeft: 8,
+    primaryButtonText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '700',
+    },
+    disabled: {
+        opacity: 0.7,
+    },
+    resendText: {
+        textAlign: 'center',
+        marginTop: 10,
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    backRow: {
+        marginTop: 12,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    backText: {
+        fontSize: 13,
+        fontWeight: '700',
+        marginLeft: 6,
     },
 });

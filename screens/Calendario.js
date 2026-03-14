@@ -1,15 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context';
-import { ScreenWrapper, Card, FloatingButton } from '../components';
-import { spacing, typography, borderRadius, lightTheme } from '../constants';
+import { ScreenWrapper } from '../components';
 import NotificationService from './Notificaciones';
 
-// Función para formatear hora (HH:MM a formato 12h)
 const formatTimeDisplay = (hora) => {
     if (!hora) return null;
     const [h, m] = hora.split(':').map(Number);
@@ -19,445 +17,489 @@ const formatTimeDisplay = (hora) => {
     return `${formattedH}:${formattedM} ${ampm}`;
 };
 
-// Componente para mostrar los detalles de la cita
-const CitaDetailItem = ({ cita, onEdit, onDelete, colors }) => (
-    <View style={[styles.detailCard, { backgroundColor: colors.card, borderLeftColor: colors.secondary }]}>
-        <Ionicons name="paw" size={20} color={colors.secondary} style={{ marginRight: spacing.sm }} />
-        <View style={{ flex: 1 }}>
-            <Text style={[styles.detailTextTitle, { color: colors.secondary }]}>Cita Programada</Text>
-            <Text style={[styles.detailText, { color: colors.text }]}>Usuario: {cita.usuario}</Text>
-            <Text style={[styles.detailText, { color: colors.text }]}>Veterinaria: {cita.veterinaria}</Text>
-            {cita.hora && (
-                <Text style={[styles.detailText, { color: colors.text }]}>Hora: {formatTimeDisplay(cita.hora)}</Text>
-            )}
-        </View>
-        <View style={styles.actionButtonsContainer}>
-            <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: `${colors.secondary}15` }]}
-                onPress={() => onEdit(cita)}
-            >
-                <MaterialIcons name="edit" size={20} color={colors.secondary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: `${colors.danger}15` }]}
-                onPress={() => onDelete(cita)}
-            >
-                <MaterialIcons name="delete" size={20} color={colors.danger} />
-            </TouchableOpacity>
-        </View>
-    </View>
-);
-
-// Componente para mostrar detalles de vacunas
-const VacunaDetailItem = ({ vacuna, onEdit, onDelete, colors }) => (
-    <View style={[styles.detailCard, { backgroundColor: colors.card, borderLeftColor: colors.success }]}>
-        <FontAwesome5 name="syringe" size={16} color={colors.success} style={{ marginRight: spacing.sm }} />
-        <View style={{ flex: 1 }}>
-            <Text style={[styles.detailTextTitle, { color: colors.success }]}>Vacuna Aplicada</Text>
-            <Text style={[styles.detailText, { color: colors.text }]}>{vacuna.veterinaria} - {vacuna.usuario}</Text>
-        </View>
-        <View style={styles.actionButtonsContainer}>
-            <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: `${colors.success}15` }]}
-                onPress={() => onEdit(vacuna)}
-            >
-                <MaterialIcons name="edit" size={18} color={colors.success} />
-            </TouchableOpacity>
-            <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: `${colors.danger}15` }]}
-                onPress={() => onDelete(vacuna)}
-            >
-                <MaterialIcons name="delete" size={18} color={colors.danger} />
-            </TouchableOpacity>
-        </View>
-    </View>
-);
-
 export default function Calendario() {
     const navigation = useNavigation();
-    const isFocused = useIsFocused();
-    const { colors: contextColors, t } = useApp();
-    const colors = contextColors || lightTheme;
+    const { colors } = useApp();
+
+    const theme = useMemo(() => ({
+        brand: colors?.primaryDark || '#2F6E4F',
+        brandSoft: colors?.primary || '#43A047',
+        accent: colors?.accent || '#FF7F5A',
+        bg: colors?.backgroundLight || '#F6F8F4',
+        card: colors?.background || '#FFFFFF',
+        border: colors?.border || '#E4E9E5',
+        text: colors?.text || '#22352D',
+        muted: colors?.textMuted || '#5D6E64',
+        danger: colors?.danger || '#E53935',
+        success: colors?.success || '#2E7D32',
+    }), [colors]);
 
     const [selectedDate, setSelectedDate] = useState('');
     const [selectedDayEvents, setSelectedDayEvents] = useState([]);
     const [allCitas, setAllCitas] = useState([]);
     const [markedDatesData, setMarkedDatesData] = useState({});
 
-    // Campañas Fijas
     const FIXED_CAMPANAS = [
         { fecha: '2025-11-20', tipo: 'campaña', nombre: 'Campaña de Desparasitación' },
-        { fecha: '2025-12-15', tipo: 'campaña', nombre: 'Campaña de Vacunación Anual' }
+        { fecha: '2025-12-15', tipo: 'campaña', nombre: 'Campaña de Vacunación Anual' },
     ];
 
-    // --- LÓGICA DE ELIMINACIÓN DE CITA ---
     const deleteCita = async (citaToDelete) => {
         Alert.alert(
-            "Confirmar Eliminación",
-            `¿Estás seguro de que quieres eliminar la cita con ${citaToDelete.veterinaria}?`,
+            'Confirmar eliminación',
+            `¿Eliminar la cita con ${citaToDelete.veterinaria}?`,
             [
-                { text: "Cancelar", style: "cancel" },
+                { text: 'Cancelar', style: 'cancel' },
                 {
-                    text: "Eliminar",
-                    style: "destructive",
+                    text: 'Eliminar', style: 'destructive',
                     onPress: async () => {
                         try {
-                            const citasRaw = await AsyncStorage.getItem('@citas');
-                            const citas = citasRaw ? JSON.parse(citasRaw) : [];
-                            const updatedCitas = citas.filter(c =>
-                                c.fecha !== citaToDelete.fecha ||
-                                c.usuario !== citaToDelete.usuario ||
-                                c.veterinaria !== citaToDelete.veterinaria
+                            const raw = await AsyncStorage.getItem('@citas');
+                            const citas = raw ? JSON.parse(raw) : [];
+                            const updated = citas.filter(c =>
+                                citaToDelete.id != null && c.id != null
+                                    ? c.id !== citaToDelete.id
+                                    : c.fecha !== citaToDelete.fecha ||
+                                    c.usuario !== citaToDelete.usuario ||
+                                    c.veterinaria !== citaToDelete.veterinaria ||
+                                    c.tipo !== 'Cita'
                             );
-                            await AsyncStorage.setItem('@citas', JSON.stringify(updatedCitas));
+                            await AsyncStorage.setItem('@citas', JSON.stringify(updated));
                             if (citaToDelete.id) {
                                 await NotificationService.cancelAppointmentNotification(citaToDelete.id);
                             }
                             await loadCalendarData();
-                            Alert.alert("Éxito", "Cita eliminada correctamente.");
-                        } catch (error) {
-                            Alert.alert("Error", "No se pudo eliminar la cita.");
+                        } catch {
+                            Alert.alert('Error', 'No se pudo eliminar la cita.');
                         }
-                    }
-                }
+                    },
+                },
             ]
         );
-    };
-
-    const editCita = (citaToEdit) => {
-        navigation.navigate('EditarCita', { cita: citaToEdit });
     };
 
     const deleteVacuna = async (vacunaToDelete) => {
         Alert.alert(
-            "Confirmar Eliminación",
-            `¿Estás seguro de que quieres eliminar el registro de vacuna?`,
+            'Confirmar eliminación',
+            '¿Eliminar este registro de vacuna?',
             [
-                { text: "Cancelar", style: "cancel" },
+                { text: 'Cancelar', style: 'cancel' },
                 {
-                    text: "Eliminar",
-                    style: "destructive",
+                    text: 'Eliminar', style: 'destructive',
                     onPress: async () => {
                         try {
-                            const citasRaw = await AsyncStorage.getItem('@citas');
-                            const citas = citasRaw ? JSON.parse(citasRaw) : [];
-                            const updatedCitas = citas.filter(c =>
-                                !(c.fecha === vacunaToDelete.fecha &&
-                                    c.usuario === vacunaToDelete.usuario &&
-                                    c.veterinaria === vacunaToDelete.veterinaria &&
-                                    (c.tipo === 'Vacuna' || c.veterinaria === 'Vacuna Registrada'))
+                            const raw = await AsyncStorage.getItem('@citas');
+                            const citas = raw ? JSON.parse(raw) : [];
+                            const updated = citas.filter(c =>
+                                vacunaToDelete.id != null && c.id != null
+                                    ? c.id !== vacunaToDelete.id
+                                    : !(c.fecha === vacunaToDelete.fecha &&
+                                        c.usuario === vacunaToDelete.usuario &&
+                                        c.veterinaria === vacunaToDelete.veterinaria &&
+                                        (c.tipo === 'Vacuna' || c.veterinaria === 'Vacuna Registrada'))
                             );
-                            await AsyncStorage.setItem('@citas', JSON.stringify(updatedCitas));
+                            await AsyncStorage.setItem('@citas', JSON.stringify(updated));
                             await loadCalendarData();
-                            Alert.alert("Éxito", "Vacuna eliminada correctamente.");
-                        } catch (error) {
-                            Alert.alert("Error", "No se pudo eliminar la vacuna.");
+                        } catch {
+                            Alert.alert('Error', 'No se pudo eliminar la vacuna.');
                         }
-                    }
-                }
+                    },
+                },
             ]
         );
     };
 
-    const editVacuna = (vacunaToEdit) => {
-        navigation.navigate('EditarVacuna', { vacuna: vacunaToEdit });
-    };
-
-    // --- CARGAR DATOS ---
     const loadCalendarData = async () => {
         try {
             const newMarked = {};
-            const allFetchedCitas = [];
+            const allFetched = [];
 
-            // 1. Agregar campañas fijas
-            FIXED_CAMPANAS.forEach(campana => {
-                const date = campana.fecha;
-                if (!newMarked[date]) {
-                    newMarked[date] = { dots: [] };
-                }
-                newMarked[date].dots.push({
-                    key: `campana-${date}`,
-                    color: colors.danger,
-                    selectedDotColor: colors.textWhite
-                });
-                allFetchedCitas.push(campana);
+            FIXED_CAMPANAS.forEach(c => {
+                if (!newMarked[c.fecha]) newMarked[c.fecha] = { dots: [] };
+                newMarked[c.fecha].dots.push({ key: `campana-${c.fecha}`, color: theme.danger, selectedDotColor: '#FFF' });
+                allFetched.push(c);
             });
 
-            // 2. Agregar citas guardadas
-            const citasRaw = await AsyncStorage.getItem('@citas');
-            const citas = citasRaw ? JSON.parse(citasRaw) : [];
+            const raw = await AsyncStorage.getItem('@citas');
+            const citas = raw ? JSON.parse(raw) : [];
 
             citas.forEach(cita => {
                 const date = cita.fecha;
                 if (!date) return;
+                if (!newMarked[date]) newMarked[date] = { dots: [] };
 
-                if (!newMarked[date]) {
-                    newMarked[date] = { dots: [] };
-                }
-
-                const esCitaProgramada = cita.tipo === 'Cita';
+                const esCita = cita.tipo === 'Cita';
                 const esVacuna = cita.tipo === 'Vacuna' || cita.veterinaria === 'Vacuna Registrada';
 
-                if (esCitaProgramada) {
-                    const hasCitaDot = newMarked[date].dots.find(d => d.color === colors.secondary);
-                    if (!hasCitaDot) {
-                        newMarked[date].dots.push({
-                            key: `cita-${date}-${Date.now()}`,
-                            color: colors.secondary,
-                            selectedDotColor: colors.textWhite
-                        });
+                if (esCita) {
+                    if (!newMarked[date].dots.find(d => d.color === theme.brandSoft)) {
+                        newMarked[date].dots.push({ key: `cita-${date}`, color: theme.brandSoft, selectedDotColor: '#FFF' });
                     }
-                    allFetchedCitas.push({ ...cita, tipo: 'cita' });
+                    allFetched.push({ ...cita, tipo: 'cita' });
                 } else if (esVacuna) {
-                    const hasVacunaDot = newMarked[date].dots.find(d => d.color === colors.success);
-                    if (!hasVacunaDot) {
-                        newMarked[date].dots.push({
-                            key: `vacuna-${date}-${Date.now()}`,
-                            color: colors.success,
-                            selectedDotColor: colors.textWhite
-                        });
+                    if (!newMarked[date].dots.find(d => d.color === theme.success)) {
+                        newMarked[date].dots.push({ key: `vacuna-${date}`, color: theme.success, selectedDotColor: '#FFF' });
                     }
-                    allFetchedCitas.push({ ...cita, tipo: 'vacuna' });
+                    allFetched.push({ ...cita, tipo: 'vacuna' });
                 }
             });
 
             setMarkedDatesData(newMarked);
-            setAllCitas(allFetchedCitas);
-        } catch (error) {
-            console.error("Error cargando calendario:", error);
-        }
+            setAllCitas(allFetched);
+        } catch { /* ignore */ }
     };
 
     const handleDayPress = (day) => {
         setSelectedDate(day.dateString);
-        const events = allCitas.filter(item => item.fecha === day.dateString);
-        setSelectedDayEvents(events);
+        setSelectedDayEvents(allCitas.filter(item => item.fecha === day.dateString));
     };
 
     const getDisplayDates = () => {
         const combined = { ...markedDatesData };
         if (selectedDate) {
-            if (!combined[selectedDate]) {
-                combined[selectedDate] = { dots: [] };
-            }
             combined[selectedDate] = {
-                ...combined[selectedDate],
+                ...(combined[selectedDate] || { dots: [] }),
                 selected: true,
-                selectedColor: colors.primary
+                selectedColor: theme.brand,
             };
         }
         return combined;
     };
 
-    useEffect(() => {
-        if (isFocused) {
-            loadCalendarData();
-            setSelectedDate('');
-            setSelectedDayEvents([]);
-        }
-    }, [isFocused]);
+    useFocusEffect(useCallback(() => {
+        loadCalendarData();
+        setSelectedDate('');
+        setSelectedDayEvents([]);
+    }, []));
+
+    const upcomingCount = allCitas.filter(c => c.tipo === 'cita' && c.fecha >= new Date().toISOString().slice(0, 10)).length;
 
     return (
         <ScreenWrapper>
             <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={styles.content}
+                style={{ backgroundColor: theme.bg }}
+                contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                <Card>
-                    <Text style={[styles.title, { color: colors.text }]}>{t.calendar || 'Calendario'}</Text>
-                    <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-                        ¡Aquí puedes ver tus citas programadas y campañas activas!
-                    </Text>
-                </Card>
+                {/* ── Hero ── */}
+                <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
+                    <View style={styles.heroGlowTop} />
+                    <View style={styles.heroGlowBottom} />
+                    <View style={styles.heroTopRow}>
+                        <View>
+                            <Text style={styles.heroKicker}>CALENDARIO</Text>
+                            <Text style={styles.heroTitle}>Tus citas y eventos</Text>
+                        </View>
+                        <TouchableOpacity
+                            style={[styles.heroCtaBtn, { backgroundColor: theme.accent }]}
+                            onPress={() => navigation.navigate('ProgramarCita')}
+                        >
+                            <Ionicons name="add" size={18} color="#FFF" />
+                            <Text style={styles.heroCtaText}>Nueva cita</Text>
+                        </TouchableOpacity>
+                    </View>
 
-                <Calendar
-                    onDayPress={handleDayPress}
-                    markingType={'multi-dot'}
-                    markedDates={getDisplayDates()}
-                    theme={{
-                        backgroundColor: colors.background,
-                        calendarBackground: colors.card,
-                        textSectionTitleColor: colors.text,
-                        dayTextColor: colors.text,
-                        todayTextColor: colors.secondary,
-                        arrowColor: colors.primary,
-                        textDayFontWeight: '500',
-                        selectedDayBackgroundColor: colors.primary,
-                        selectedDayTextColor: colors.textWhite,
-                        monthTextColor: colors.text,
-                        textDisabledColor: colors.textMuted,
-                    }}
-                    style={[styles.calendar, { borderColor: colors.border }]}
-                />
+                    <View style={styles.heroPillRow}>
+                        <View style={styles.heroPill}>
+                            <Ionicons name="calendar-outline" size={13} color="#FFF" />
+                            <Text style={styles.heroPillText}>{upcomingCount} próximas</Text>
+                        </View>
+                        <TouchableOpacity
+                            style={styles.heroPill}
+                            onPress={() => navigation.navigate('ConfirmacionVacuna')}
+                        >
+                            <FontAwesome5 name="syringe" size={11} color="#FFF" />
+                            <Text style={styles.heroPillText}>Registrar vacuna</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
 
-                {/* Detalles del día seleccionado */}
-                {selectedDate && (
-                    <Card style={styles.detailsContainer}>
-                        <Text style={[styles.dateText, { color: colors.text }]}>
-                            Eventos para el <Text style={{ fontWeight: 'bold' }}>{selectedDate}</Text>:
+                {/* ── Calendario ── */}
+                <View style={[styles.calendarCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Calendar
+                        onDayPress={handleDayPress}
+                        markingType="multi-dot"
+                        markedDates={getDisplayDates()}
+                        theme={{
+                            backgroundColor: theme.card,
+                            calendarBackground: theme.card,
+                            textSectionTitleColor: theme.muted,
+                            dayTextColor: theme.text,
+                            todayTextColor: theme.accent,
+                            arrowColor: theme.brand,
+                            textDayFontWeight: '500',
+                            selectedDayBackgroundColor: theme.brand,
+                            selectedDayTextColor: '#FFFFFF',
+                            monthTextColor: theme.text,
+                            textDisabledColor: theme.border,
+                        }}
+                    />
+                </View>
+
+                {/* ── Leyenda ── */}
+                <View style={[styles.legendCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <View style={styles.legendRow}>
+                        <View style={[styles.legendDot, { backgroundColor: theme.brandSoft }]} />
+                        <Text style={[styles.legendText, { color: theme.text }]}>Citas programadas</Text>
+                        <View style={[styles.legendDot, { backgroundColor: theme.success, marginLeft: 16 }]} />
+                        <Text style={[styles.legendText, { color: theme.text }]}>Vacunas aplicadas</Text>
+                        <View style={[styles.legendDot, { backgroundColor: theme.danger, marginLeft: 16 }]} />
+                        <Text style={[styles.legendText, { color: theme.text }]}>Campañas</Text>
+                    </View>
+                </View>
+
+                {/* ── Eventos del día ── */}
+                {selectedDate ? (
+                    <View style={[styles.eventsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <Text style={[styles.eventsTitle, { color: theme.text }]}>
+                            {selectedDate}
                         </Text>
 
                         {selectedDayEvents.length === 0 ? (
-                            <Text style={[styles.noEventsText, { color: colors.textMuted }]}>
-                                No hay eventos programados para esta fecha.
+                            <Text style={[styles.emptyEvents, { color: theme.muted }]}>
+                                Sin eventos para este día.
                             </Text>
                         ) : (
-                            selectedDayEvents.map((event, index) => {
+                            selectedDayEvents.map((event, i) => {
                                 if (event.tipo === 'cita') {
                                     return (
-                                        <CitaDetailItem
-                                            key={`${event.id}-${index}`}
-                                            cita={event}
-                                            onEdit={editCita}
-                                            onDelete={deleteCita}
-                                            colors={colors}
-                                        />
+                                        <View
+                                            key={`cita-${i}`}
+                                            style={[styles.eventRow, { borderColor: theme.border }]}
+                                        >
+                                            <View style={[styles.eventDot, { backgroundColor: theme.brandSoft }]} />
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[styles.eventLabel, { color: theme.brandSoft }]}>Cita programada</Text>
+                                                <Text style={[styles.eventDetail, { color: theme.text }]}>{event.veterinaria}</Text>
+                                                {event.hora ? (
+                                                    <Text style={[styles.eventMeta, { color: theme.muted }]}>{formatTimeDisplay(event.hora)}</Text>
+                                                ) : null}
+                                            </View>
+                                            <View style={styles.eventActions}>
+                                                <TouchableOpacity
+                                                    style={[styles.iconBtn, { backgroundColor: `${theme.brandSoft}18` }]}
+                                                    onPress={() => navigation.navigate('EditarCita', { cita: event })}
+                                                >
+                                                    <MaterialIcons name="edit" size={16} color={theme.brandSoft} />
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={[styles.iconBtn, { backgroundColor: `${theme.danger}18` }]}
+                                                    onPress={() => deleteCita(event)}
+                                                >
+                                                    <MaterialIcons name="delete" size={16} color={theme.danger} />
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
                                     );
                                 } else if (event.tipo === 'campaña') {
                                     return (
-                                        <View key={`campana-${index}`} style={[styles.campaignCard, { borderLeftColor: colors.danger }]}>
-                                            <MaterialIcons name="local-hospital" size={20} color={colors.danger} style={{ marginRight: spacing.sm }} />
-                                            <Text style={[styles.campaignText, { color: colors.danger }]}>
-                                                {event.nombre || '¡Campaña de Vacunación!'}
-                                            </Text>
+                                        <View key={`camp-${i}`} style={[styles.eventRow, { borderColor: theme.border }]}>
+                                            <View style={[styles.eventDot, { backgroundColor: theme.danger }]} />
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[styles.eventLabel, { color: theme.danger }]}>Campaña</Text>
+                                                <Text style={[styles.eventDetail, { color: theme.text }]}>{event.nombre}</Text>
+                                            </View>
+                                            <MaterialIcons name="local-hospital" size={20} color={theme.danger} />
                                         </View>
                                     );
                                 } else if (event.tipo === 'vacuna') {
                                     return (
-                                        <VacunaDetailItem
-                                            key={`vacuna-${index}`}
-                                            vacuna={event}
-                                            onEdit={editVacuna}
-                                            onDelete={deleteVacuna}
-                                            colors={colors}
-                                        />
+                                        <View key={`vac-${i}`} style={[styles.eventRow, { borderColor: theme.border }]}>
+                                            <View style={[styles.eventDot, { backgroundColor: theme.success }]} />
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[styles.eventLabel, { color: theme.success }]}>Vacuna aplicada</Text>
+                                                <Text style={[styles.eventDetail, { color: theme.text }]}>{event.veterinaria}</Text>
+                                            </View>
+                                            <View style={styles.eventActions}>
+                                                <TouchableOpacity
+                                                    style={[styles.iconBtn, { backgroundColor: `${theme.success}18` }]}
+                                                    onPress={() => navigation.navigate('EditarVacuna', { vacuna: event })}
+                                                >
+                                                    <MaterialIcons name="edit" size={16} color={theme.success} />
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={[styles.iconBtn, { backgroundColor: `${theme.danger}18` }]}
+                                                    onPress={() => deleteVacuna(event)}
+                                                >
+                                                    <MaterialIcons name="delete" size={16} color={theme.danger} />
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
                                     );
                                 }
                                 return null;
                             })
                         )}
-                    </Card>
-                )}
-
-                {/* Leyenda */}
-                <Card>
-                    <Text style={[styles.legendTitle, { color: colors.text }]}>Representación de colores</Text>
-                    <View style={styles.legendRow}>
-                        <FontAwesome5 name="circle" size={14} color={colors.danger} />
-                        <Text style={[styles.legendText, { color: colors.text }]}>Campañas de Vacunación</Text>
                     </View>
-                    <View style={styles.legendRow}>
-                        <FontAwesome5 name="circle" size={14} color={colors.secondary} />
-                        <Text style={[styles.legendText, { color: colors.text }]}>Tus Citas Programadas</Text>
-                    </View>
-                    <View style={styles.legendRow}>
-                        <FontAwesome5 name="circle" size={14} color={colors.success} />
-                        <Text style={[styles.legendText, { color: colors.text }]}>Vacunas Aplicadas</Text>
-                    </View>
-                </Card>
+                ) : null}
             </ScrollView>
-
-            {/* Botones flotantes */}
-            <FloatingButton
-                position="left"
-                icon={<Ionicons name="add" size={24} color={colors.text} />}
-                onPress={() => navigation.navigate('ProgramarCita')}
-            />
-            <FloatingButton
-                position="right"
-                icon={<FontAwesome5 name="syringe" size={20} color={colors.text} />}
-                onPress={() => navigation.navigate('ConfirmacionVacuna')}
-            />
         </ScreenWrapper>
     );
 }
 
 const styles = StyleSheet.create({
-    scrollView: {
-        flex: 1,
+    scrollContent: {
+        paddingBottom: 48,
     },
-    content: {
-        padding: spacing.lg,
-        paddingBottom: 100,
-    },
-    title: {
-        ...typography.title,
-        textAlign: 'center',
-        marginBottom: spacing.xs,
-    },
-    subtitle: {
-        ...typography.bodySmall,
-        textAlign: 'center',
-    },
-    calendar: {
-        borderWidth: 1,
-        borderRadius: borderRadius.md,
+    /* Hero */
+    heroCard: {
+        marginHorizontal: 16,
+        borderRadius: 20,
+        paddingHorizontal: 20,
+        paddingTop: 24,
+        paddingBottom: 28,
+        marginBottom: 16,
         overflow: 'hidden',
-        marginBottom: spacing.lg,
     },
-    detailsContainer: {
-        marginTop: spacing.sm,
+    heroGlowTop: {
+        position: 'absolute',
+        right: -28,
+        top: -36,
+        width: 130,
+        height: 130,
+        borderRadius: 999,
+        backgroundColor: 'rgba(255,255,255,0.1)',
     },
-    dateText: {
-        ...typography.subtitle,
-        textAlign: 'center',
-        marginBottom: spacing.md,
+    heroGlowBottom: {
+        position: 'absolute',
+        left: -32,
+        bottom: -40,
+        width: 120,
+        height: 120,
+        borderRadius: 999,
+        backgroundColor: 'rgba(0,0,0,0.08)',
     },
-    noEventsText: {
-        ...typography.body,
-        textAlign: 'center',
-        fontStyle: 'italic',
-        paddingVertical: spacing.md,
+    heroTopRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 16,
     },
-    detailCard: {
+    heroKicker: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: 'rgba(255,255,255,0.7)',
+        letterSpacing: 1.2,
+        marginBottom: 4,
+    },
+    heroTitle: {
+        fontSize: 22,
+        fontWeight: '800',
+        color: '#FFFFFF',
+    },
+    heroCtaBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: spacing.md,
-        borderRadius: borderRadius.sm,
-        marginBottom: spacing.sm,
-        borderLeftWidth: 4,
+        gap: 5,
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+        borderRadius: 20,
     },
-    detailTextTitle: {
-        ...typography.label,
-        marginBottom: spacing.xs,
+    heroCtaText: {
+        color: '#FFFFFF',
+        fontWeight: '700',
+        fontSize: 13,
     },
-    detailText: {
-        ...typography.bodySmall,
+    heroPillRow: {
+        flexDirection: 'row',
+        gap: 10,
     },
-    campaignCard: {
+    heroPill: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255, 59, 48, 0.1)',
-        padding: spacing.md,
-        borderRadius: borderRadius.sm,
-        marginBottom: spacing.sm,
-        borderLeftWidth: 4,
+        gap: 5,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        borderRadius: 20,
+        paddingVertical: 4,
+        paddingHorizontal: 10,
     },
-    campaignText: {
-        ...typography.label,
-        fontWeight: 'bold',
+    heroPillText: {
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: '700',
     },
-    actionButtonsContainer: {
-        flexDirection: 'row',
-        gap: spacing.xs,
+    /* Calendar section */
+    calendarCard: {
+        marginHorizontal: 16,
+        marginBottom: 12,
+        borderRadius: 18,
+        borderWidth: 1,
+        overflow: 'hidden',
     },
-    actionButton: {
-        padding: spacing.xs,
-        borderRadius: borderRadius.sm,
-    },
-    legendTitle: {
-        ...typography.sectionTitle,
-        textAlign: 'center',
-        marginBottom: spacing.md,
+    /* Legend */
+    legendCard: {
+        marginHorizontal: 16,
+        marginBottom: 12,
+        borderRadius: 14,
+        borderWidth: 1,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
     },
     legendRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: spacing.sm,
+        flexWrap: 'wrap',
+        gap: 4,
+    },
+    legendDot: {
+        width: 9,
+        height: 9,
+        borderRadius: 5,
     },
     legendText: {
-        ...typography.body,
-        marginLeft: spacing.sm,
+        fontSize: 12,
+    },
+    /* Events */
+    eventsCard: {
+        marginHorizontal: 16,
+        marginBottom: 12,
+        borderRadius: 16,
+        borderWidth: 1,
+        padding: 16,
+    },
+    eventsTitle: {
+        fontSize: 15,
+        fontWeight: '800',
+        marginBottom: 12,
+    },
+    emptyEvents: {
+        textAlign: 'center',
+        fontSize: 14,
+        fontStyle: 'italic',
+        paddingVertical: 12,
+    },
+    eventRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+    },
+    eventDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+    },
+    eventLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 0.3,
+        marginBottom: 2,
+    },
+    eventDetail: {
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    eventMeta: {
+        fontSize: 12,
+        marginTop: 2,
+    },
+    eventActions: {
+        flexDirection: 'row',
+        gap: 6,
+    },
+    iconBtn: {
+        padding: 6,
+        borderRadius: 10,
     },
 });

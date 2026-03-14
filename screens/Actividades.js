@@ -1,32 +1,77 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { StatusBar } from 'expo-status-bar';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+  StyleSheet,
+} from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context';
+import { ScreenWrapper } from '../components';
 
 export default function Actividades({ route }) {
-  const { colors, t, isDarkMode } = useApp();
+  const { colors } = useApp();
   const mascotaId = route.params?.mascotaId;
 
-  const [rutinas, setRutinas] = useState([{ id: 1, nombre: "Rutina 1", tiempo: "" }]);
+  const [rutinas, setRutinas] = useState([{ id: 1, nombre: 'Rutina 1', tiempo: '' }]);
   const [rutinaActiva, setRutinaActiva] = useState(1);
-  const [cosasEvitar, setCosasEvitar] = useState("");
+  const [cosasEvitar, setCosasEvitar] = useState('');
   const [isEditable, setIsEditable] = useState(false);
 
-  const agregarRutina = () => {
-    const nuevaRutina = {
-      id: Date.now(), // ID REAL único por rutina
-      nombre: `Rutina ${rutinas.length + 1}`,
-      tiempo: "",
+  const storageKey = `@actividades_mascota_${mascotaId}`;
+
+  useEffect(() => {
+    const cargarDatos = async () => {
+      try {
+        const json = await AsyncStorage.getItem(storageKey);
+        if (!json) return;
+
+        const data = JSON.parse(json);
+        const rutinasGuardadas = Array.isArray(data.rutinas) && data.rutinas.length > 0
+          ? data.rutinas
+          : [{ id: 1, nombre: 'Rutina 1', tiempo: '' }];
+
+        setRutinas(rutinasGuardadas);
+        setRutinaActiva(data.rutinaActiva || rutinasGuardadas[0].id);
+        setCosasEvitar(data.cosasEvitar || '');
+      } catch (error) {
+        console.log('Error cargando datos:', error);
+      }
     };
 
-    setRutinas([...rutinas, nuevaRutina]);
-    setRutinaActiva(nuevaRutina.id);
+    if (mascotaId) cargarDatos();
+  }, [mascotaId]);
+
+  const guardarDatos = async () => {
+    try {
+      const data = { rutinas, rutinaActiva, cosasEvitar };
+      await AsyncStorage.setItem(storageKey, JSON.stringify(data));
+      Alert.alert('Guardado', 'Cambios guardados correctamente.');
+      setIsEditable(false);
+    } catch (error) {
+      console.log('Error guardando datos:', error);
+      Alert.alert('Error', 'No se pudieron guardar los cambios.');
+    }
+  };
+
+  const agregarRutina = () => {
+    const nueva = {
+      id: Date.now(),
+      nombre: `Rutina ${rutinas.length + 1}`,
+      tiempo: '',
+    };
+    setRutinas((prev) => [...prev, nueva]);
+    setRutinaActiva(nueva.id);
   };
 
   const borrarRutina = () => {
-    if (rutinas.length === 1) return;
+    if (rutinas.length <= 1) return;
     const nuevas = rutinas.filter((r) => r.id !== rutinaActiva);
     setRutinas(nuevas);
     setRutinaActiva(nuevas[0].id);
@@ -34,272 +79,321 @@ export default function Actividades({ route }) {
 
   const actualizarCampo = (campo, valor) => {
     setRutinas((prev) =>
-      prev.map((r) =>
-        r.id === rutinaActiva ? { ...r, [campo]: valor } : r
-      )
+      prev.map((r) => (r.id === rutinaActiva ? { ...r, [campo]: valor } : r))
     );
   };
 
-  const handleSave = async () => {
-    await guardarDatos();
-    setIsEditable(false);
-  };
+  const rutinaSeleccionada = rutinas.find((r) => r.id === rutinaActiva) || rutinas[0];
 
-  const guardarDatos = async () => {
-    try {
-      const data = {
-        rutinas,
-        rutinaActiva,
-        cosasEvitar,
-      };
-
-      await AsyncStorage.setItem(
-        `@actividades_mascota_${mascotaId}`,
-        JSON.stringify(data)
-      );
-
-      Alert.alert("Cambios guardados", "La información ha sido actualizada.");
-      console.log("Datos guardados ✔");
-
-    } catch (e) {
-      console.log("Error guardando datos:", e);
-      Alert.alert("Error", "No se pudieron guardar los cambios.");
-    }
-  };
-
-  useEffect(() => {
-    const cargarDatos = async () => {
-      try {
-        const json = await AsyncStorage.getItem(`@actividades_mascota_${mascotaId}`);
-        if (json) {
-          const data = JSON.parse(json);
-          setRutinas(data.rutinas || []);
-          setRutinaActiva(data.rutinaActiva || 1);
-          setCosasEvitar(data.cosasEvitar || "");
-        }
-      } catch (e) {
-        console.log("Error cargando datos:", e);
-      }
-    };
-
-    if (mascotaId) {
-      cargarDatos();
-    }
-  }, [mascotaId]);
-
-  const rutinaSeleccionada = rutinas.find((r) => r.id === rutinaActiva);
-  const styles = getStyles(colors);
+  const theme = useMemo(() => ({
+    brand: colors?.primaryDark || '#2F6E4F',
+    brandSoft: colors?.primary || '#43A047',
+    accent: colors?.accent || '#FF8A65',
+    bg: colors?.backgroundLight || '#F6F8F4',
+    card: colors?.background || '#FFFFFF',
+    border: colors?.border || '#E4E9E5',
+    text: colors?.text || '#22352D',
+    muted: colors?.textMuted || '#5D6E64',
+  }), [colors]);
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
-      <ScrollView style={styles.container}>
-
-        {/* Encabezado */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Actividades</Text>
-          <TouchableOpacity onPress={() => setIsEditable(!isEditable)}>
-            <Ionicons name={isEditable ? "close" : "create-outline"} size={30} color={colors.text} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Rutinas */}
-        <Text style={styles.subtitle}>Rutinas</Text>
-        <View style={styles.rutinaSection}>
-          <View style={styles.rutinaMenu}>
-            {rutinas.map((rutina) => (
-              <TouchableOpacity
-                key={rutina.id}
-                style={[
-                  styles.rutinaItem,
-                  rutinaActiva === rutina.id && styles.rutinaActiva,
-                ]}
-                onPress={() => setRutinaActiva(rutina.id)}
-              >
-                <Text style={rutinaActiva === rutina.id ? styles.rutinaTextActiva : styles.rutinaText}>
-                  {rutina.nombre}
-                </Text>
+    <ScreenWrapper showBack>
+      <KeyboardAvoidingView
+        style={[styles.root, { backgroundColor: theme.bg }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
+            <View style={styles.heroGlowTop} />
+            <View style={styles.heroGlowBottom} />
+            <View style={styles.heroHeaderRow}>
+              <Text style={styles.heroKicker}>Plan de actividad</Text>
+              <TouchableOpacity style={styles.toggleBtn} onPress={() => setIsEditable((prev) => !prev)}>
+                <Ionicons name={isEditable ? 'close' : 'create-outline'} size={20} color="#FFFFFF" />
               </TouchableOpacity>
-            ))}
+            </View>
 
-            {isEditable && (
-              <TouchableOpacity style={styles.btnAdd} onPress={agregarRutina}>
-                <Text style={styles.btnAddText}>＋</Text>
-              </TouchableOpacity>
-            )}
+            <Text style={styles.heroTitle}>Rutinas y cuidados</Text>
+            <Text style={styles.heroSubtitle}>Organiza tiempos de paseo, juego y ejercicio para una vida más activa.</Text>
+
+            <View style={styles.pillRow}>
+              <View style={styles.heroPill}>
+                <MaterialCommunityIcons name="run" size={14} color="#FFFFFF" />
+                <Text style={styles.heroPillText}>{rutinas.length} rutinas activas</Text>
+              </View>
+            </View>
           </View>
 
-          <View style={styles.form}>
+          <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Rutinas</Text>
+              {isEditable && (
+                <TouchableOpacity style={[styles.addBtn, { backgroundColor: theme.brand }]} onPress={agregarRutina}>
+                  <Ionicons name="add" size={16} color="#FFFFFF" />
+                  <Text style={styles.addBtnText}>Agregar</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+              {rutinas.map((rutina) => {
+                const active = rutinaActiva === rutina.id;
+                return (
+                  <TouchableOpacity
+                    key={rutina.id}
+                    onPress={() => setRutinaActiva(rutina.id)}
+                    style={[
+                      styles.rutinaChip,
+                      {
+                        backgroundColor: active ? theme.brand : theme.bg,
+                        borderColor: active ? theme.brand : theme.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.rutinaChipText,
+                        { color: active ? '#FFFFFF' : theme.text },
+                      ]}
+                    >
+                      {rutina.nombre || 'Rutina'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <Text style={[styles.label, { color: theme.text }]}>Nombre de la rutina</Text>
             <TextInput
-              style={styles.input}
-              placeholder="Nombre"
-              value={rutinaSeleccionada?.nombre || ""}
+              style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
+              value={rutinaSeleccionada?.nombre || ''}
               editable={isEditable}
-              onChangeText={(text) => actualizarCampo("nombre", text)}
+              onChangeText={(text) => actualizarCampo('nombre', text)}
+              placeholder="Ej: Caminata diaria"
+              placeholderTextColor={theme.muted}
             />
 
+            <Text style={[styles.label, { color: theme.text }]}>Tiempo de actividad</Text>
             <TextInput
-              style={styles.input}
-              placeholder="Tiempo de actividad"
-              value={rutinaSeleccionada?.tiempo || ""}
+              style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
+              value={rutinaSeleccionada?.tiempo || ''}
               editable={isEditable}
-              onChangeText={(text) => actualizarCampo("tiempo", text)}
+              onChangeText={(text) => actualizarCampo('tiempo', text)}
+              placeholder="Ej: 30 minutos"
+              placeholderTextColor={theme.muted}
             />
 
-            {isEditable && (
-              <View style={styles.rowButtons}>
-                <TouchableOpacity style={styles.btnDelete} onPress={borrarRutina}>
-                  <Ionicons name="trash-outline" size={20} color="white" />
+            {isEditable && rutinas.length > 1 && (
+              <View style={styles.actionRow}>
+                <TouchableOpacity style={styles.deleteBtn} onPress={borrarRutina}>
+                  <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
             )}
           </View>
-        </View>
 
-        {/* Cosas a evitar */}
-        <View style={styles.section}>
-          <Text style={styles.subtitle}>Cosas para evitar</Text>
-
-          <TextInput
-            style={styles.textArea}
-            multiline
-            placeholder="Escribe tu lista..."
-            value={cosasEvitar}
-            editable={isEditable}
-            onChangeText={setCosasEvitar}
-          />
+          <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Cosas para evitar</Text>
+            <Text style={[styles.sectionHint, { color: theme.muted }]}>Anota conductas o actividades que deban evitarse.</Text>
+            <TextInput
+              style={[styles.textArea, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
+              multiline
+              value={cosasEvitar}
+              editable={isEditable}
+              onChangeText={setCosasEvitar}
+              placeholder="Ej: Ejercicio intenso en horas de calor"
+              placeholderTextColor={theme.muted}
+            />
+          </View>
 
           {isEditable && (
-            <TouchableOpacity style={styles.btnSave} onPress={handleSave}>
-              <Text style={styles.btnSaveText}>Guardar cambios</Text>
+            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.brand }]} onPress={guardarDatos}>
+              <Text style={styles.saveBtnText}>Guardar cambios</Text>
             </TouchableOpacity>
           )}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </ScreenWrapper>
   );
 }
 
-const getStyles = (colors) => ({
-  container: {
+const styles = StyleSheet.create({
+  root: {
     flex: 1,
-    backgroundColor: colors.background,
-    paddingHorizontal: 20,
-    paddingTop: 40,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 25,
-    borderBottomWidth: 1,
-    borderColor: colors.border,
+  content: {
+    padding: 16,
+    paddingBottom: 30,
   },
-  title: {
-    fontSize: 26,
-    fontWeight: "600",
-    marginBottom: 5,
-    color: colors.text,
+  heroCard: {
+    borderRadius: 20,
+    padding: 16,
+    overflow: 'hidden',
   },
-  subtitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginVertical: 5,
-    marginBottom: 15,
-    color: colors.text,
+  heroGlowTop: {
+    position: 'absolute',
+    right: -30,
+    top: -36,
+    width: 125,
+    height: 125,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  rutinaSection: {
-    flexDirection: "column",
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 10,
-    elevation: 2,
+  heroGlowBottom: {
+    position: 'absolute',
+    left: -32,
+    bottom: -40,
+    width: 115,
+    height: 115,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.08)',
   },
-  rutinaMenu: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-around",
-    marginBottom: 20,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+  heroHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  rutinaItem: {
-    padding: 8,
-    marginVertical: 4,
-    borderRadius: 8,
+  heroKicker: {
+    color: '#CDE2D6',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
-  rutinaActiva: {
-    backgroundColor: "#00ccff9e",
+  toggleBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  rutinaText: {
-    color: colors.textMuted,
+  heroTitle: {
+    marginTop: 8,
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  heroSubtitle: {
+    marginTop: 5,
+    color: '#DFECE5',
     fontSize: 14,
+    lineHeight: 20,
   },
-  rutinaTextActiva: {
-    color: colors.text,
-    fontWeight: "bold",
+  pillRow: {
+    marginTop: 12,
+  },
+  heroPill: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  heroPillText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  sectionCard: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 12,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectionTitle: {
     fontSize: 16,
+    fontWeight: '800',
   },
-  btnAdd: {
+  sectionHint: {
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  addBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  chipsRow: {
     marginTop: 10,
-    alignItems: "center",
+    paddingBottom: 2,
+    gap: 8,
   },
-  btnAddText: {
-    fontSize: 20,
-    color: "#00ccffff",
-    fontWeight: "bold",
+  rutinaChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
-  form: {
-    flex: 1,
-    paddingLeft: 15,
+  rutinaChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  label: {
+    marginTop: 12,
+    marginBottom: 6,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: 10,
-    height: 60,
-    marginBottom: 20,
-    backgroundColor: colors.card,
-    fontSize: 16,
-    color: colors.text,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    fontWeight: '500',
   },
-  btnDelete: {
-    backgroundColor: "#e74c3c",
-    padding: 10,
-    borderRadius: 25,
-    alignItems: "center",
-    marginTop: 5,
-    alignSelf: "flex-end",
+  actionRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
-  section: {
-    marginTop: 20,
+  deleteBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#E74C3C',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   textArea: {
-    height: 120,
+    marginTop: 10,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: 10,
-    backgroundColor: colors.card,
-    fontSize: 16,
-    alignItems: "flex-start",
-    color: colors.text,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 110,
+    textAlignVertical: 'top',
+    fontSize: 14,
+    fontWeight: '500',
   },
-  btnSave: {
-    backgroundColor: colors.primary,
-    borderRadius: 25,
+  saveBtn: {
+    marginTop: 14,
+    borderRadius: 12,
     paddingVertical: 12,
-    alignItems: "center",
-    marginVertical: 30,
+    alignItems: 'center',
   },
-  btnSaveText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
+  saveBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
   },
 });

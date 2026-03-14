@@ -16,6 +16,8 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "openai": "^6.8.1"
+    "openai": "^6.8.1",
+    "react-dom": "19.1.0",
+    "react-native-web": "^0.21.0"
   }
 }

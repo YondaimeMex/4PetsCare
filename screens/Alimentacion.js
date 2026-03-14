@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,22 +8,20 @@ import {
   Platform,
   Alert,
   KeyboardAvoidingView,
-} from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { StatusBar } from 'expo-status-bar';
+  StyleSheet,
+} from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context';
+import { ScreenWrapper } from '../components';
 
 export default function Alimentacion({ route }) {
-  const { colors, t, isDarkMode } = useApp();
+  const { colors } = useApp();
   const { mascotaId } = route.params;
 
-  // ---- ESTADOS ----
   const [data, setData] = useState({
-    recordatorios: [
-      { id: 1, alimentos: "", porcion: "", hora: new Date() },
-    ],
+    recordatorios: [{ id: 1, alimentos: '', porcion: '', hora: new Date() }],
     favoritos: [],
     prohibidos: [],
   });
@@ -31,13 +29,11 @@ export default function Alimentacion({ route }) {
   const [recordatorioActivo, setRecordatorioActivo] = useState(1);
   const [isEditable, setIsEditable] = useState(false);
   const [mostrarPicker, setMostrarPicker] = useState(false);
+  const [favoritos, setFavoritos] = useState(['']);
+  const [prohibidos, setProhibidos] = useState(['']);
 
   const storageKey = `@alimentacion_${mascotaId}`;
-  const [favoritos, setFavoritos] = useState([""]);
-  const [prohibidos, setProhibidos] = useState([""]);
 
-
-  // ---------------------- CARGAR DATOS ----------------------
   useEffect(() => {
     cargarDatos();
   }, []);
@@ -45,64 +41,57 @@ export default function Alimentacion({ route }) {
   const cargarDatos = async () => {
     try {
       const json = await AsyncStorage.getItem(storageKey);
-      if (json) {
-        const d = JSON.parse(json);
-        setData(d);
-        setFavoritos(d.favoritos.length ? d.favoritos : [""]);
-        setProhibidos(d.prohibidos.length ? d.prohibidos : [""]);
-      }
-    } catch (e) {
-      console.log("Error cargando datos:", e);
+      if (!json) return;
+
+      const d = JSON.parse(json);
+      const recordatorios = (d.recordatorios || []).map((r) => ({
+        ...r,
+        hora: r.hora ? new Date(r.hora) : new Date(),
+      }));
+
+      const safeData = {
+        recordatorios: recordatorios.length > 0 ? recordatorios : [{ id: 1, alimentos: '', porcion: '', hora: new Date() }],
+        favoritos: Array.isArray(d.favoritos) ? d.favoritos : [],
+        prohibidos: Array.isArray(d.prohibidos) ? d.prohibidos : [],
+      };
+
+      setData(safeData);
+      setRecordatorioActivo(safeData.recordatorios[0].id);
+      setFavoritos(safeData.favoritos.length ? safeData.favoritos : ['']);
+      setProhibidos(safeData.prohibidos.length ? safeData.prohibidos : ['']);
+    } catch (error) {
+      console.log('Error cargando datos:', error);
     }
   };
 
-  // ---------------------- GUARDAR DATOS ----------------------
   const guardarDatos = async () => {
     try {
       const dataActualizado = {
         ...data,
-        favoritos: favoritos.filter((f) => f.trim() !== ""),
-        prohibidos: prohibidos.filter((p) => p.trim() !== ""),
+        favoritos: favoritos.filter((f) => f.trim() !== ''),
+        prohibidos: prohibidos.filter((p) => p.trim() !== ''),
       };
 
       setData(dataActualizado);
       await AsyncStorage.setItem(storageKey, JSON.stringify(dataActualizado));
-      Alert.alert("✔ Guardado", "Cambios guardados correctamente.");
+      Alert.alert('Guardado', 'Cambios guardados correctamente.');
       setIsEditable(false);
-    } catch (e) {
-      console.log("Error guardando:", e);
+    } catch (error) {
+      console.log('Error guardando:', error);
     }
   };
 
-  // ---------------------- RECORDATORIOS ----------------------
   const agregarRecordatorio = () => {
-    const nuevo = {
-      id: Date.now(),
-      alimentos: "",
-      porcion: "",
-      hora: new Date(),
-    };
-
-    setData({
-      ...data,
-      recordatorios: [...data.recordatorios, nuevo],
-    });
-
+    const nuevo = { id: Date.now(), alimentos: '', porcion: '', hora: new Date() };
+    setData((prev) => ({ ...prev, recordatorios: [...prev.recordatorios, nuevo] }));
     setRecordatorioActivo(nuevo.id);
   };
 
   const borrarRecordatorio = () => {
-    if (data.recordatorios.length === 1) return;
+    if (data.recordatorios.length <= 1) return;
 
-    const nuevos = data.recordatorios.filter(
-      (r) => r.id !== recordatorioActivo
-    );
-
-    setData({
-      ...data,
-      recordatorios: nuevos,
-    });
-
+    const nuevos = data.recordatorios.filter((r) => r.id !== recordatorioActivo);
+    setData((prev) => ({ ...prev, recordatorios: nuevos }));
     setRecordatorioActivo(nuevos[0].id);
   };
 
@@ -115,418 +104,458 @@ export default function Alimentacion({ route }) {
     }));
   };
 
-  const recordatorioActual = data.recordatorios.find(
-    (r) => r.id === recordatorioActivo
-  );
+  const recordatorioActual = data.recordatorios.find((r) => r.id === recordatorioActivo);
 
-  const onChangeHora = (_, selectedDate) => {
-    if (selectedDate) {
-      actualizarCampo("hora", selectedDate);
-    }
+  const onChangeHora = (_event, selectedDate) => {
+    if (selectedDate) actualizarCampo('hora', selectedDate);
     setMostrarPicker(false);
   };
 
   const formatearHora = (date) => {
-    if (!date) return "00:00";
-
-    // Si es string, convertir a Date
-    if (typeof date === "string") {
-      date = new Date(date);
-    }
-
-    const h = date.getHours().toString().padStart(2, "0");
-    const m = date.getMinutes().toString().padStart(2, "0");
+    if (!date) return '00:00';
+    const d = typeof date === 'string' ? new Date(date) : date;
+    const h = d.getHours().toString().padStart(2, '0');
+    const m = d.getMinutes().toString().padStart(2, '0');
     return `${h}:${m}`;
   };
 
-
-  // ---------------------- FAVORITOS y prohibidos ----------------------
-  const agregarFavorito = () => {
-    setFavoritos([...favoritos, ""]);
-  };
-
-  const agregarProhibido = () => {
-    setProhibidos([...prohibidos, ""]);
-  };
+  const agregarFavorito = () => setFavoritos((prev) => [...prev, '']);
+  const agregarProhibido = () => setProhibidos((prev) => [...prev, '']);
 
   const actualizarFavorito = (text, index) => {
-    const copia = [...favoritos];
-    copia[index] = text;
-    setFavoritos(copia);
+    setFavoritos((prev) => {
+      const copia = [...prev];
+      copia[index] = text;
+      return copia;
+    });
   };
 
   const actualizarProhibido = (text, index) => {
-    const copia = [...prohibidos];
-    copia[index] = text;
-    setProhibidos(copia);
+    setProhibidos((prev) => {
+      const copia = [...prev];
+      copia[index] = text;
+      return copia;
+    });
   };
 
+  const eliminarFavorito = (index) => {
+    setFavoritos((prev) => {
+      const copia = prev.filter((_, i) => i !== index);
+      return copia.length > 0 ? copia : [''];
+    });
+  };
 
-  // Alerta si un alimento prohibido aparece en el input
+  const eliminarProhibido = (index) => {
+    setProhibidos((prev) => {
+      const copia = prev.filter((_, i) => i !== index);
+      return copia.length > 0 ? copia : [''];
+    });
+  };
+
   useEffect(() => {
-    if (!recordatorioActual) return;
+    if (!recordatorioActual?.alimentos) return;
 
-    for (let prohibido of data.prohibidos) {
-      if (
-        recordatorioActual.alimentos
-          ?.toLowerCase()
-          .includes(prohibido.toLowerCase())
-      ) {
-        Alert.alert(
-          "⚠ Alimento prohibido",
-          `El alimento "${prohibido}" está en la lista de prohibidos`
-        );
-      }
+    const encontrados = prohibidos.filter(
+      (p) => p.trim() && recordatorioActual.alimentos.toLowerCase().includes(p.toLowerCase())
+    );
+
+    if (encontrados.length > 0) {
+      Alert.alert('Alimento prohibido', `Revisa: ${encontrados.join(', ')}`);
     }
-  }, [recordatorioActual?.alimentos]);
+  }, [recordatorioActual?.alimentos, prohibidos]);
 
-  // ---------------------- UI ----------------------
-  const styles = getStyles(colors);
+  const theme = useMemo(() => ({
+    brand: colors?.primaryDark || '#2F6E4F',
+    brandSoft: colors?.primary || '#43A047',
+    accent: colors?.accent || '#FF8A65',
+    bg: colors?.backgroundLight || '#F6F8F4',
+    card: colors?.background || '#FFFFFF',
+    border: colors?.border || '#E4E9E5',
+    text: colors?.text || '#22352D',
+    muted: colors?.textMuted || '#5D6E64',
+    placeholder: colors?.placeholder || '#9AA89F',
+  }), [colors]);
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 200 }}
-        style={styles.container}
-        keyboardShouldPersistTaps="handled">
-
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Alimentación</Text>
-          <TouchableOpacity onPress={() => setIsEditable(!isEditable)}>
-            <Ionicons
-              name={isEditable ? "close" : "create-outline"}
-              size={28}
-              color={colors.text}
-            />
-          </TouchableOpacity>
-        </View>
-
-        {/* Recordatorios */}
-        <Text style={styles.subtitle}>Planificador de comidas</Text>
-        <View style={styles.section}>
-          <View style={styles.menu}>
-            {data.recordatorios.map((r) => (
-              <TouchableOpacity
-                key={r.id}
-                style={[
-                  styles.item,
-                  recordatorioActivo === r.id && styles.itemActivo,
-                ]}
-                onPress={() => setRecordatorioActivo(r.id)}
-              >
-                <Text style={recordatorioActivo === r.id ? styles.itemTextActivo : styles.itemText}>
-                  Recordatorio
-                </Text>
+    <ScreenWrapper showBack>
+      <KeyboardAvoidingView
+        style={[styles.root, { backgroundColor: theme.bg }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
+            <View style={styles.heroGlowTop} />
+            <View style={styles.heroGlowBottom} />
+            <View style={styles.heroHeaderRow}>
+              <Text style={styles.heroKicker}>Plan nutricional</Text>
+              <TouchableOpacity style={styles.toggleBtn} onPress={() => setIsEditable((prev) => !prev)}>
+                <Ionicons name={isEditable ? 'close' : 'create-outline'} size={20} color="#FFFFFF" />
               </TouchableOpacity>
-            ))}
+            </View>
 
-            {isEditable && (
-              <TouchableOpacity style={styles.btnAdd} onPress={agregarRecordatorio}>
-                <Text style={styles.btnAddText}>+</Text>
-              </TouchableOpacity>
-            )}
+            <Text style={styles.heroTitle}>Alimentación diaria</Text>
+            <Text style={styles.heroSubtitle}>Controla horarios, porciones y alimentos clave para una dieta saludable.</Text>
+
+            <View style={styles.pillRow}>
+              <View style={styles.heroPill}>
+                <MaterialCommunityIcons name="food-apple-outline" size={14} color="#FFFFFF" />
+                <Text style={styles.heroPillText}>{data.recordatorios.length} recordatorios</Text>
+              </View>
+            </View>
           </View>
 
-          {/* Formulario */}
-          <View style={styles.form}>
+          <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Planificador de comidas</Text>
+              {isEditable && (
+                <TouchableOpacity style={[styles.addBtn, { backgroundColor: theme.brand }]} onPress={agregarRecordatorio}>
+                  <Ionicons name="add" size={16} color="#FFFFFF" />
+                  <Text style={styles.addBtnText}>Agregar</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+              {data.recordatorios.map((r, index) => {
+                const active = recordatorioActivo === r.id;
+                return (
+                  <TouchableOpacity
+                    key={r.id}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: active ? theme.brand : theme.bg,
+                        borderColor: active ? theme.brand : theme.border,
+                      },
+                    ]}
+                    onPress={() => setRecordatorioActivo(r.id)}
+                  >
+                    <Text style={[styles.chipText, { color: active ? '#FFFFFF' : theme.text }]}>
+                      Comida {index + 1}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <Text style={[styles.label, { color: theme.text }]}>Alimentos</Text>
             <TextInput
-              style={styles.input}
-              placeholder="Alimentos"
-              value={recordatorioActual?.alimentos}
+              style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
+              placeholder="Ej: Croquetas y pollo"
+              placeholderTextColor={theme.placeholder}
+              value={recordatorioActual?.alimentos || ''}
               editable={isEditable}
-              onChangeText={(t) => actualizarCampo("alimentos", t)}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Porción"
-              placeholderTextColor={colors.placeholder}
-              value={recordatorioActual?.porcion}
-              editable={isEditable}
-              onChangeText={(t) => actualizarCampo("porcion", t)}
+              onChangeText={(t) => actualizarCampo('alimentos', t)}
             />
 
+            <Text style={[styles.label, { color: theme.text }]}>Porción</Text>
+            <TextInput
+              style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
+              placeholder="Ej: 1 taza"
+              placeholderTextColor={theme.placeholder}
+              value={recordatorioActual?.porcion || ''}
+              editable={isEditable}
+              onChangeText={(t) => actualizarCampo('porcion', t)}
+            />
+
+            <Text style={[styles.label, { color: theme.text }]}>Horario</Text>
             <TouchableOpacity
-              style={styles.input}
+              style={[styles.input, styles.timeInput, { borderColor: theme.border, backgroundColor: theme.bg }]}
               onPress={() => isEditable && setMostrarPicker(true)}
+              activeOpacity={0.9}
             >
-              <Text style={{ color: recordatorioActual ? colors.text : colors.placeholder }}>
-                Horario: {formatearHora(recordatorioActual?.hora || new Date())}
-              </Text>
+              <Ionicons name="time-outline" size={18} color={theme.brandSoft} />
+              <Text style={[styles.timeText, { color: theme.text }]}>Horario: {formatearHora(recordatorioActual?.hora || new Date())}</Text>
             </TouchableOpacity>
 
             {mostrarPicker && (
               <DateTimePicker
-                value={
-                  recordatorioActual?.hora
-                    ? new Date(recordatorioActual.hora)
-                    : new Date()
-                }
+                value={recordatorioActual?.hora ? new Date(recordatorioActual.hora) : new Date()}
                 mode="time"
-                is24Hour={true}
+                is24Hour
                 display="default"
-                onChange={onChangeHora} 
+                onChange={onChangeHora}
               />
-
             )}
 
-            {isEditable && (
-              <TouchableOpacity style={styles.btnDelete} onPress={borrarRecordatorio}>
-                <Ionicons name="trash-outline" size={20} color="white" />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* ---------------- FAVORITOS ---------------- */}
-        <View style={{ marginBottom: 20 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={styles.subtitle}>Alimentos favoritos</Text>
-            {isEditable && (
-              <TouchableOpacity style={styles.btnAdd} onPress={agregarFavorito}>
-                <Text style={styles.btnAddText}>＋</Text>
-              </TouchableOpacity>
+            {isEditable && data.recordatorios.length > 1 && (
+              <View style={styles.actionRow}>
+                <TouchableOpacity style={styles.deleteBtn} onPress={borrarRecordatorio}>
+                  <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
             )}
           </View>
 
-          {favoritos.map((fav, i) => (
-            <TextInput
-              key={i}
-              style={styles.input}
-              placeholder="Alimento favorito"
-              placeholderTextColor={colors.placeholder}
-              value={fav}
-              editable={isEditable}
-              onChangeText={(t) => actualizarFavorito(t, i)}
-            />
-          ))}
-        </View>
+          <ListEditor
+            title="Alimentos favoritos"
+            icon="heart-outline"
+            data={favoritos}
+            editable={isEditable}
+            onAdd={agregarFavorito}
+            onUpdate={actualizarFavorito}
+            onDelete={eliminarFavorito}
+            placeholder="Ej: Zanahoria"
+            theme={theme}
+          />
 
-        {/* ---------------- PROHIBIDOS ---------------- */}
-        <View style={{ marginBottom: 20 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={styles.subtitle}>Alimentos prohibidos</Text>
-            {isEditable && (
-              <TouchableOpacity style={styles.btnAdd} onPress={agregarProhibido}>
-                <Text style={styles.btnAddText}>＋</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          {prohibidos.map((p, i) => (
-            <TextInput
-              key={i}
-              style={styles.input}
-              placeholder="Alimento prohibido"
-              placeholderTextColor={colors.placeholder}
-              value={p}
-              editable={isEditable}
-              onChangeText={(t) => actualizarProhibido(t, i)}
-            />
-          ))}
-        </View>
+          <ListEditor
+            title="Alimentos prohibidos"
+            icon="warning-outline"
+            data={prohibidos}
+            editable={isEditable}
+            onAdd={agregarProhibido}
+            onUpdate={actualizarProhibido}
+            onDelete={eliminarProhibido}
+            placeholder="Ej: Chocolate"
+            theme={theme}
+          />
 
-        {isEditable && (
-          <TouchableOpacity onPress={guardarDatos} style={styles.btnSaveSmall}>
-            <Text style={styles.btnSaveSmallText}>Guardar cambios</Text>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+          {isEditable && (
+            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.brand }]} onPress={guardarDatos}>
+              <Text style={styles.saveBtnText}>Guardar cambios</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </ScreenWrapper>
   );
 }
 
-const getStyles = (colors) => ({
-  container: {
+function ListEditor({ title, icon, data, editable, onAdd, onUpdate, onDelete, placeholder, theme }) {
+  return (
+    <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+      <View style={styles.sectionHeaderRow}>
+        <View style={styles.inlineTitle}>
+          <Ionicons name={icon} size={16} color={theme.brandSoft} />
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
+        </View>
+        {editable && (
+          <TouchableOpacity style={[styles.addBtn, { backgroundColor: theme.brand }]} onPress={onAdd}>
+            <Ionicons name="add" size={16} color="#FFFFFF" />
+            <Text style={styles.addBtnText}>Agregar</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {data.map((item, index) => (
+        <View key={`${title}-${index}`} style={styles.listRow}>
+          <TextInput
+            style={[
+              styles.input,
+              styles.listInput,
+              { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg },
+            ]}
+            placeholder={placeholder}
+            placeholderTextColor={theme.placeholder}
+            value={item}
+            editable={editable}
+            onChangeText={(t) => onUpdate(t, index)}
+          />
+          {editable && (
+            <TouchableOpacity style={styles.listDeleteBtn} onPress={() => onDelete(index)}>
+              <Ionicons name="close" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: {
     flex: 1,
-    backgroundColor: colors.background,
-    paddingHorizontal: 20,
-    paddingTop: 40,
   },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 25,
-    borderBottomWidth: 1,
-    borderColor: colors.border,
+  content: {
+    padding: 16,
+    paddingBottom: 30,
   },
-
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 10,
-    color: colors.text,
+  heroCard: {
+    borderRadius: 20,
+    padding: 16,
+    overflow: 'hidden',
   },
-
-  subtitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginVertical: 10,
-    color: colors.text,
+  heroGlowTop: {
+    position: 'absolute',
+    right: -30,
+    top: -36,
+    width: 125,
+    height: 125,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
-
-  section: {
-    flexDirection: "column",
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 10,
-    elevation: 2,
-    marginBottom: 10,
+  heroGlowBottom: {
+    position: 'absolute',
+    left: -32,
+    bottom: -40,
+    width: 115,
+    height: 115,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.08)',
   },
-
-  menu: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-around",
-    marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingBottom: 8,
+  heroHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-
-  item: {
-    padding: 8,
-    borderRadius: 8,
-    marginVertical: 4
+  heroKicker: {
+    color: '#CDE2D6',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
-
-  itemActivo: {
-    backgroundColor: "#ffdd01ff"
+  toggleBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-
-  itemText: {
-    fontSize: 10,
-    color: colors.textMuted,
+  heroTitle: {
+    marginTop: 8,
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
   },
-
-  itemTextActivo: {
-    color: colors.text,
-    fontWeight: "bold",
+  heroSubtitle: {
+    marginTop: 5,
+    color: '#DFECE5',
+    fontSize: 14,
+    lineHeight: 20,
   },
-
-  btnAddText: {
-    fontSize: 22,
-    color: "#ffcc01ff",
-    fontWeight: "bold",
+  pillRow: {
+    marginTop: 12,
   },
-
-  form: {
-    padding: 15,
+  heroPill: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-
+  heroPillText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  sectionCard: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 12,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  inlineTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  addBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  chipsRow: {
+    marginTop: 10,
+    paddingBottom: 2,
+    gap: 8,
+  },
+  chip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  label: {
+    marginTop: 12,
+    marginBottom: 6,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
   input: {
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 20,
-    backgroundColor: colors.card,
-    fontSize: 16,
-    color: colors.text,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    fontWeight: '500',
   },
-
-  rowButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between"
+  timeInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-
-  btnDelete: {
-    backgroundColor: "#e74c3c",
-    padding: 10,
-    borderRadius: 25,
-    alignItems: "center",
-    marginTop: 5,
-    alignSelf: "flex-end",
+  timeText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
-
-  btnDeleteText: {
-    fontSize: 16
+  actionRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
-
-  btnSaveSmall: {
-    backgroundColor: "#ffcc01ff",
-    borderRadius: 25,
-    paddingVertical: 12,
-    alignItems: "center",
-    marginVertical: 30,
+  deleteBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#E74C3C',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-
-  btnSaveSmallText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-
-  card: {
-    width: "48%",
-    height: 120,
-    backgroundColor: colors.card,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-
-  btnCard: {
-    backgroundColor: colors.border,
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 5,
-    marginTop: 8,
-  },
-
-  btnCardText: {
-    color: colors.textMuted,
-    fontSize: 12
-  },
-
-  image: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 10
-  },
-
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  itemRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    backgroundColor: colors.card,
-    padding: 12,
-    marginVertical: 4,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-
-  itemFav: { fontSize: 16, paddingLeft: 5, marginBottom: 5, color: colors.text },
-  itemProhibido: { fontSize: 16, paddingLeft: 5, marginBottom: 5, color: "red" },
-  btnAddItem: {
-    backgroundColor: colors.primary,
-    padding: 10,
-    borderRadius: 8,
-    marginTop: 5,
-    marginBottom: 20,
-    alignItems: "center",
-  },
-  btnAddItemText: { color: "white", fontSize: 16 },
-  btnAdd: {
+  listRow: {
     marginTop: 10,
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  listInput: {
+    flex: 1,
+  },
+  listDeleteBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#E74C3C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveBtn: {
+    marginTop: 14,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  saveBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
   },
 });
 

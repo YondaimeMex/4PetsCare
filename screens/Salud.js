@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,14 +6,15 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-} from "react-native";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { StatusBar } from 'expo-status-bar';
+  StyleSheet,
+} from 'react-native';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context';
+import { ScreenWrapper } from '../components';
 
 export default function Salud({ route }) {
-  const { colors, t, isDarkMode } = useApp();
+  const { colors } = useApp();
   const { mascotaId } = route.params;
 
   const [padecimientos, setPadecimientos] = useState([]);
@@ -21,7 +22,6 @@ export default function Salud({ route }) {
 
   const storageKey = `@salud_${mascotaId}`;
 
-  // Cargar datos
   useEffect(() => {
     cargarDatos();
   }, []);
@@ -29,235 +29,318 @@ export default function Salud({ route }) {
   const cargarDatos = async () => {
     try {
       const json = await AsyncStorage.getItem(storageKey);
-      if (json) {
-        setPadecimientos(JSON.parse(json));
-      }
-    } catch (e) {
-      console.log("Error cargando datos:", e);
+      if (json) setPadecimientos(JSON.parse(json));
+    } catch (error) {
+      console.log('Error cargando datos:', error);
     }
   };
 
-  // Guardar datos
   const guardarDatos = async () => {
     try {
       await AsyncStorage.setItem(storageKey, JSON.stringify(padecimientos));
-      Alert.alert("✔ Guardado", "Cambios guardados correctamente.");
+      Alert.alert('Guardado', 'Cambios guardados correctamente.');
       setIsEditing(false);
-    } catch (e) {
-      console.log("Error guardando datos:", e);
+    } catch (error) {
+      console.log('Error guardando datos:', error);
     }
   };
 
-  // Agregar padecimiento
   const addPadecimiento = () => {
-    const nuevo = {
-      id: Date.now(),
-      nombre: "",
-      sintomas: "",
-      medicamentos: "",
-    };
-    setPadecimientos([nuevo, ...padecimientos]);
+    const nuevo = { id: Date.now(), nombre: '', sintomas: '', medicamentos: '' };
+    setPadecimientos((prev) => [nuevo, ...prev]);
     setIsEditing(true);
   };
 
-  // Eliminar padecimiento
   const eliminarPadecimiento = (id) => {
-    const nuevos = padecimientos.filter((p) => p.id !== id);
-    setPadecimientos(nuevos);
+    setPadecimientos((prev) => prev.filter((p) => p.id !== id));
   };
 
-  // Actualizar campos
   const actualizarCampo = (id, campo, valor) => {
-    setPadecimientos((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, [campo]: valor } : p))
-    );
+    setPadecimientos((prev) => prev.map((p) => (p.id === id ? { ...p, [campo]: valor } : p)));
   };
 
-  const styles = getStyles(colors);
+  const theme = useMemo(() => ({
+    brand: colors?.primaryDark || '#2F6E4F',
+    brandSoft: colors?.primary || '#43A047',
+    accent: colors?.accent || '#FF8A65',
+    bg: colors?.backgroundLight || '#F6F8F4',
+    card: colors?.background || '#FFFFFF',
+    border: colors?.border || '#E4E9E5',
+    text: colors?.text || '#22352D',
+    muted: colors?.textMuted || '#5D6E64',
+  }), [colors]);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 50 }}>
-      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+    <ScreenWrapper showBack>
+      <ScrollView style={[styles.root, { backgroundColor: theme.bg }]} contentContainerStyle={styles.content}>
+        <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
+          <View style={styles.heroHeaderRow}>
+            <Text style={styles.heroKicker}>Historial de salud</Text>
+            <TouchableOpacity style={styles.toggleBtn} onPress={() => setIsEditing((prev) => !prev)}>
+              <Ionicons name={isEditing ? 'close' : 'create-outline'} size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Salud <MaterialIcons name="health-and-safety" size={24} color="black" /></Text>
-        <TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
-          <Ionicons
-            name={isEditing ? "close" : "create-outline"}
-            size={28}
-            color={colors.text}
-          />
-        </TouchableOpacity>
-      </View>
-      <Text style={styles.subtitle}>Padecimientos o enfermedades</Text>
-      {/* Botón agregar */}
-      {isEditing && (
-        <TouchableOpacity style={styles.addButtonContainer} onPress={addPadecimiento}>
-          <Text style={styles.addButtonText}>＋ Agregar </Text>
-        </TouchableOpacity>
-      )}
+          <Text style={styles.heroTitle}>Seguimiento clínico</Text>
+          <Text style={styles.heroSubtitle}>Registra síntomas, diagnósticos y tratamiento para tener control completo.</Text>
 
-
-      {padecimientos.length === 0 && (
-        <Text style={styles.noPadecimientos}>No hay padecimientos agregados</Text>
-      )}
-
-      {padecimientos.map((padecimiento) => (
-        <View key={padecimiento.id} style={styles.card}>
-          {isEditing ? (
-            <>
-
-              <Text style={styles.label}>Nombre del padecimiento</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Nombre del padecimiento"
-                value={padecimiento.nombre}
-                onChangeText={(text) => actualizarCampo(padecimiento.id, "nombre", text)}
-              />
-
-              <Text style={styles.label}>Síntomas</Text>
-              <View style={styles.iconInputContainer}>
-                <MaterialIcons name="healing" size={20} color={colors.textMuted} />
-                <TextInput
-                  style={[styles.input, { flex: 1 }]}
-                  placeholder="Síntomas"
-                  placeholderTextColor={colors.textMuted}
-                  value={padecimiento.sintomas}
-                  onChangeText={(text) => actualizarCampo(padecimiento.id, "sintomas", text)}
-                />
-              </View>
-
-              <Text style={styles.label}>Medicamentos</Text>
-              <View style={styles.iconInputContainer}>
-                <Ionicons name="medkit-outline" size={20} color={colors.textMuted} />
-                <TextInput
-                  style={[styles.input, { flex: 1 }]}
-                  placeholder="Medicamentos"
-                  placeholderTextColor={colors.textMuted}
-                  value={padecimiento.medicamentos}
-                  onChangeText={(text) => actualizarCampo(padecimiento.id, "medicamentos", text)}
-                />
-              </View>
-
-              <View style={styles.rowButtons}>
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => eliminarPadecimiento(padecimiento.id)}
-                >
-                  <Ionicons name="trash-outline" size={20} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            </>
-          ) : (
-            <>
-              <Text style={styles.cardTitle}>{padecimiento.nombre || "Sin nombre"}</Text>
-              <View style={styles.cardRow}>
-                <MaterialIcons name="healing" size={20} color={colors.textMuted} />
-                <Text style={styles.cardText}>{padecimiento.sintomas || "-"}</Text>
-              </View>
-              <View style={styles.cardRow}>
-                <Ionicons name="medkit-outline" size={20} color={colors.textMuted} />
-                <Text style={styles.cardText}>{padecimiento.medicamentos || "-"}</Text>
-              </View>
-            </>
-          )}
+          <View style={styles.pillRow}>
+            <View style={styles.heroPill}>
+              <MaterialIcons name="health-and-safety" size={14} color="#FFFFFF" />
+              <Text style={styles.heroPillText}>{padecimientos.length} registros</Text>
+            </View>
+          </View>
         </View>
-      ))}
 
-      {padecimientos.length > 0 && isEditing && (
-        <TouchableOpacity
-          style={styles.saveButton}
-          onPress={guardarDatos}
-        >
-          <Text style={styles.saveButtonText}>
-            Guardar cambios
-          </Text>
-        </TouchableOpacity>
-      )}
+        {isEditing && (
+          <TouchableOpacity
+            style={[styles.addBtn, { borderColor: theme.brand, backgroundColor: theme.card }]}
+            onPress={addPadecimiento}
+          >
+            <Ionicons name="add-circle-outline" size={18} color={theme.brand} />
+            <Text style={[styles.addBtnText, { color: theme.brand }]}>Agregar padecimiento</Text>
+          </TouchableOpacity>
+        )}
 
-    </ScrollView>
+        {padecimientos.length === 0 && (
+          <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Ionicons name="document-text-outline" size={22} color={theme.accent} />
+            <Text style={[styles.emptyText, { color: theme.muted }]}>Aún no hay padecimientos registrados.</Text>
+          </View>
+        )}
+
+        {padecimientos.map((padecimiento) => (
+          <View key={padecimiento.id} style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            {isEditing ? (
+              <>
+                <Text style={[styles.label, { color: theme.text }]}>Nombre del padecimiento</Text>
+                <TextInput
+                  style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
+                  placeholder="Ej: Dermatitis"
+                  placeholderTextColor={theme.muted}
+                  value={padecimiento.nombre}
+                  onChangeText={(text) => actualizarCampo(padecimiento.id, 'nombre', text)}
+                />
+
+                <Text style={[styles.label, { color: theme.text }]}>Síntomas</Text>
+                <View style={[styles.iconInputWrap, { borderColor: theme.border, backgroundColor: theme.bg }]}>
+                  <MaterialIcons name="healing" size={18} color={theme.muted} />
+                  <TextInput
+                    style={[styles.inputInline, { color: theme.text }]}
+                    placeholder="Ej: Picazón, enrojecimiento"
+                    placeholderTextColor={theme.muted}
+                    value={padecimiento.sintomas}
+                    onChangeText={(text) => actualizarCampo(padecimiento.id, 'sintomas', text)}
+                  />
+                </View>
+
+                <Text style={[styles.label, { color: theme.text }]}>Medicamentos</Text>
+                <View style={[styles.iconInputWrap, { borderColor: theme.border, backgroundColor: theme.bg }]}>
+                  <Ionicons name="medkit-outline" size={18} color={theme.muted} />
+                  <TextInput
+                    style={[styles.inputInline, { color: theme.text }]}
+                    placeholder="Ej: Antiinflamatorio"
+                    placeholderTextColor={theme.muted}
+                    value={padecimiento.medicamentos}
+                    onChangeText={(text) => actualizarCampo(padecimiento.id, 'medicamentos', text)}
+                  />
+                </View>
+
+                <View style={styles.cardActions}>
+                  <TouchableOpacity style={styles.deleteBtn} onPress={() => eliminarPadecimiento(padecimiento.id)}>
+                    <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.cardTitle, { color: theme.text }]}>{padecimiento.nombre || 'Sin nombre'}</Text>
+                <View style={styles.rowInfo}>
+                  <MaterialIcons name="healing" size={16} color={theme.muted} />
+                  <Text style={[styles.rowInfoText, { color: theme.muted }]}>{padecimiento.sintomas || '-'}</Text>
+                </View>
+                <View style={styles.rowInfo}>
+                  <Ionicons name="medkit-outline" size={16} color={theme.muted} />
+                  <Text style={[styles.rowInfoText, { color: theme.muted }]}>{padecimiento.medicamentos || '-'}</Text>
+                </View>
+              </>
+            )}
+          </View>
+        ))}
+
+        {padecimientos.length > 0 && isEditing && (
+          <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.brand }]} onPress={guardarDatos}>
+            <Text style={styles.saveBtnText}>Guardar cambios</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+    </ScreenWrapper>
   );
 }
 
-const getStyles = (colors) => ({
-  container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 40, },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 25,
-    borderBottomWidth: 1,
-    borderColor: colors.border,
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
   },
-  title: { fontSize: 28, fontWeight: "bold", marginBottom: 10, color: colors.text, },
-  subtitle: {
-    fontSize: 18,
-    marginBottom: 20,
-    fontWeight: "600",
-    color: colors.text,
+  content: {
+    padding: 16,
+    paddingBottom: 30,
   },
-  addButtonContainer: {
-    backgroundColor: colors.card,
-    padding: 5,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.success,
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  addButtonText: { color: colors.success, fontWeight: "bold", fontSize: 16 },
-  noPadecimientos: { fontStyle: "italic", color: colors.textMuted, marginVertical: 20, textAlign: "center" },
-  card: {
-    backgroundColor: colors.card,
-    padding: 20,
+  heroCard: {
     borderRadius: 20,
-    marginBottom: 15,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    padding: 16,
   },
-  cardTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 12, color: colors.text, },
-  cardText: { fontSize: 14, marginLeft: 8, color: colors.textMuted },
-  cardRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 10,
+  heroHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  heroKicker: {
+    color: '#CDE2D6',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  toggleBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroTitle: {
+    marginTop: 8,
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  heroSubtitle: {
+    marginTop: 5,
+    color: '#DFECE5',
     fontSize: 14,
-    backgroundColor: colors.card,
-    marginLeft: 10,
-    color: colors.text,
+    lineHeight: 20,
+  },
+  pillRow: {
+    marginTop: 12,
+  },
+  heroPill: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  heroPillText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  addBtn: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  addBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  emptyCard: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 18,
+    alignItems: 'center',
+  },
+  emptyText: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  card: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 12,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 10,
+  },
+  rowInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  rowInfoText: {
+    marginLeft: 8,
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
   },
   label: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 6,
+    marginTop: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 4,
+  },
+  iconInputWrap: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  inputInline: {
+    flex: 1,
+    fontSize: 14,
+    marginLeft: 8,
+    paddingVertical: 4,
+  },
+  cardActions: {
     marginTop: 10,
-    color: colors.text,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
-  iconInputContainer: { flexDirection: "row", alignItems: "center", marginBottom: 10, },
-  deleteButton: {
-    backgroundColor: "#e74c3c",
-    padding: 10,
-    borderRadius: 25,
-    alignItems: "center",
-    marginTop: 5,
-    alignSelf: "flex-end",
+  deleteBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#E74C3C',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  rowButtons: { flexDirection: "row", justifyContent: "flex-end" },
-  saveButton: {
-    marginTop: 20,
-    backgroundColor: colors.success,
-    padding: 15,
-    borderRadius: 25,
-    alignItems: "center",
+  saveBtn: {
+    marginTop: 16,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
   },
-  saveButtonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+  saveBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
 });
 
 

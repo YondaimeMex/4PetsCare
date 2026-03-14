@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     View,
     Text,
@@ -10,196 +10,196 @@ import {
     Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ScreenWrapper, Card } from '../components';
-import { spacing, typography, borderRadius } from '../constants';
+import { ScreenWrapper } from '../components';
 import { useApp } from '../context';
 
-export default function Configuracion() {
-    const { isDarkMode, toggleDarkMode, colors, t, language, changeLanguage, availableLanguages } = useApp();
-    const [languageModalVisible, setLanguageModalVisible] = useState(false);
+function SettingRow({ icon, label, description, right, onPress, border = true, theme }) {
+    const content = (
+        <View style={[styles.settingRow, border && { borderBottomWidth: 1, borderBottomColor: theme.border }]}>
+            <View style={styles.settingLeft}>
+                <View style={[styles.settingIconWrap, { backgroundColor: `${theme.brand}14` }]}>
+                    <Ionicons name={icon} size={18} color={theme.brand} />
+                </View>
+                <View style={styles.settingTextWrap}>
+                    <Text style={[styles.settingLabel, { color: theme.text }]}>{label}</Text>
+                    {description ? <Text style={[styles.settingDescription, { color: theme.muted }]}>{description}</Text> : null}
+                </View>
+            </View>
+            {right}
+        </View>
+    );
 
-    // Obtener el nombre del idioma actual
-    const currentLanguageName = availableLanguages.find(lang => lang.code === language)?.nativeName || 'Español';
+    if (!onPress) return content;
+
+    return (
+        <TouchableOpacity onPress={onPress} activeOpacity={0.75}>
+            {content}
+        </TouchableOpacity>
+    );
+}
+
+export default function Configuracion() {
+    const {
+        isDarkMode,
+        toggleDarkMode,
+        colors,
+        t,
+        language,
+        changeLanguage,
+        availableLanguages,
+    } = useApp();
+
+    const [languageModalVisible, setLanguageModalVisible] = useState(false);
+    const [pushEnabled, setPushEnabled] = useState(true);
+    const [locationEnabled, setLocationEnabled] = useState(true);
+
+    const currentLanguageName =
+        availableLanguages.find((lang) => lang.code === language)?.nativeName || 'Español';
+
+    const theme = useMemo(() => ({
+        brand: colors?.primaryDark || '#2F6E4F',
+        brandSoft: colors?.primary || '#43A047',
+        accent: colors?.accent || '#FF7F5A',
+        bg: colors?.backgroundLight || '#F6F8F4',
+        card: colors?.background || '#FFFFFF',
+        border: colors?.border || '#E4E9E5',
+        text: colors?.text || '#22352D',
+        muted: colors?.textMuted || '#5D6E64',
+        overlay: colors?.overlay || 'rgba(0,0,0,0.35)',
+    }), [colors]);
 
     const handleLanguageSelect = (langCode) => {
         changeLanguage(langCode);
         setLanguageModalVisible(false);
     };
 
-    const styles = createStyles(colors);
-
     return (
         <ScreenWrapper showBack showMenu={false} showProfile={false}>
-            <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={styles.scrollContent}
-            >
-                <Text style={styles.screenTitle}>{t.settings}</Text>
+            <ScrollView style={{ backgroundColor: theme.bg }} contentContainerStyle={styles.scrollContent}>
+                <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
+                    <View style={styles.heroGlowTop} />
+                    <View style={styles.heroGlowBottom} />
+                    <Text style={styles.heroKicker}>CONFIGURACIÓN</Text>
+                    <Text style={styles.heroTitle}>{t.settings || 'Ajustes'}</Text>
+                    <Text style={styles.heroSubtitle}>Personaliza idioma, apariencia y preferencias generales</Text>
+                </View>
 
-                {/* Apariencia */}
-                <Card title={t.appearance}>
-                    <View style={styles.configOption}>
-                        <View style={styles.optionLeft}>
-                            <Ionicons
-                                name={isDarkMode ? 'moon' : 'moon-outline'}
-                                size={24}
-                                color={colors.primary}
+                <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Text style={[styles.sectionTitle, { color: theme.muted }]}>{t.appearance || 'Apariencia'}</Text>
+                    <SettingRow
+                        icon={isDarkMode ? 'moon' : 'moon-outline'}
+                        label={t.darkMode || 'Modo oscuro'}
+                        description={isDarkMode ? (t.enabled || 'Activado') : (t.disabled || 'Desactivado')}
+                        right={
+                            <Switch
+                                value={isDarkMode}
+                                onValueChange={toggleDarkMode}
+                                trackColor={{ false: theme.border, true: `${theme.brand}55` }}
+                                thumbColor={isDarkMode ? theme.brand : '#f4f3f4'}
                             />
-                            <View style={styles.optionTextContainer}>
-                                <Text style={styles.optionLabel}>{t.darkMode}</Text>
-                                <Text style={styles.optionDescription}>
-                                    {isDarkMode ? t.enabled : t.disabled}
-                                </Text>
-                            </View>
-                        </View>
-                        <Switch
-                            value={isDarkMode}
-                            onValueChange={toggleDarkMode}
-                            trackColor={{ false: colors.border, true: colors.primaryLight }}
-                            thumbColor={isDarkMode ? colors.primary : colors.textMuted}
-                        />
-                    </View>
-                </Card>
+                        }
+                        border={false}
+                        theme={theme}
+                    />
+                </View>
 
-                {/* Opciones generales */}
-                <Card title={t.general}>
-                    {/* Notificaciones push */}
-                    <View style={[styles.configOption, styles.configOptionBorder]}>
-                        <View style={styles.optionLeft}>
-                            <Ionicons name="notifications-outline" size={24} color={colors.primary} />
-                            <Text style={styles.optionLabel}>{t.pushNotifications}</Text>
-                        </View>
-                        <Switch
-                            value={true}
-                            onValueChange={() => { }}
-                            trackColor={{ false: colors.border, true: colors.primaryLight }}
-                            thumbColor={colors.primary}
-                        />
-                    </View>
-
-                    {/* Idioma */}
-                    <TouchableOpacity
-                        style={[styles.configOption, styles.configOptionBorder]}
+                <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Text style={[styles.sectionTitle, { color: theme.muted }]}>{t.general || 'General'}</Text>
+                    <SettingRow
+                        icon="notifications-outline"
+                        label={t.pushNotifications || 'Notificaciones push'}
+                        right={
+                            <Switch
+                                value={pushEnabled}
+                                onValueChange={setPushEnabled}
+                                trackColor={{ false: theme.border, true: `${theme.brand}55` }}
+                                thumbColor={pushEnabled ? theme.brand : '#f4f3f4'}
+                            />
+                        }
+                        theme={theme}
+                    />
+                    <SettingRow
+                        icon="language-outline"
+                        label={t.language || 'Idioma'}
+                        description={currentLanguageName}
+                        right={<Ionicons name="chevron-forward" size={18} color={theme.muted} />}
                         onPress={() => setLanguageModalVisible(true)}
-                    >
-                        <View style={styles.optionLeft}>
-                            <Ionicons name="language-outline" size={24} color={colors.primary} />
-                            <Text style={styles.optionLabel}>{t.language}</Text>
-                        </View>
-                        <View style={styles.optionRight}>
-                            <Text style={styles.optionValue}>{currentLanguageName}</Text>
-                            <Ionicons
-                                name="chevron-forward"
-                                size={20}
-                                color={colors.textMuted}
+                        theme={theme}
+                    />
+                    <SettingRow
+                        icon="location-outline"
+                        label={t.location || 'Ubicación'}
+                        right={
+                            <Switch
+                                value={locationEnabled}
+                                onValueChange={setLocationEnabled}
+                                trackColor={{ false: theme.border, true: `${theme.brand}55` }}
+                                thumbColor={locationEnabled ? theme.brand : '#f4f3f4'}
                             />
-                        </View>
-                    </TouchableOpacity>
+                        }
+                        border={false}
+                        theme={theme}
+                    />
+                </View>
 
-                    {/* Ubicación */}
-                    <View style={styles.configOption}>
-                        <View style={styles.optionLeft}>
-                            <Ionicons name="location-outline" size={24} color={colors.primary} />
-                            <Text style={styles.optionLabel}>{t.location}</Text>
-                        </View>
-                        <Switch
-                            value={true}
-                            onValueChange={() => { }}
-                            trackColor={{ false: colors.border, true: colors.primaryLight }}
-                            thumbColor={colors.primary}
-                        />
-                    </View>
-                </Card>
+                <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Text style={[styles.sectionTitle, { color: theme.muted }]}>{t.privacySecurity || 'Privacidad y seguridad'}</Text>
+                    <SettingRow
+                        icon="shield-checkmark-outline"
+                        label={t.privacyPolicy || 'Política de privacidad'}
+                        right={<Ionicons name="chevron-forward" size={18} color={theme.muted} />}
+                        onPress={() => { }}
+                        theme={theme}
+                    />
+                    <SettingRow
+                        icon="document-text-outline"
+                        label={t.termsOfService || 'Términos del servicio'}
+                        right={<Ionicons name="chevron-forward" size={18} color={theme.muted} />}
+                        onPress={() => { }}
+                        border={false}
+                        theme={theme}
+                    />
+                </View>
 
-                {/* Privacidad */}
-                <Card title={t.privacySecurity}>
-                    <TouchableOpacity style={styles.configOption}>
-                        <View style={styles.optionLeft}>
-                            <Ionicons
-                                name="shield-checkmark-outline"
-                                size={24}
-                                color={colors.primary}
-                            />
-                            <Text style={styles.optionLabel}>{t.privacyPolicy}</Text>
-                        </View>
-                        <Ionicons
-                            name="chevron-forward"
-                            size={20}
-                            color={colors.textMuted}
-                        />
-                    </TouchableOpacity>
-
-                    <View style={styles.divider} />
-
-                    <TouchableOpacity style={styles.configOption}>
-                        <View style={styles.optionLeft}>
-                            <Ionicons
-                                name="document-text-outline"
-                                size={24}
-                                color={colors.primary}
-                            />
-                            <Text style={styles.optionLabel}>{t.termsOfService}</Text>
-                        </View>
-                        <Ionicons
-                            name="chevron-forward"
-                            size={20}
-                            color={colors.textMuted}
-                        />
-                    </TouchableOpacity>
-                </Card>
-
-                {/* Información de la app */}
-                <Card title={t.about}>
-                    <View style={styles.aboutSection}>
-                        <Text style={styles.appName}>4PetsCare</Text>
-                        <Text style={styles.appVersion}>{t.version} 1.0.0</Text>
-                        <Text style={styles.appCopyright}>
-                            © 2024 4PetsCare. {t.allRightsReserved}
-                        </Text>
-                    </View>
-                </Card>
+                <View style={[styles.aboutCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Text style={[styles.aboutName, { color: theme.brand }]}>4PetsCare</Text>
+                    <Text style={[styles.aboutVersion, { color: theme.muted }]}>{t.version || 'Versión'} 1.0.0</Text>
+                    <Text style={[styles.aboutCopyright, { color: theme.muted }]}>
+                        © 2026 4PetsCare. {t.allRightsReserved || 'Todos los derechos reservados'}
+                    </Text>
+                </View>
             </ScrollView>
 
-            {/* Modal de selección de idioma */}
             <Modal
                 animationType="fade"
-                transparent={true}
+                transparent
                 visible={languageModalVisible}
                 onRequestClose={() => setLanguageModalVisible(false)}
             >
-                <Pressable
-                    style={styles.modalOverlay}
-                    onPress={() => setLanguageModalVisible(false)}
-                >
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>{t.selectLanguage}</Text>
+                <Pressable style={[styles.modalOverlay, { backgroundColor: theme.overlay }]} onPress={() => setLanguageModalVisible(false)}>
+                    <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <Text style={[styles.modalTitle, { color: theme.text }]}>{t.selectLanguage || 'Selecciona un idioma'}</Text>
 
-                        {availableLanguages.map((lang) => (
-                            <TouchableOpacity
-                                key={lang.code}
-                                style={[
-                                    styles.languageOption,
-                                    language === lang.code && styles.languageOptionSelected
-                                ]}
-                                onPress={() => handleLanguageSelect(lang.code)}
-                            >
-                                <Text style={[
-                                    styles.languageText,
-                                    language === lang.code && styles.languageTextSelected
-                                ]}>
-                                    {lang.nativeName}
-                                </Text>
-                                {language === lang.code && (
-                                    <Ionicons name="checkmark" size={24} color={colors.primary} />
-                                )}
-                            </TouchableOpacity>
-                        ))}
+                        {availableLanguages.map((lang) => {
+                            const active = language === lang.code;
+                            return (
+                                <TouchableOpacity
+                                    key={lang.code}
+                                    style={[
+                                        styles.langRow,
+                                        { borderColor: theme.border },
+                                        active && { backgroundColor: `${theme.brand}14` },
+                                    ]}
+                                    onPress={() => handleLanguageSelect(lang.code)}
+                                >
+                                    <Text style={[styles.langText, { color: active ? theme.brand : theme.text }]}>{lang.nativeName}</Text>
+                                    {active ? <Ionicons name="checkmark" size={18} color={theme.brand} /> : null}
+                                </TouchableOpacity>
+                            );
+                        })}
 
-                        <TouchableOpacity
-                            style={styles.cancelButton}
-                            onPress={() => setLanguageModalVisible(false)}
-                        >
-                            <Text style={styles.cancelButtonText}>{t.cancel}</Text>
+                        <TouchableOpacity style={[styles.modalCloseBtn, { borderTopColor: theme.border }]} onPress={() => setLanguageModalVisible(false)}>
+                            <Text style={[styles.modalCloseText, { color: theme.muted }]}>{t.cancel || 'Cancelar'}</Text>
                         </TouchableOpacity>
                     </View>
                 </Pressable>
@@ -208,130 +208,160 @@ export default function Configuracion() {
     );
 }
 
-const createStyles = (colors) =>
-    StyleSheet.create({
-        scrollView: {
-            flex: 1,
-        },
-        scrollContent: {
-            padding: spacing.lg,
-            paddingBottom: spacing.xxl,
-        },
-        screenTitle: {
-            ...typography.title,
-            textAlign: 'center',
-            marginBottom: spacing.lg,
-            color: colors.text,
-        },
-        configOption: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingVertical: spacing.md,
-        },
-        configOptionBorder: {
-            borderBottomWidth: 1,
-            borderBottomColor: colors.borderLight,
-        },
-        optionLeft: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            flex: 1,
-        },
-        optionTextContainer: {
-            marginLeft: spacing.md,
-        },
-        optionLabel: {
-            ...typography.body,
-            marginLeft: spacing.md,
-            color: colors.text,
-        },
-        optionDescription: {
-            ...typography.caption,
-            color: colors.textMuted,
-            marginTop: 2,
-        },
-        optionRight: {
-            flexDirection: 'row',
-            alignItems: 'center',
-        },
-        optionValue: {
-            ...typography.bodySmall,
-            color: colors.textMuted,
-            marginRight: spacing.xs,
-        },
-        divider: {
-            height: 1,
-            backgroundColor: colors.borderLight,
-        },
-        aboutSection: {
-            alignItems: 'center',
-            paddingVertical: spacing.md,
-        },
-        appName: {
-            ...typography.subtitle,
-            color: colors.primary,
-            marginBottom: spacing.xs,
-        },
-        appVersion: {
-            ...typography.body,
-            color: colors.textMuted,
-            marginBottom: spacing.sm,
-        },
-        appCopyright: {
-            ...typography.caption,
-            color: colors.textMuted,
-            textAlign: 'center',
-        },
-        // Modal styles
-        modalOverlay: {
-            flex: 1,
-            backgroundColor: colors.overlay,
-            justifyContent: 'center',
-            alignItems: 'center',
-        },
-        modalContent: {
-            backgroundColor: colors.background,
-            borderRadius: borderRadius.lg,
-            padding: spacing.lg,
-            width: '80%',
-            maxWidth: 320,
-        },
-        modalTitle: {
-            ...typography.subtitle,
-            color: colors.text,
-            textAlign: 'center',
-            marginBottom: spacing.lg,
-        },
-        languageOption: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingVertical: spacing.md,
-            paddingHorizontal: spacing.md,
-            borderRadius: borderRadius.md,
-            marginBottom: spacing.xs,
-        },
-        languageOptionSelected: {
-            backgroundColor: colors.backgroundLight,
-        },
-        languageText: {
-            ...typography.body,
-            color: colors.text,
-        },
-        languageTextSelected: {
-            color: colors.primary,
-            fontWeight: '600',
-        },
-        cancelButton: {
-            marginTop: spacing.md,
-            paddingVertical: spacing.md,
-            alignItems: 'center',
-            borderTopWidth: 1,
-            borderTopColor: colors.borderLight,
-        },
-        cancelButtonText: {
-            ...typography.body,
-            color: colors.textMuted,
-        },
-    });
+const styles = StyleSheet.create({
+    scrollContent: {
+        padding: 16,
+        paddingBottom: 42,
+    },
+    heroCard: {
+        borderRadius: 18,
+        paddingHorizontal: 18,
+        paddingTop: 20,
+        paddingBottom: 22,
+        marginBottom: 14,
+        overflow: 'hidden',
+    },
+    heroGlowTop: {
+        position: 'absolute',
+        right: -30,
+        top: -35,
+        width: 125,
+        height: 125,
+        borderRadius: 999,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+    },
+    heroGlowBottom: {
+        position: 'absolute',
+        left: -32,
+        bottom: -40,
+        width: 115,
+        height: 115,
+        borderRadius: 999,
+        backgroundColor: 'rgba(0,0,0,0.08)',
+    },
+    heroKicker: {
+        color: 'rgba(255,255,255,0.74)',
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 1,
+        marginBottom: 4,
+    },
+    heroTitle: {
+        color: '#FFFFFF',
+        fontSize: 23,
+        fontWeight: '800',
+    },
+    heroSubtitle: {
+        color: 'rgba(255,255,255,0.78)',
+        fontSize: 13,
+        marginTop: 6,
+        lineHeight: 18,
+    },
+    sectionCard: {
+        borderRadius: 16,
+        borderWidth: 1,
+        paddingHorizontal: 12,
+        marginBottom: 12,
+    },
+    sectionTitle: {
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 0.6,
+        paddingTop: 12,
+        paddingBottom: 4,
+    },
+    settingRow: {
+        minHeight: 58,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    settingLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    settingIconWrap: {
+        width: 34,
+        height: 34,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    settingTextWrap: {
+        marginLeft: 10,
+        flex: 1,
+    },
+    settingLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    settingDescription: {
+        fontSize: 12,
+        marginTop: 2,
+    },
+    aboutCard: {
+        borderRadius: 16,
+        borderWidth: 1,
+        paddingVertical: 18,
+        alignItems: 'center',
+    },
+    aboutName: {
+        fontSize: 19,
+        fontWeight: '800',
+    },
+    aboutVersion: {
+        marginTop: 6,
+        fontSize: 13,
+    },
+    aboutCopyright: {
+        marginTop: 8,
+        fontSize: 12,
+        textAlign: 'center',
+        paddingHorizontal: 10,
+    },
+    modalOverlay: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalCard: {
+        width: '82%',
+        maxWidth: 340,
+        borderRadius: 16,
+        borderWidth: 1,
+        paddingTop: 14,
+    },
+    modalTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        textAlign: 'center',
+        marginBottom: 10,
+    },
+    langRow: {
+        minHeight: 46,
+        marginHorizontal: 12,
+        marginBottom: 8,
+        borderRadius: 10,
+        borderWidth: 1,
+        paddingHorizontal: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    langText: {
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    modalCloseBtn: {
+        marginTop: 4,
+        borderTopWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+    },
+    modalCloseText: {
+        fontSize: 14,
+        fontWeight: '600',
+    },
+});

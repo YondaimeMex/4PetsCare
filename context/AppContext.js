@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { lightTheme, darkTheme } from '../constants/colors';
 import { translations, availableLanguages } from '../constants/translations';
@@ -193,7 +193,7 @@ export function AppProvider({ children }) {
         setNotifications([]);
     }, []);
 
-    const value = {
+    const value = useMemo(() => ({
         // Estado
         isMenuOpen,
         isNotificationsOpen,
@@ -232,7 +232,31 @@ export function AppProvider({ children }) {
 
         // Acciones generales
         closeAll,
-    };
+    }), [
+        isMenuOpen,
+        isNotificationsOpen,
+        notifications,
+        userData,
+        isUserDataLoaded,
+        updateUserData,
+        isDarkMode,
+        isThemeLoaded,
+        toggleDarkMode,
+        colors,
+        language,
+        isLanguageLoaded,
+        changeLanguage,
+        t,
+        translate,
+        toggleMenu,
+        openMenu,
+        closeMenu,
+        toggleNotifications,
+        closeNotifications,
+        addNotification,
+        clearNotifications,
+        closeAll,
+    ]);
 
     return (
         <AppContext.Provider value={value}>

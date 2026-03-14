@@ -1,6 +1,8 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect, useState, createContext } from 'react';
+import { enableFreeze } from 'react-native-screens';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import Login from './screens/Login';
 import Registro from './screens/Registro';
 import Recuperación from './screens/Recuperación';
@@ -21,13 +23,15 @@ import EditarCita from './screens/EditarCita';
 import EditarVacuna from './screens/EditarVacuna';
 import EditarPerfil from './screens/EditarPerfil';
 import Configuracion from './screens/Configuracion';
-import NotificationService from './screens/Notificaciones';
+import './screens/Notificaciones';
 import Mapas from './screens/Mapas';
 import { supabase } from './lib/Supabase';
 import { AppProvider } from './context';
 export const AuthContext = createContext();
 
 const Stack = createNativeStackNavigator();
+
+enableFreeze(true);
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -47,37 +51,27 @@ export default function App() {
   }, []);
 
   if (isLoading) {
-    return null; // O un splash screen
+    return (
+      <View style={styles.splash}>
+        <ActivityIndicator size="large" color="#43A047" />
+      </View>
+    );
   }
 
   return (
     <AppProvider>
       <AuthContext.Provider value={{ isLoggedIn, setIsLoggedIn }}>
         <NavigationContainer>
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Navigator screenOptions={{
+            headerShown: false,
+            freezeOnBlur: true,
+            animation: 'none',
+          }}>
             {!isLoggedIn ? (
               <Stack.Group>
-                <Stack.Screen
-                  name="Login"
-                  component={Login}
-                  options={{
-                    animationEnabled: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="Registro"
-                  component={Registro}
-                  options={{
-                    animationEnabled: true,
-                  }}
-                />
-                <Stack.Screen
-                  name="Recuperación"
-                  component={Recuperación}
-                  options={{
-                    animationEnabled: true,
-                  }}
-                />
+                <Stack.Screen name="Login" component={Login} />
+                <Stack.Screen name="Registro" component={Registro} />
+                <Stack.Screen name="Recuperación" component={Recuperación} />
               </Stack.Group>
             ) : (
               <Stack.Group>
@@ -107,3 +101,12 @@ export default function App() {
     </AppProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  splash: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+});
