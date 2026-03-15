@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useCallback } from 'react';
 import { View, TouchableOpacity, StyleSheet, Text, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -13,8 +13,20 @@ export default function Header({
 }) {
     const navigation = useNavigation();
     const route = useRoute();
-    const { toggleMenu, toggleNotifications, colors: contextColors, notifications, t } = useApp();
+    const { toggleMenu, toggleNotifications, colors: contextColors, notifications, t, registerTutorialTarget } = useApp();
     const colors = contextColors || lightTheme;
+    const menuRef = useRef(null);
+    const profileRef = useRef(null);
+
+    const measureTarget = useCallback((key, ref) => {
+        setTimeout(() => {
+            ref?.current?.measureInWindow((x, y, width, height) => {
+                if (width > 0 && height > 0) {
+                    registerTutorialTarget(key, { x, y, width, height });
+                }
+            });
+        }, 0);
+    }, [registerTutorialTarget]);
 
     const theme = useMemo(() => ({
         brand: colors?.primaryDark || '#2F6E4F',
@@ -29,21 +41,21 @@ export default function Header({
         Perfil: t.profile || 'Perfil',
         Mascotas: t.pets || 'Mascotas',
         RegistroMascota: t.registerPet || 'Registrar mascota',
-        RegistroVeterinaria: 'Registrar veterinaria',
+        RegistroVeterinaria: t.registerVet || 'Registrar veterinaria',
         Calendario: t.calendar || 'Calendario',
-        ProgramarCita: 'Programar cita',
-        EditarCita: 'Editar cita',
-        EditarVacuna: 'Editar vacuna',
-        ConfirmacionVacuna: 'Confirmar vacuna',
-        VacunaRegistrada: 'Vacuna registrada',
+        ProgramarCita: t.scheduleAppointmentTitle || 'Programar cita',
+        EditarCita: t.editAppointment || 'Editar cita',
+        EditarVacuna: t.editVaccine || 'Editar vacuna',
+        ConfirmacionVacuna: t.confirmVaccine || 'Confirmar vacuna',
+        VacunaRegistrada: t.vaccineRegistered || 'Vacuna registrada',
         Consejos: t.tips || 'Consejos',
         Emergencias: t.emergencies || 'Emergencias',
-        Mapas: 'Mapa vet',
-        BuscadorGoogle: 'Buscador',
+        Mapas: t.vetMap || 'Mapa vet',
+        BuscadorGoogle: t.search || 'Buscador',
         Configuracion: t.settings || 'Configuración',
         EditarPerfil: t.editProfile || 'Editar perfil',
-        Recuperación: 'Recuperación',
-        Registro: 'Registro',
+        Recuperación: t.recovery || 'Recuperacion',
+        Registro: t.register || 'Registro',
     };
 
     const title = screenLabels[route.name] || route.name;
@@ -57,7 +69,7 @@ export default function Header({
                         <TouchableOpacity
                             style={[styles.iconButton, { backgroundColor: `${theme.brand}14` }]}
                             onPress={() => navigation.goBack()}
-                            accessibilityLabel="Volver"
+                            accessibilityLabel={t.backAction || 'Volver'}
                         >
                             <Ionicons name="arrow-back" size={20} color={theme.brand} />
                         </TouchableOpacity>
@@ -65,9 +77,11 @@ export default function Header({
 
                     {showMenu && (
                         <TouchableOpacity
+                            ref={menuRef}
                             style={[styles.iconButton, { backgroundColor: `${theme.brand}14` }]}
                             onPress={toggleMenu}
-                            accessibilityLabel="Abrir menú"
+                            onLayout={() => measureTarget('header.menu', menuRef)}
+                            accessibilityLabel={t.openMenuAction || 'Abrir menu'}
                         >
                             <MaterialIcons name="menu" size={20} color={theme.brand} />
                         </TouchableOpacity>
@@ -84,7 +98,7 @@ export default function Header({
                         <TouchableOpacity
                             style={[styles.iconButton, { backgroundColor: `${theme.brand}14` }]}
                             onPress={toggleNotifications}
-                            accessibilityLabel="Ver notificaciones"
+                            accessibilityLabel={t.viewNotificationsAction || 'Ver notificaciones'}
                         >
                             <Ionicons name="notifications-outline" size={20} color={theme.brand} />
                             {notifications.length > 0 ? (
@@ -97,9 +111,11 @@ export default function Header({
 
                     {showProfile && (
                         <TouchableOpacity
+                            ref={profileRef}
                             style={[styles.iconButton, { backgroundColor: `${theme.brand}14` }]}
                             onPress={() => navigation.navigate('Perfil')}
-                            accessibilityLabel="Ir al perfil"
+                            onLayout={() => measureTarget('header.profile', profileRef)}
+                            accessibilityLabel={t.goToProfileAction || 'Ir al perfil'}
                         >
                             <Ionicons name="person-circle-outline" size={20} color={theme.brand} />
                         </TouchableOpacity>

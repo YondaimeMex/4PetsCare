@@ -1,12 +1,12 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Linking } from 'react-native';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenWrapper } from '../components';
 import { useApp } from '../context';
 
-function VetCard({ vet, theme, onCall }) {
+function VetCard({ vet, theme, onCall, t }) {
     return (
         <View style={[styles.vetCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={styles.vetHeader}>
@@ -42,7 +42,7 @@ function VetCard({ vet, theme, onCall }) {
                 onPress={() => onCall(vet.phone)}
             >
                 <Ionicons name="call" size={18} color="#FFFFFF" />
-                <Text style={styles.callBtnText}>Llamar ahora</Text>
+                <Text style={styles.callBtnText}>{t.callNow || 'Llamar ahora'}</Text>
             </TouchableOpacity>
         </View>
     );
@@ -72,9 +72,9 @@ export default function Emergencias() {
             const mapped = data
                 .map((vet, index) => ({
                     id: vet.id ?? `${vet.label || vet.name || 'vet'}-${index}`,
-                    name: vet.label || vet.name || 'Veterinaria sin nombre',
+                    name: vet.label || vet.name || t.unnamedVet || 'Veterinaria sin nombre',
                     phone: vet.numero || vet.phone || '',
-                    address: vet.ubicacion || vet.address || 'Ubicación no disponible',
+                    address: vet.ubicacion || vet.address || t.locationUnavailable || 'Ubicacion no disponible',
                     hours: vet.hours || '',
                 }))
                 .sort((a, b) => a.name.localeCompare(b.name));
@@ -110,19 +110,19 @@ export default function Emergencias() {
                         <View style={styles.heroGlowTop} />
                         <View style={styles.heroGlowBottom} />
                         <Text style={styles.heroKicker}>EMERGENCIAS</Text>
-                        <Text style={styles.heroTitle}>{t.emergencies || 'Atención inmediata'}</Text>
-                        <Text style={styles.heroSubtitle}>{t.emergencyContacts || 'Contactos veterinarios de respaldo'}</Text>
+                        <Text style={styles.heroTitle}>{t.emergencyImmediateTitle || 'Atencion inmediata'}</Text>
+                        <Text style={styles.heroSubtitle}>{t.backupVetContacts || 'Contactos veterinarios de respaldo'}</Text>
                         <View style={styles.heroPills}>
                             <View style={styles.heroPill}>
                                 <Ionicons name="medkit-outline" size={13} color="#FFFFFF" />
-                                <Text style={styles.heroPillText}>{veterinarias.length} registradas</Text>
+                                <Text style={styles.heroPillText}>{veterinarias.length} {t.registeredCount || 'registradas'}</Text>
                             </View>
                             <TouchableOpacity
                                 style={[styles.heroAddBtn, { backgroundColor: theme.accent }]}
                                 onPress={() => navigation.navigate('RegistroVeterinaria')}
                             >
                                 <Ionicons name="add" size={16} color="#FFFFFF" />
-                                <Text style={styles.heroAddText}>Agregar</Text>
+                                <Text style={styles.heroAddText}>{t.add || 'Agregar'}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -130,24 +130,17 @@ export default function Emergencias() {
                 ListEmptyComponent={
                     <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <Ionicons name="medical-outline" size={28} color={theme.muted} />
-                        <Text style={[styles.emptyTitle, { color: theme.text }]}>Sin contactos de emergencia</Text>
+                        <Text style={[styles.emptyTitle, { color: theme.text }]}>{t.noEmergencyContacts || 'Sin contactos de emergencia'}</Text>
                         <Text style={[styles.emptySubtitle, { color: theme.muted }]}>
-                            Registra una veterinaria para tener un acceso rápido en caso urgente.
+                            {t.registerVetForFastAccess || 'Registra una veterinaria para tener un acceso rapido en caso urgente.'}
                         </Text>
                     </View>
                 }
                 renderItem={({ item }) => (
-                    <VetCard vet={item} theme={theme} onCall={handleCall} />
+                    <VetCard vet={item} theme={theme} onCall={handleCall} t={t} />
                 )}
             />
 
-            <TouchableOpacity
-                style={[styles.fab, { backgroundColor: theme.brand }]}
-                onPress={() => navigation.navigate('RegistroVeterinaria')}
-                activeOpacity={0.85}
-            >
-                <MaterialCommunityIcons name="plus" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
         </ScreenWrapper>
     );
 }
@@ -155,7 +148,7 @@ export default function Emergencias() {
 const styles = StyleSheet.create({
     scrollContent: {
         padding: 16,
-        paddingBottom: 88,
+        paddingBottom: 24,
     },
     heroCard: {
         borderRadius: 18,
@@ -299,15 +292,5 @@ const styles = StyleSheet.create({
         fontSize: 13,
         textAlign: 'center',
         lineHeight: 18,
-    },
-    fab: {
-        position: 'absolute',
-        right: 18,
-        bottom: 20,
-        width: 52,
-        height: 52,
-        borderRadius: 26,
-        alignItems: 'center',
-        justifyContent: 'center',
     },
 });

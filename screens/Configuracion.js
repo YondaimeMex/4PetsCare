@@ -10,6 +10,7 @@ import {
     Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { ScreenWrapper } from '../components';
 import { useApp } from '../context';
 
@@ -39,6 +40,7 @@ function SettingRow({ icon, label, description, right, onPress, border = true, t
 }
 
 export default function Configuracion() {
+    const navigation = useNavigation();
     const {
         isDarkMode,
         toggleDarkMode,
@@ -47,6 +49,7 @@ export default function Configuracion() {
         language,
         changeLanguage,
         availableLanguages,
+        queueTutorialStart,
     } = useApp();
 
     const [languageModalVisible, setLanguageModalVisible] = useState(false);
@@ -73,15 +76,20 @@ export default function Configuracion() {
         setLanguageModalVisible(false);
     };
 
+    const handleReplayTutorial = async () => {
+        await queueTutorialStart();
+        navigation.navigate('Home');
+    };
+
     return (
         <ScreenWrapper showBack showMenu={false} showProfile={false}>
             <ScrollView style={{ backgroundColor: theme.bg }} contentContainerStyle={styles.scrollContent}>
                 <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
                     <View style={styles.heroGlowTop} />
                     <View style={styles.heroGlowBottom} />
-                    <Text style={styles.heroKicker}>CONFIGURACIÓN</Text>
+                    <Text style={styles.heroKicker}>{t.configHeroKicker || 'CONFIGURACION'}</Text>
                     <Text style={styles.heroTitle}>{t.settings || 'Ajustes'}</Text>
-                    <Text style={styles.heroSubtitle}>Personaliza idioma, apariencia y preferencias generales</Text>
+                    <Text style={styles.heroSubtitle}>{t.configHeroSubtitle || 'Personaliza idioma, apariencia y preferencias generales'}</Text>
                 </View>
 
                 <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -137,6 +145,14 @@ export default function Configuracion() {
                                 thumbColor={locationEnabled ? theme.brand : '#f4f3f4'}
                             />
                         }
+                        theme={theme}
+                    />
+                    <SettingRow
+                        icon="school-outline"
+                        label={t.tutorialReplayLabel || 'Ver tutorial de la app'}
+                        description={t.tutorialReplayDescription || 'Recorre de nuevo las funciones principales de 4PetsCare.'}
+                        right={<Ionicons name="play-circle-outline" size={20} color={theme.brand} />}
+                        onPress={handleReplayTutorial}
                         border={false}
                         theme={theme}
                     />

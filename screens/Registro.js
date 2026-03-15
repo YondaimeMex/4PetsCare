@@ -69,7 +69,7 @@ function FormField({
 
 export default function Registro() {
     const navigation = useNavigation();
-    const { colors } = useApp();
+    const { colors, t } = useApp();
 
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -103,34 +103,34 @@ export default function Registro() {
         let hasErrors = false;
 
         if (!username.trim()) {
-            setErrors((prev) => ({ ...prev, username: 'El nombre de usuario es obligatorio' }));
+            setErrors((prev) => ({ ...prev, username: t.usernameRequired || 'El nombre de usuario es obligatorio' }));
             hasErrors = true;
         } else if (username.trim().length < 3) {
-            setErrors((prev) => ({ ...prev, username: 'Mínimo 3 caracteres' }));
+            setErrors((prev) => ({ ...prev, username: t.minimumThreeChars || 'Minimo 3 caracteres' }));
             hasErrors = true;
         }
 
         if (!email.trim()) {
-            setErrors((prev) => ({ ...prev, email: 'El correo es obligatorio' }));
+            setErrors((prev) => ({ ...prev, email: t.emailRequiredLogin || 'El correo es obligatorio' }));
             hasErrors = true;
         } else if (!isValidEmail(email)) {
-            setErrors((prev) => ({ ...prev, email: 'Formato de correo inválido' }));
+            setErrors((prev) => ({ ...prev, email: t.invalidEmailFormat || 'Formato de correo invalido' }));
             hasErrors = true;
         }
 
         if (!password) {
-            setErrors((prev) => ({ ...prev, password: 'La contraseña es obligatoria' }));
+            setErrors((prev) => ({ ...prev, password: t.passwordRequiredRegister || 'La contrasena es obligatoria' }));
             hasErrors = true;
         } else if (!isValidPassword(password)) {
-            setErrors((prev) => ({ ...prev, password: 'Mínimo 6 caracteres' }));
+            setErrors((prev) => ({ ...prev, password: t.minimumSixChars || 'Minimo 6 caracteres' }));
             hasErrors = true;
         }
 
         if (!confirmPassword) {
-            setErrors((prev) => ({ ...prev, confirmPassword: 'Confirmar contraseña es obligatorio' }));
+            setErrors((prev) => ({ ...prev, confirmPassword: t.confirmPasswordRequired || 'Confirmar contrasena es obligatorio' }));
             hasErrors = true;
         } else if (password !== confirmPassword) {
-            setErrors((prev) => ({ ...prev, confirmPassword: 'Las contraseñas no coinciden' }));
+            setErrors((prev) => ({ ...prev, confirmPassword: t.passwordsDoNotMatch || 'Las contrasenas no coinciden' }));
             hasErrors = true;
         }
 
@@ -149,14 +149,14 @@ export default function Registro() {
             });
 
             if (error) {
-                Alert.alert('Error', error.message || 'No se pudo completar el registro.');
+                Alert.alert(t.error || 'Error', error.message || t.registerErrorDefault || 'No se pudo completar el registro.');
                 return;
             }
 
             Alert.alert(
-                'Registro exitoso',
-                'Tu cuenta ha sido creada. Ahora puedes iniciar sesión.',
-                [{ text: 'Ir a Login', onPress: () => navigation.goBack() }]
+                t.registerSuccessTitle || 'Registro exitoso',
+                t.registerSuccessMessage || 'Tu cuenta ha sido creada. Ahora puedes iniciar sesion.',
+                [{ text: t.goToLogin || 'Ir a Login', onPress: () => navigation.goBack() }]
             );
 
             setUsername('');
@@ -165,7 +165,7 @@ export default function Registro() {
             setConfirmPassword('');
         } catch (error) {
             console.error(error);
-            Alert.alert('Error', 'No se pudo conectar con el servidor.');
+            Alert.alert(t.error || 'Error', t.serverConnectionErrorWithDot || 'No se pudo conectar con el servidor.');
         } finally {
             setLoading(false);
         }
@@ -184,29 +184,29 @@ export default function Registro() {
                 >
                     <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
                         <Ionicons name="person-add-outline" size={34} color="#FFFFFF" />
-                        <Text style={styles.heroKicker}>NUEVA CUENTA</Text>
-                        <Text style={styles.heroTitle}>Crea tu acceso</Text>
-                        <Text style={styles.heroSubtitle}>Registra tus mascotas y agenda cuidados en minutos</Text>
+                        <Text style={styles.heroKicker}>{t.newAccountKicker || 'NUEVA CUENTA'}</Text>
+                        <Text style={styles.heroTitle}>{t.createAccess || 'Crea tu acceso'}</Text>
+                        <Text style={styles.heroSubtitle}>{t.registerSubtitle || 'Registra tus mascotas y agenda cuidados en minutos'}</Text>
                     </View>
 
                     <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <FormField
-                            label="Usuario"
+                            label={t.username || 'Usuario'}
                             icon="person-outline"
                             value={username}
                             onChangeText={setUsername}
-                            placeholder="Tu nombre de usuario"
+                            placeholder={t.usernamePlaceholder || 'Tu nombre de usuario'}
                             editable={!loading}
                             error={errors.username}
                             theme={theme}
                         />
 
                         <FormField
-                            label="Correo electrónico"
+                            label={t.emailLabel || 'Correo electronico'}
                             icon="mail-outline"
                             value={email}
                             onChangeText={setEmail}
-                            placeholder="tu@correo.com"
+                            placeholder={t.emailPlaceholder || 'tu@correo.com'}
                             keyboardType="email-address"
                             autoCapitalize="none"
                             editable={!loading}
@@ -215,11 +215,11 @@ export default function Registro() {
                         />
 
                         <FormField
-                            label="Contraseña"
+                            label={t.passwordLabel || 'Contrasena'}
                             icon="lock-closed-outline"
                             value={password}
                             onChangeText={setPassword}
-                            placeholder="Mínimo 6 caracteres"
+                            placeholder={t.minimumSixChars || 'Minimo 6 caracteres'}
                             secureTextEntry={!showPassword}
                             editable={!loading}
                             error={errors.password}
@@ -240,11 +240,11 @@ export default function Registro() {
                         />
 
                         <FormField
-                            label="Confirmar contraseña"
+                            label={t.confirmPasswordLabel || 'Confirmar contrasena'}
                             icon="lock-closed-outline"
                             value={confirmPassword}
                             onChangeText={setConfirmPassword}
-                            placeholder="Confirma tu contraseña"
+                            placeholder={t.confirmPasswordPlaceholder || 'Confirma tu contrasena'}
                             secureTextEntry={!showConfirmPassword}
                             editable={!loading}
                             error={errors.confirmPassword}
@@ -274,16 +274,16 @@ export default function Registro() {
                                 <ActivityIndicator color="#FFFFFF" />
                             ) : (
                                 <>
-                                    <Text style={styles.primaryButtonText}>Registrarse</Text>
+                                    <Text style={styles.primaryButtonText}>{t.registerButton || 'Registrarse'}</Text>
                                     <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
                                 </>
                             )}
                         </TouchableOpacity>
 
                         <View style={styles.loginRow}>
-                            <Text style={[styles.loginHint, { color: theme.muted }]}>Ya tienes cuenta?</Text>
+                            <Text style={[styles.loginHint, { color: theme.muted }]}>{t.alreadyHaveAccount || 'Ya tienes cuenta?'}</Text>
                             <TouchableOpacity onPress={() => navigation.goBack()} disabled={loading}>
-                                <Text style={[styles.loginLink, { color: theme.brandSoft }]}> Inicia sesion</Text>
+                                <Text style={[styles.loginLink, { color: theme.brandSoft }]}> {t.signIn || 'Inicia sesion'}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

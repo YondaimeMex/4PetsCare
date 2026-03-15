@@ -15,12 +15,13 @@ import { Calendar } from 'react-native-calendars';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenWrapper } from '../components';
 import { useApp } from '../context';
+import { buildFormTheme, getSingleSelectedMarkedDates } from '../lib/formTheme';
 
 export default function EditarCita() {
     const navigation = useNavigation();
     const route = useRoute();
     const { cita } = route.params || {};
-    const { colors } = useApp();
+    const { colors, t } = useApp();
 
     const [nombreUsuario, setNombreUsuario] = useState('');
     const [nombreVeterinaria, setVeterinaria] = useState('');
@@ -29,17 +30,7 @@ export default function EditarCita() {
     const [loading, setLoading] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-    const theme = useMemo(() => ({
-        brand: colors?.primaryDark || '#2F6E4F',
-        brandSoft: colors?.primary || '#43A047',
-        accent: colors?.accent || '#FF7F5A',
-        bg: colors?.backgroundLight || '#F6F8F4',
-        card: colors?.background || '#FFFFFF',
-        border: colors?.border || '#E4E9E5',
-        text: colors?.text || '#22352D',
-        muted: colors?.textMuted || '#5D6E64',
-        inputBg: colors?.inputBackground || '#F6F8F4',
-    }), [colors]);
+    const theme = useMemo(() => buildFormTheme(colors), [colors]);
 
     useFocusEffect(
         useCallback(() => {
@@ -68,16 +59,11 @@ export default function EditarCita() {
         setIsDropdownOpen(false);
     };
 
-    const getMarkedDates = () => {
-        if (!selectedDate) return {};
-        return {
-            [selectedDate]: { selected: true, selectedColor: theme.brand },
-        };
-    };
+    const getMarkedDates = () => getSingleSelectedMarkedDates(selectedDate, theme.brand);
 
     const handleSave = async () => {
         if (!cita) {
-            Alert.alert('Error', 'No se encontró la cita a editar.');
+            Alert.alert(t.error || 'Error', t.appointmentNotFound || 'No se encontro la cita a editar.');
             return;
         }
 
@@ -85,7 +71,7 @@ export default function EditarCita() {
         const veterinariaLimpia = nombreVeterinaria.trim();
 
         if (!usuarioLimpio || !veterinariaLimpia || !selectedDate) {
-            Alert.alert('Faltan datos', 'Ingresa nombre, veterinaria y fecha.');
+            Alert.alert(t.missingData || 'Faltan datos', t.fillNameVetDate || 'Ingresa nombre, veterinaria y fecha.');
             return;
         }
 
@@ -119,13 +105,13 @@ export default function EditarCita() {
             await AsyncStorage.setItem('@citas', JSON.stringify(updatedCitas));
 
             setLoading(false);
-            Alert.alert('Éxito', `¡Cita actualizada para el ${selectedDate}!`, [
+            Alert.alert(t.success || 'Exito', `${t.appointmentUpdated || 'Cita actualizada para el'} ${selectedDate}!`, [
                 { text: 'OK', onPress: () => navigation.navigate('Calendario') },
             ]);
         } catch (error) {
             console.error('Error guardando cambios:', error);
             setLoading(false);
-            Alert.alert('Error', 'No se pudieron guardar los cambios.');
+            Alert.alert(t.error || 'Error', t.saveChangesError || 'No se pudieron guardar los cambios.');
         }
     };
 
@@ -134,27 +120,27 @@ export default function EditarCita() {
             <View style={[styles.container, { backgroundColor: theme.bg }]}>
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                     <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
-                        <Text style={styles.heroKicker}>CITAS</Text>
-                        <Text style={styles.heroTitle}>Editar cita</Text>
-                        <Text style={styles.heroSubtitle}>Actualiza usuario, clínica y fecha.</Text>
+                        <Text style={styles.heroKicker}>{t.editAppointmentKicker || 'CITAS'}</Text>
+                        <Text style={styles.heroTitle}>{t.editAppointmentTitle || 'Editar cita'}</Text>
+                        <Text style={styles.heroSubtitle}>{t.editAppointmentSubtitle || 'Actualiza usuario, clinica y fecha.'}</Text>
                     </View>
 
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <Text style={[styles.label, { color: theme.muted }]}>Nombre del usuario</Text>
+                        <Text style={[styles.label, { color: theme.muted }]}>{t.userNameLabel || 'Nombre del usuario'}</Text>
                         <View style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
                             <Ionicons name="person-outline" size={18} color={theme.brandSoft} style={styles.leftIcon} />
                             <TextInput
                                 style={[styles.input, { color: theme.text }]}
                                 value={nombreUsuario}
                                 onChangeText={setNombreUsuario}
-                                placeholder="Ej. Gabriel Pérez"
+                                placeholder={t.userNamePlaceholder || 'Ej. Gabriel Perez'}
                                 placeholderTextColor={theme.muted}
                             />
                         </View>
                     </View>
 
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, zIndex: 100 }]}>
-                        <Text style={[styles.label, { color: theme.muted }]}>Veterinaria</Text>
+                        <Text style={[styles.label, { color: theme.muted }]}>{t.vetFallback || 'Veterinaria'}</Text>
                         <TouchableOpacity
                             style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
                             onPress={() => setIsDropdownOpen((prev) => !prev)}
@@ -162,7 +148,7 @@ export default function EditarCita() {
                         >
                             <Ionicons name="business-outline" size={18} color={theme.brandSoft} style={styles.leftIcon} />
                             <Text style={[styles.dropdownValue, { color: nombreVeterinaria ? theme.text : theme.muted }]}>
-                                {nombreVeterinaria || 'Elige una veterinaria'}
+                                {nombreVeterinaria || t.chooseVetPlaceholder || 'Elige una veterinaria'}
                             </Text>
                             <MaterialIcons
                                 name={isDropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
@@ -175,7 +161,7 @@ export default function EditarCita() {
                             <View style={[styles.dropdownList, { backgroundColor: theme.card, borderColor: theme.border }]}>
                                 {veterinarias.length === 0 ? (
                                     <View style={styles.emptyStateBox}>
-                                        <Text style={[styles.emptyStateText, { color: theme.muted }]}>No hay veterinarias guardadas.</Text>
+                                        <Text style={[styles.emptyStateText, { color: theme.muted }]}>{t.noSavedVets || 'No hay veterinarias guardadas.'}</Text>
                                     </View>
                                 ) : (
                                     veterinarias.map((option, index) => (
@@ -193,7 +179,7 @@ export default function EditarCita() {
                     </View>
 
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <Text style={[styles.label, { color: theme.muted }]}>Fecha de la cita</Text>
+                        <Text style={[styles.label, { color: theme.muted }]}>{t.appointmentDateLabel || 'Fecha de la cita'}</Text>
                         <Calendar
                             onDayPress={(day) => setSelectedDate(day.dateString)}
                             markingType="simple"
@@ -211,7 +197,7 @@ export default function EditarCita() {
                             }}
                         />
                         {selectedDate ? (
-                            <Text style={[styles.selectedDateText, { color: theme.brand }]}>Fecha elegida: {selectedDate}</Text>
+                            <Text style={[styles.selectedDateText, { color: theme.brand }]}>{t.chosenDatePrefix || 'Fecha elegida:'} {selectedDate}</Text>
                         ) : null}
                     </View>
 
@@ -225,7 +211,7 @@ export default function EditarCita() {
                         ) : (
                             <>
                                 <Ionicons name="save-outline" size={18} color="#fff" />
-                                <Text style={styles.saveButtonText}>Guardar cambios</Text>
+                                <Text style={styles.saveButtonText}>{t.saveChanges || 'Guardar cambios'}</Text>
                             </>
                         )}
                     </TouchableOpacity>
@@ -235,7 +221,7 @@ export default function EditarCita() {
                         onPress={() => navigation.goBack()}
                         disabled={loading}
                     >
-                        <Text style={[styles.cancelButtonText, { color: theme.text }]}>Cancelar</Text>
+                        <Text style={[styles.cancelButtonText, { color: theme.text }]}>{t.cancel || 'Cancelar'}</Text>
                     </TouchableOpacity>
                 </ScrollView>
             </View>

@@ -16,7 +16,7 @@ import { useApp } from '../context';
 import { ScreenWrapper } from '../components';
 
 export default function Actividades({ route }) {
-  const { colors } = useApp();
+  const { colors, t } = useApp();
   const mascotaId = route.params?.mascotaId;
 
   const [rutinas, setRutinas] = useState([{ id: 1, nombre: 'Rutina 1', tiempo: '' }]);
@@ -35,7 +35,7 @@ export default function Actividades({ route }) {
         const data = JSON.parse(json);
         const rutinasGuardadas = Array.isArray(data.rutinas) && data.rutinas.length > 0
           ? data.rutinas
-          : [{ id: 1, nombre: 'Rutina 1', tiempo: '' }];
+          : [{ id: 1, nombre: `${t.routineDefault || 'Rutina'} 1`, tiempo: '' }];
 
         setRutinas(rutinasGuardadas);
         setRutinaActiva(data.rutinaActiva || rutinasGuardadas[0].id);
@@ -52,18 +52,18 @@ export default function Actividades({ route }) {
     try {
       const data = { rutinas, rutinaActiva, cosasEvitar };
       await AsyncStorage.setItem(storageKey, JSON.stringify(data));
-      Alert.alert('Guardado', 'Cambios guardados correctamente.');
+      Alert.alert(t.savedTitle || 'Guardado', t.savedChangesSuccess || 'Cambios guardados correctamente.');
       setIsEditable(false);
     } catch (error) {
       console.log('Error guardando datos:', error);
-      Alert.alert('Error', 'No se pudieron guardar los cambios.');
+      Alert.alert(t.error || 'Error', t.saveChangesError || 'No se pudieron guardar los cambios.');
     }
   };
 
   const agregarRutina = () => {
     const nueva = {
       id: Date.now(),
-      nombre: `Rutina ${rutinas.length + 1}`,
+      nombre: `${t.routineDefault || 'Rutina'} ${rutinas.length + 1}`,
       tiempo: '',
     };
     setRutinas((prev) => [...prev, nueva]);
@@ -107,30 +107,30 @@ export default function Actividades({ route }) {
             <View style={styles.heroGlowTop} />
             <View style={styles.heroGlowBottom} />
             <View style={styles.heroHeaderRow}>
-              <Text style={styles.heroKicker}>Plan de actividad</Text>
+              <Text style={styles.heroKicker}>{t.activityPlan || 'Plan de actividad'}</Text>
               <TouchableOpacity style={styles.toggleBtn} onPress={() => setIsEditable((prev) => !prev)}>
                 <Ionicons name={isEditable ? 'close' : 'create-outline'} size={20} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.heroTitle}>Rutinas y cuidados</Text>
-            <Text style={styles.heroSubtitle}>Organiza tiempos de paseo, juego y ejercicio para una vida más activa.</Text>
+            <Text style={styles.heroTitle}>{t.routinesAndCare || 'Rutinas y cuidados'}</Text>
+            <Text style={styles.heroSubtitle}>{t.activitiesSubtitle || 'Organiza tiempos de paseo, juego y ejercicio para una vida mas activa.'}</Text>
 
             <View style={styles.pillRow}>
               <View style={styles.heroPill}>
                 <MaterialCommunityIcons name="run" size={14} color="#FFFFFF" />
-                <Text style={styles.heroPillText}>{rutinas.length} rutinas activas</Text>
+                <Text style={styles.heroPillText}>{rutinas.length} {t.activeRoutines || 'rutinas activas'}</Text>
               </View>
             </View>
           </View>
 
           <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={styles.sectionHeaderRow}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Rutinas</Text>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>{t.routinesTitle || 'Rutinas'}</Text>
               {isEditable && (
                 <TouchableOpacity style={[styles.addBtn, { backgroundColor: theme.brand }]} onPress={agregarRutina}>
                   <Ionicons name="add" size={16} color="#FFFFFF" />
-                  <Text style={styles.addBtnText}>Agregar</Text>
+                  <Text style={styles.addBtnText}>{t.add || 'Agregar'}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -156,30 +156,30 @@ export default function Actividades({ route }) {
                         { color: active ? '#FFFFFF' : theme.text },
                       ]}
                     >
-                      {rutina.nombre || 'Rutina'}
+                      {rutina.nombre || t.routineDefault || 'Rutina'}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
 
-            <Text style={[styles.label, { color: theme.text }]}>Nombre de la rutina</Text>
+            <Text style={[styles.label, { color: theme.text }]}>{t.routineNameLabel || 'Nombre de la rutina'}</Text>
             <TextInput
               style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
               value={rutinaSeleccionada?.nombre || ''}
               editable={isEditable}
               onChangeText={(text) => actualizarCampo('nombre', text)}
-              placeholder="Ej: Caminata diaria"
+              placeholder={t.dailyWalkExample || 'Ej: Caminata diaria'}
               placeholderTextColor={theme.muted}
             />
 
-            <Text style={[styles.label, { color: theme.text }]}>Tiempo de actividad</Text>
+            <Text style={[styles.label, { color: theme.text }]}>{t.activityTimeLabel || 'Tiempo de actividad'}</Text>
             <TextInput
               style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
               value={rutinaSeleccionada?.tiempo || ''}
               editable={isEditable}
               onChangeText={(text) => actualizarCampo('tiempo', text)}
-              placeholder="Ej: 30 minutos"
+              placeholder={t.activityTimeExample || 'Ej: 30 minutos'}
               placeholderTextColor={theme.muted}
             />
 
@@ -193,22 +193,22 @@ export default function Actividades({ route }) {
           </View>
 
           <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Cosas para evitar</Text>
-            <Text style={[styles.sectionHint, { color: theme.muted }]}>Anota conductas o actividades que deban evitarse.</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>{t.thingsToAvoid || 'Cosas para evitar'}</Text>
+            <Text style={[styles.sectionHint, { color: theme.muted }]}>{t.avoidHint || 'Anota conductas o actividades que deban evitarse.'}</Text>
             <TextInput
               style={[styles.textArea, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
               multiline
               value={cosasEvitar}
               editable={isEditable}
               onChangeText={setCosasEvitar}
-              placeholder="Ej: Ejercicio intenso en horas de calor"
+              placeholder={t.avoidExample || 'Ej: Ejercicio intenso en horas de calor'}
               placeholderTextColor={theme.muted}
             />
           </View>
 
           {isEditable && (
             <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.brand }]} onPress={guardarDatos}>
-              <Text style={styles.saveBtnText}>Guardar cambios</Text>
+              <Text style={styles.saveBtnText}>{t.saveChanges || 'Guardar cambios'}</Text>
             </TouchableOpacity>
           )}
         </ScrollView>

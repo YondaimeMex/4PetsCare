@@ -92,7 +92,7 @@ export default function EditarPerfil() {
         setIsSaving(false);
 
         if (success) {
-            Alert.alert(t.success, t.profileUpdated, [{ text: 'OK', onPress: () => navigation.goBack() }]);
+            Alert.alert(t.success, t.profileUpdated, [{ text: t.ok || 'OK', onPress: () => navigation.goBack() }]);
         } else {
             Alert.alert(t.error, t.saveError);
         }
@@ -158,9 +158,9 @@ export default function EditarPerfil() {
             <View style={[styles.container, { backgroundColor: theme.bg }]}>
                 <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
                     <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
-                        <Text style={styles.heroKicker}>PERFIL</Text>
+                        <Text style={styles.heroKicker}>{t.profileKicker || 'PERFIL'}</Text>
                         <Text style={styles.heroTitle}>{t.editProfile}</Text>
-                        <Text style={styles.heroSubtitle}>Actualiza tus datos personales y foto de perfil.</Text>
+                        <Text style={styles.heroSubtitle}>{t.editProfileSubtitle || 'Actualiza tus datos personales y foto de perfil.'}</Text>
                     </View>
 
                     <View style={[styles.avatarCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -185,7 +185,7 @@ export default function EditarPerfil() {
                             icon="person-outline"
                             value={formData.name}
                             onChangeText={(value) => handleChange('name', value)}
-                            placeholder="Tu nombre"
+                            placeholder={t.fullNamePlaceholder || 'Tu nombre'}
                             theme={theme}
                         />
 
@@ -215,7 +215,7 @@ export default function EditarPerfil() {
                             icon="location-outline"
                             value={formData.address}
                             onChangeText={(value) => handleChange('address', value)}
-                            placeholder="Tu dirección"
+                            placeholder={t.addressPlaceholder || 'Tu direccion'}
                             theme={theme}
                         />
                     </View>

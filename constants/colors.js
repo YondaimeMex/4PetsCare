@@ -53,51 +53,51 @@ export const lightTheme = {
 // Tema oscuro
 export const darkTheme = {
     // Colores primarios
-    primary: '#4ADE80',        // Verde vibrante para oscuro (mejor contraste)
-    primaryLight: '#86EFAC',
-    primaryDark: '#22C55E',
+    primary: '#5FAF7C',        // Verde de marca en modo oscuro
+    primaryLight: '#7BC394',
+    primaryDark: '#4C8F66',
 
     // Colores secundarios
-    secondary: '#60A5FA',      // Azul vibrante
-    secondaryLight: '#93C5FD',
+    secondary: '#6FA8D6',      // Azul de apoyo para contraste
+    secondaryLight: '#8DBDDF',
 
     // Acento cálido
-    accent: '#FB923C',         // Naranja coral vibrante
+    accent: '#D7BA7D',         // Ámbar suave tipo editor
 
     // Estados
-    warning: '#FBBF24',        // Amarillo dorado
-    danger: '#F87171',         // Rojo suave
-    success: '#4ADE80',        // Verde éxito
+    warning: '#CCA86A',
+    danger: '#D16969',
+    success: '#6A9955',
 
-    // Fondos (con tinte verdoso cálido)
-    background: '#0F1512',     // Negro con tinte verde sutil
-    backgroundLight: '#1A201D',
-    card: '#232B27',           // Gris verdoso para cards
+    // Fondos
+    background: '#1E1E1E',
+    backgroundLight: '#252526',
+    card: '#2D2D30',
 
-    // Texto (mejor jerarquía)
-    text: '#F1F5F3',           // Blanco suave con tinte verde
-    textLight: '#A3B3AB',      // Gris verdoso claro
-    textMuted: '#6B7C73',      // Gris verdoso medio
+    // Texto
+    text: '#D4D4D4',
+    textLight: '#B8B8B8',
+    textMuted: '#9DA3A8',
     textWhite: '#FFFFFF',
-    placeholder: '#AAAAAA',
+    placeholder: '#8B949E',
 
-    // Bordes y sombras (más sutiles)
-    border: '#2E3B35',         // Borde sutil verdoso
-    borderLight: '#252E2A',
+    // Bordes y sombras
+    border: '#3C3C3C',
+    borderLight: '#323233',
     shadow: '#000000',
 
     // Overlay
-    overlay: 'rgba(0, 0, 0, 0.75)',
+    overlay: 'rgba(0, 0, 0, 0.6)',
 
     // Chat
-    chatUser: '#1F3A24',       // Verde oscuro para burbujas del usuario
-    chatBot: '#232B27',
+    chatUser: '#263238',
+    chatBot: '#2D2D30',
 
     // Notificaciones
-    notificationDot: '#F87171',
+    notificationDot: '#D16969',
 
     // Input
-    inputBackground: '#1A201D',
+    inputBackground: '#252526',
 };
 
 // Colores por defecto (tema claro para compatibilidad)

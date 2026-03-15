@@ -28,7 +28,7 @@ function Field({ label, icon, value, onChangeText, placeholder, keyboardType, ma
 
 export default function RegistroVeterinaria() {
     const navigation = useNavigation();
-    const { colors } = useApp();
+    const { colors, t } = useApp();
 
     const [nombreVeterinaria, setNombreVeterinaria] = useState('');
     const [ubiVeterinaria, setUbiVeterinaria] = useState('');
@@ -55,12 +55,12 @@ export default function RegistroVeterinaria() {
         const numeroLimpio = normalizePhone(numero);
 
         if (!nombreLimpio || !ubicacionLimpia) {
-            Alert.alert('Faltan datos', 'Ingresa el nombre y la ubicación.');
+            Alert.alert(t.missingData || 'Faltan datos', t.enterNameAndLocation || 'Ingresa el nombre y la ubicacion.');
             return;
         }
 
         if (numeroLimpio && numeroLimpio.length < 8) {
-            Alert.alert('Número inválido', 'Ingresa un número de teléfono válido.');
+            Alert.alert(t.invalidNumberTitle || 'Numero invalido', t.invalidPhoneMessage || 'Ingresa un numero de telefono valido.');
             return;
         }
 
@@ -85,19 +85,19 @@ export default function RegistroVeterinaria() {
             });
 
             if (alreadyExists) {
-                Alert.alert('Duplicado', 'Esa veterinaria ya está registrada en esa ubicación.');
+                Alert.alert(t.duplicateTitle || 'Duplicado', t.vetAlreadyExists || 'Esa veterinaria ya esta registrada en esa ubicacion.');
                 return;
             }
 
             const actualizada = [...existentes, nuevaVeterinaria];
             await AsyncStorage.setItem('@veterinarias', JSON.stringify(actualizada));
 
-            Alert.alert('Éxito', `Veterinaria "${nombreLimpio}" registrada.`, [
+            Alert.alert(t.success || 'Exito', `${t.vetRegisteredPrefix || 'Veterinaria registrada:'} ${nombreLimpio}`, [
                 { text: 'OK', onPress: () => navigation.goBack() },
             ]);
         } catch (error) {
             console.error(error);
-            Alert.alert('Error', 'No se pudo guardar la veterinaria.');
+            Alert.alert(t.error || 'Error', t.saveVetError || 'No se pudo guardar la veterinaria.');
         }
     };
 
@@ -119,35 +119,35 @@ export default function RegistroVeterinaria() {
                             </TouchableOpacity>
                         </View>
                         <Text style={styles.heroKicker}>VETERINARIAS</Text>
-                        <Text style={styles.heroTitle}>Registrar clínica</Text>
-                        <Text style={styles.heroSubtitle}>Guárdala para usarla en citas y emergencias.</Text>
+                        <Text style={styles.heroTitle}>{t.registerClinic || 'Registrar clinica'}</Text>
+                        <Text style={styles.heroSubtitle}>{t.saveForAppointmentsAndEmergencies || 'Guardala para usarla en citas y emergencias.'}</Text>
                     </View>
 
                     <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <Field
-                            label="Nombre"
+                            label={t.petName || 'Nombre'}
                             icon="business-outline"
                             value={nombreVeterinaria}
                             onChangeText={setNombreVeterinaria}
-                            placeholder="Ej. Veterinaria Luz"
+                            placeholder={t.vetNameExample || 'Ej. Veterinaria Luz'}
                             theme={theme}
                         />
 
                         <Field
-                            label="Ubicación"
+                            label={t.location || 'Ubicacion'}
                             icon="location-outline"
                             value={ubiVeterinaria}
                             onChangeText={setUbiVeterinaria}
-                            placeholder="Ej. López Portillo"
+                            placeholder={t.locationExample || 'Ej. Lopez Portillo'}
                             theme={theme}
                         />
 
                         <Field
-                            label="Número"
+                            label={t.phoneLabel || 'Numero'}
                             icon="call-outline"
                             value={numero}
                             onChangeText={(text) => setNumero(normalizePhone(text))}
-                            placeholder="Ej. 9988776655"
+                            placeholder={t.phoneExample || 'Ej. 9988776655'}
                             keyboardType="numeric"
                             maxLength={15}
                             theme={theme}
@@ -159,11 +159,11 @@ export default function RegistroVeterinaria() {
                             activeOpacity={0.85}
                         >
                             <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
-                            <Text style={styles.saveButtonText}>Guardar veterinaria</Text>
+                            <Text style={styles.saveButtonText}>{t.saveVet || 'Guardar veterinaria'}</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
-                            <Text style={[styles.cancelText, { color: theme.muted }]}>Cancelar</Text>
+                            <Text style={[styles.cancelText, { color: theme.muted }]}>{t.cancel || 'Cancelar'}</Text>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>

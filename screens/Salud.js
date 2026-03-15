@@ -14,7 +14,7 @@ import { useApp } from '../context';
 import { ScreenWrapper } from '../components';
 
 export default function Salud({ route }) {
-  const { colors } = useApp();
+  const { colors, t } = useApp();
   const { mascotaId } = route.params;
 
   const [padecimientos, setPadecimientos] = useState([]);
@@ -38,7 +38,7 @@ export default function Salud({ route }) {
   const guardarDatos = async () => {
     try {
       await AsyncStorage.setItem(storageKey, JSON.stringify(padecimientos));
-      Alert.alert('Guardado', 'Cambios guardados correctamente.');
+      Alert.alert(t.savedTitle || 'Guardado', t.savedChangesSuccess || 'Cambios guardados correctamente.');
       setIsEditing(false);
     } catch (error) {
       console.log('Error guardando datos:', error);
@@ -75,19 +75,19 @@ export default function Salud({ route }) {
       <ScrollView style={[styles.root, { backgroundColor: theme.bg }]} contentContainerStyle={styles.content}>
         <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
           <View style={styles.heroHeaderRow}>
-            <Text style={styles.heroKicker}>Historial de salud</Text>
+            <Text style={styles.heroKicker}>{t.healthHistory || 'Historial de salud'}</Text>
             <TouchableOpacity style={styles.toggleBtn} onPress={() => setIsEditing((prev) => !prev)}>
               <Ionicons name={isEditing ? 'close' : 'create-outline'} size={20} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.heroTitle}>Seguimiento clínico</Text>
-          <Text style={styles.heroSubtitle}>Registra síntomas, diagnósticos y tratamiento para tener control completo.</Text>
+          <Text style={styles.heroTitle}>{t.clinicalTracking || 'Seguimiento clinico'}</Text>
+          <Text style={styles.heroSubtitle}>{t.healthSubtitle || 'Registra sintomas, diagnosticos y tratamiento para tener control completo.'}</Text>
 
           <View style={styles.pillRow}>
             <View style={styles.heroPill}>
               <MaterialIcons name="health-and-safety" size={14} color="#FFFFFF" />
-              <Text style={styles.heroPillText}>{padecimientos.length} registros</Text>
+              <Text style={styles.heroPillText}>{padecimientos.length} {t.recordsCount || 'registros'}</Text>
             </View>
           </View>
         </View>
@@ -98,14 +98,14 @@ export default function Salud({ route }) {
             onPress={addPadecimiento}
           >
             <Ionicons name="add-circle-outline" size={18} color={theme.brand} />
-            <Text style={[styles.addBtnText, { color: theme.brand }]}>Agregar padecimiento</Text>
+            <Text style={[styles.addBtnText, { color: theme.brand }]}>{t.addCondition || 'Agregar padecimiento'}</Text>
           </TouchableOpacity>
         )}
 
         {padecimientos.length === 0 && (
           <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Ionicons name="document-text-outline" size={22} color={theme.accent} />
-            <Text style={[styles.emptyText, { color: theme.muted }]}>Aún no hay padecimientos registrados.</Text>
+            <Text style={[styles.emptyText, { color: theme.muted }]}>{t.noConditionsYet || 'Aun no hay padecimientos registrados.'}</Text>
           </View>
         )}
 
@@ -113,33 +113,33 @@ export default function Salud({ route }) {
           <View key={padecimiento.id} style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
             {isEditing ? (
               <>
-                <Text style={[styles.label, { color: theme.text }]}>Nombre del padecimiento</Text>
+                <Text style={[styles.label, { color: theme.text }]}>{t.conditionNameLabel || 'Nombre del padecimiento'}</Text>
                 <TextInput
                   style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
-                  placeholder="Ej: Dermatitis"
+                  placeholder={t.dermatitisExample || 'Ej: Dermatitis'}
                   placeholderTextColor={theme.muted}
                   value={padecimiento.nombre}
                   onChangeText={(text) => actualizarCampo(padecimiento.id, 'nombre', text)}
                 />
 
-                <Text style={[styles.label, { color: theme.text }]}>Síntomas</Text>
+                <Text style={[styles.label, { color: theme.text }]}>{t.symptomsLabel || 'Sintomas'}</Text>
                 <View style={[styles.iconInputWrap, { borderColor: theme.border, backgroundColor: theme.bg }]}>
                   <MaterialIcons name="healing" size={18} color={theme.muted} />
                   <TextInput
                     style={[styles.inputInline, { color: theme.text }]}
-                    placeholder="Ej: Picazón, enrojecimiento"
+                    placeholder={t.symptomsExample || 'Ej: Picazon, enrojecimiento'}
                     placeholderTextColor={theme.muted}
                     value={padecimiento.sintomas}
                     onChangeText={(text) => actualizarCampo(padecimiento.id, 'sintomas', text)}
                   />
                 </View>
 
-                <Text style={[styles.label, { color: theme.text }]}>Medicamentos</Text>
+                <Text style={[styles.label, { color: theme.text }]}>{t.medicationsLabel || 'Medicamentos'}</Text>
                 <View style={[styles.iconInputWrap, { borderColor: theme.border, backgroundColor: theme.bg }]}>
                   <Ionicons name="medkit-outline" size={18} color={theme.muted} />
                   <TextInput
                     style={[styles.inputInline, { color: theme.text }]}
-                    placeholder="Ej: Antiinflamatorio"
+                    placeholder={t.medicationExample || 'Ej: Antiinflamatorio'}
                     placeholderTextColor={theme.muted}
                     value={padecimiento.medicamentos}
                     onChangeText={(text) => actualizarCampo(padecimiento.id, 'medicamentos', text)}
@@ -154,7 +154,7 @@ export default function Salud({ route }) {
               </>
             ) : (
               <>
-                <Text style={[styles.cardTitle, { color: theme.text }]}>{padecimiento.nombre || 'Sin nombre'}</Text>
+                <Text style={[styles.cardTitle, { color: theme.text }]}>{padecimiento.nombre || t.unnamedLabel || 'Sin nombre'}</Text>
                 <View style={styles.rowInfo}>
                   <MaterialIcons name="healing" size={16} color={theme.muted} />
                   <Text style={[styles.rowInfoText, { color: theme.muted }]}>{padecimiento.sintomas || '-'}</Text>
@@ -170,7 +170,7 @@ export default function Salud({ route }) {
 
         {padecimientos.length > 0 && isEditing && (
           <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.brand }]} onPress={guardarDatos}>
-            <Text style={styles.saveBtnText}>Guardar cambios</Text>
+            <Text style={styles.saveBtnText}>{t.saveChanges || 'Guardar cambios'}</Text>
           </TouchableOpacity>
         )}
       </ScrollView>

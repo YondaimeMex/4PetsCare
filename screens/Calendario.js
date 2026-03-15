@@ -19,7 +19,7 @@ const formatTimeDisplay = (hora) => {
 
 export default function Calendario() {
     const navigation = useNavigation();
-    const { colors } = useApp();
+    const { colors, t } = useApp();
 
     const theme = useMemo(() => ({
         brand: colors?.primaryDark || '#2F6E4F',
@@ -46,12 +46,12 @@ export default function Calendario() {
 
     const deleteCita = async (citaToDelete) => {
         Alert.alert(
-            'Confirmar eliminación',
-            `¿Eliminar la cita con ${citaToDelete.veterinaria}?`,
+            t.confirmDeletion || 'Confirmar eliminacion',
+            `${t.deleteAppointmentQuestion || 'Eliminar la cita con'} ${citaToDelete.veterinaria}?`,
             [
-                { text: 'Cancelar', style: 'cancel' },
+                { text: t.cancel || 'Cancelar', style: 'cancel' },
                 {
-                    text: 'Eliminar', style: 'destructive',
+                    text: t.delete || 'Eliminar', style: 'destructive',
                     onPress: async () => {
                         try {
                             const raw = await AsyncStorage.getItem('@citas');
@@ -70,7 +70,7 @@ export default function Calendario() {
                             }
                             await loadCalendarData();
                         } catch {
-                            Alert.alert('Error', 'No se pudo eliminar la cita.');
+                            Alert.alert(t.error || 'Error', t.deleteAppointmentError || 'No se pudo eliminar la cita.');
                         }
                     },
                 },
@@ -80,12 +80,12 @@ export default function Calendario() {
 
     const deleteVacuna = async (vacunaToDelete) => {
         Alert.alert(
-            'Confirmar eliminación',
-            '¿Eliminar este registro de vacuna?',
+            t.confirmDeletion || 'Confirmar eliminacion',
+            t.deleteVaccineQuestion || 'Eliminar este registro de vacuna?',
             [
-                { text: 'Cancelar', style: 'cancel' },
+                { text: t.cancel || 'Cancelar', style: 'cancel' },
                 {
-                    text: 'Eliminar', style: 'destructive',
+                    text: t.delete || 'Eliminar', style: 'destructive',
                     onPress: async () => {
                         try {
                             const raw = await AsyncStorage.getItem('@citas');
@@ -101,7 +101,7 @@ export default function Calendario() {
                             await AsyncStorage.setItem('@citas', JSON.stringify(updated));
                             await loadCalendarData();
                         } catch {
-                            Alert.alert('Error', 'No se pudo eliminar la vacuna.');
+                            Alert.alert(t.error || 'Error', t.deleteVaccineError || 'No se pudo eliminar la vacuna.');
                         }
                     },
                 },
@@ -186,30 +186,30 @@ export default function Calendario() {
                     <View style={styles.heroGlowTop} />
                     <View style={styles.heroGlowBottom} />
                     <View style={styles.heroTopRow}>
-                        <View>
-                            <Text style={styles.heroKicker}>CALENDARIO</Text>
-                            <Text style={styles.heroTitle}>Tus citas y eventos</Text>
+                        <View style={styles.heroTopInfo}>
+                            <Text style={styles.heroKicker}>{t.calendarKicker || 'CALENDARIO'}</Text>
+                            <Text style={styles.heroTitle} numberOfLines={2}>{t.calendarHeroTitle || 'Tus citas y eventos'}</Text>
                         </View>
                         <TouchableOpacity
                             style={[styles.heroCtaBtn, { backgroundColor: theme.accent }]}
                             onPress={() => navigation.navigate('ProgramarCita')}
                         >
                             <Ionicons name="add" size={18} color="#FFF" />
-                            <Text style={styles.heroCtaText}>Nueva cita</Text>
+                            <Text style={styles.heroCtaText} numberOfLines={1}>{t.newAppointment || 'Nueva cita'}</Text>
                         </TouchableOpacity>
                     </View>
 
                     <View style={styles.heroPillRow}>
                         <View style={styles.heroPill}>
                             <Ionicons name="calendar-outline" size={13} color="#FFF" />
-                            <Text style={styles.heroPillText}>{upcomingCount} próximas</Text>
+                            <Text style={styles.heroPillText}>{upcomingCount} {t.upcomingShort || 'proximas'}</Text>
                         </View>
                         <TouchableOpacity
                             style={styles.heroPill}
                             onPress={() => navigation.navigate('ConfirmacionVacuna')}
                         >
                             <FontAwesome5 name="syringe" size={11} color="#FFF" />
-                            <Text style={styles.heroPillText}>Registrar vacuna</Text>
+                            <Text style={styles.heroPillText} numberOfLines={1}>{t.registerVaccine || 'Registrar vacuna'}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -240,11 +240,11 @@ export default function Calendario() {
                 <View style={[styles.legendCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                     <View style={styles.legendRow}>
                         <View style={[styles.legendDot, { backgroundColor: theme.brandSoft }]} />
-                        <Text style={[styles.legendText, { color: theme.text }]}>Citas programadas</Text>
+                        <Text style={[styles.legendText, { color: theme.text }]}>{t.scheduledAppointmentsLegend || 'Citas programadas'}</Text>
                         <View style={[styles.legendDot, { backgroundColor: theme.success, marginLeft: 16 }]} />
-                        <Text style={[styles.legendText, { color: theme.text }]}>Vacunas aplicadas</Text>
+                        <Text style={[styles.legendText, { color: theme.text }]}>{t.appliedVaccinesLegend || 'Vacunas aplicadas'}</Text>
                         <View style={[styles.legendDot, { backgroundColor: theme.danger, marginLeft: 16 }]} />
-                        <Text style={[styles.legendText, { color: theme.text }]}>Campañas</Text>
+                        <Text style={[styles.legendText, { color: theme.text }]}>{t.campaignsLegend || 'Campanas'}</Text>
                     </View>
                 </View>
 
@@ -257,7 +257,7 @@ export default function Calendario() {
 
                         {selectedDayEvents.length === 0 ? (
                             <Text style={[styles.emptyEvents, { color: theme.muted }]}>
-                                Sin eventos para este día.
+                                {t.noEventsForDay || 'Sin eventos para este dia.'}
                             </Text>
                         ) : (
                             selectedDayEvents.map((event, i) => {
@@ -269,7 +269,7 @@ export default function Calendario() {
                                         >
                                             <View style={[styles.eventDot, { backgroundColor: theme.brandSoft }]} />
                                             <View style={{ flex: 1 }}>
-                                                <Text style={[styles.eventLabel, { color: theme.brandSoft }]}>Cita programada</Text>
+                                                <Text style={[styles.eventLabel, { color: theme.brandSoft }]}>{t.scheduledAppointmentLabel || 'Cita programada'}</Text>
                                                 <Text style={[styles.eventDetail, { color: theme.text }]}>{event.veterinaria}</Text>
                                                 {event.hora ? (
                                                     <Text style={[styles.eventMeta, { color: theme.muted }]}>{formatTimeDisplay(event.hora)}</Text>
@@ -296,7 +296,7 @@ export default function Calendario() {
                                         <View key={`camp-${i}`} style={[styles.eventRow, { borderColor: theme.border }]}>
                                             <View style={[styles.eventDot, { backgroundColor: theme.danger }]} />
                                             <View style={{ flex: 1 }}>
-                                                <Text style={[styles.eventLabel, { color: theme.danger }]}>Campaña</Text>
+                                                <Text style={[styles.eventLabel, { color: theme.danger }]}>{t.campaignLabel || 'Campana'}</Text>
                                                 <Text style={[styles.eventDetail, { color: theme.text }]}>{event.nombre}</Text>
                                             </View>
                                             <MaterialIcons name="local-hospital" size={20} color={theme.danger} />
@@ -307,7 +307,7 @@ export default function Calendario() {
                                         <View key={`vac-${i}`} style={[styles.eventRow, { borderColor: theme.border }]}>
                                             <View style={[styles.eventDot, { backgroundColor: theme.success }]} />
                                             <View style={{ flex: 1 }}>
-                                                <Text style={[styles.eventLabel, { color: theme.success }]}>Vacuna aplicada</Text>
+                                                <Text style={[styles.eventLabel, { color: theme.success }]}>{t.vaccineAppliedLabel || 'Vacuna aplicada'}</Text>
                                                 <Text style={[styles.eventDetail, { color: theme.text }]}>{event.veterinaria}</Text>
                                             </View>
                                             <View style={styles.eventActions}>
@@ -375,6 +375,11 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
         marginBottom: 16,
     },
+    heroTopInfo: {
+        flex: 1,
+        minWidth: 0,
+        paddingRight: 8,
+    },
     heroKicker: {
         fontSize: 11,
         fontWeight: '700',
@@ -390,23 +395,27 @@ const styles = StyleSheet.create({
     heroCtaBtn: {
         flexDirection: 'row',
         alignItems: 'center',
+        flexShrink: 1,
         gap: 5,
         paddingVertical: 8,
         paddingHorizontal: 14,
         borderRadius: 20,
     },
     heroCtaText: {
+        flexShrink: 1,
         color: '#FFFFFF',
         fontWeight: '700',
         fontSize: 13,
     },
     heroPillRow: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         gap: 10,
     },
     heroPill: {
         flexDirection: 'row',
         alignItems: 'center',
+        maxWidth: '100%',
         gap: 5,
         backgroundColor: 'rgba(255,255,255,0.2)',
         borderRadius: 20,
@@ -414,6 +423,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
     },
     heroPillText: {
+        flexShrink: 1,
         color: '#FFFFFF',
         fontSize: 12,
         fontWeight: '700',

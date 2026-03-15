@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -7,8 +7,19 @@ import { lightTheme } from '../../constants';
 
 export default function SideMenu() {
     const navigation = useNavigation();
-    const { isMenuOpen, closeMenu, colors: contextColors, t, userData } = useApp();
+    const { isMenuOpen, closeMenu, colors: contextColors, t, userData, registerTutorialTarget } = useApp();
     const colors = contextColors || lightTheme;
+    const tipsItemRef = useRef(null);
+
+    const measureTarget = useCallback((key, ref) => {
+        setTimeout(() => {
+            ref?.current?.measureInWindow((x, y, width, height) => {
+                if (width > 0 && height > 0) {
+                    registerTutorialTarget(key, { x, y, width, height });
+                }
+            });
+        }, 0);
+    }, [registerTutorialTarget]);
 
     const theme = {
         brand: colors?.primaryDark || '#2F6E4F',
@@ -60,11 +71,11 @@ export default function SideMenu() {
                 <View style={styles.userBlock}>
                     <Image source={{ uri: userData?.avatar }} style={[styles.avatar, { borderColor: `${theme.brand}33` }]} />
                     <View style={styles.userMeta}>
-                        <Text style={[styles.userName, { color: theme.text }]} numberOfLines={1}>{userData?.name || 'Usuario'}</Text>
+                        <Text style={[styles.userName, { color: theme.text }]} numberOfLines={1}>{userData?.name || t.user || 'Usuario'}</Text>
                         <Text style={[styles.userEmail, { color: theme.muted }]} numberOfLines={1}>{userData?.email || ''}</Text>
                     </View>
                 </View>
-                <TouchableOpacity onPress={closeMenu} accessibilityLabel="Cerrar menú">
+                <TouchableOpacity onPress={closeMenu} accessibilityLabel={t.closeMenuAction || 'Cerrar menu'}>
                     <Ionicons name="close" size={22} color={theme.muted} />
                 </TouchableOpacity>
             </View>
@@ -77,6 +88,7 @@ export default function SideMenu() {
                     return (
                         <TouchableOpacity
                             key={item.name}
+                            ref={item.name === 'Consejos' ? tipsItemRef : null}
                             style={[
                                 styles.menuItem,
                                 {
@@ -85,7 +97,8 @@ export default function SideMenu() {
                                 },
                             ]}
                             onPress={() => handleNavigate(item.name)}
-                            accessibilityLabel={`Ir a ${item.label}`}
+                            onLayout={item.name === 'Consejos' ? () => measureTarget('menu.tips', tipsItemRef) : undefined}
+                            accessibilityLabel={`${t.goToAction || 'Ir a'} ${item.label}`}
                         >
                             <View style={[styles.menuIconWrap, { backgroundColor: active ? 'rgba(255,255,255,0.2)' : `${theme.brand}14` }]}>
                                 {renderIcon(item, active)}

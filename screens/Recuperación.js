@@ -69,7 +69,7 @@ function Field({
 
 export default function Recuperacion() {
     const navigation = useNavigation();
-    const { colors } = useApp();
+    const { colors, t } = useApp();
 
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -117,12 +117,12 @@ export default function Recuperacion() {
         setErrors({});
 
         if (!email.trim()) {
-            setErrors({ email: 'El correo es obligatorio' });
+            setErrors({ email: t.emailRequiredLogin || 'El correo es obligatorio' });
             return;
         }
 
         if (!isValidEmail(email)) {
-            setErrors({ email: 'Formato de correo inválido' });
+            setErrors({ email: t.invalidEmailFormat || 'Formato de correo invalido' });
             return;
         }
 
@@ -132,7 +132,7 @@ export default function Recuperacion() {
             setStep(2);
             setTimeLeft(300);
         } catch {
-            Alert.alert('Error', 'No se pudo enviar el código. Inténtalo de nuevo.');
+            Alert.alert(t.error || 'Error', t.resetCodeSentError || 'No se pudo enviar el codigo. Intentalo de nuevo.');
         } finally {
             setLoading(false);
         }
@@ -142,12 +142,12 @@ export default function Recuperacion() {
         setErrors({});
 
         if (!verificationCode.trim()) {
-            setErrors({ verificationCode: 'El código es obligatorio' });
+            setErrors({ verificationCode: t.codeRequired || 'El codigo es obligatorio' });
             return;
         }
 
         if (verificationCode.length !== 6) {
-            setErrors({ verificationCode: 'El código debe tener 6 dígitos' });
+            setErrors({ verificationCode: t.codeMustBeSixDigits || 'El codigo debe tener 6 digitos' });
             return;
         }
 
@@ -156,7 +156,7 @@ export default function Recuperacion() {
             await new Promise((resolve) => setTimeout(resolve, 1000));
             setStep(3);
         } catch {
-            Alert.alert('Error', 'Código inválido. Inténtalo de nuevo.');
+            Alert.alert(t.error || 'Error', t.invalidCodeError || 'Codigo invalido. Intentalo de nuevo.');
         } finally {
             setLoading(false);
         }
@@ -166,36 +166,36 @@ export default function Recuperacion() {
         setErrors({});
 
         if (!newPassword) {
-            setErrors((prev) => ({ ...prev, newPassword: 'La contraseña es obligatoria' }));
+            setErrors((prev) => ({ ...prev, newPassword: t.passwordRequiredRegister || 'La contrasena es obligatoria' }));
             return;
         }
 
         if (!isValidPassword(newPassword)) {
-            setErrors((prev) => ({ ...prev, newPassword: 'Mínimo 6 caracteres' }));
+            setErrors((prev) => ({ ...prev, newPassword: t.minimumSixChars || 'Minimo 6 caracteres' }));
             return;
         }
 
         if (!confirmPassword) {
-            setErrors((prev) => ({ ...prev, confirmPassword: 'Confirmar contraseña es obligatorio' }));
+            setErrors((prev) => ({ ...prev, confirmPassword: t.confirmPasswordRequired || 'Confirmar contrasena es obligatorio' }));
             return;
         }
 
         if (newPassword !== confirmPassword) {
-            setErrors((prev) => ({ ...prev, confirmPassword: 'Las contraseñas no coinciden' }));
+            setErrors((prev) => ({ ...prev, confirmPassword: t.passwordsDoNotMatch || 'Las contrasenas no coinciden' }));
             return;
         }
 
         setLoading(true);
         try {
             await new Promise((resolve) => setTimeout(resolve, 1200));
-            Alert.alert('Éxito', 'Tu contraseña ha sido cambiada correctamente', [
+            Alert.alert(t.success || 'Exito', t.passwordChangedSuccess || 'Tu contrasena ha sido cambiada correctamente', [
                 {
-                    text: 'Ir a Login',
+                    text: t.goToLogin || 'Ir a Login',
                     onPress: () => navigation.navigate('Login'),
                 },
             ]);
         } catch {
-            Alert.alert('Error', 'No se pudo cambiar la contraseña. Inténtalo de nuevo.');
+            Alert.alert(t.error || 'Error', t.resetPasswordError || 'No se pudo cambiar la contrasena. Intentalo de nuevo.');
         } finally {
             setLoading(false);
         }
@@ -206,9 +206,9 @@ export default function Recuperacion() {
         try {
             await new Promise((resolve) => setTimeout(resolve, 1200));
             setTimeLeft(300);
-            Alert.alert('Éxito', 'Se ha reenviado el código a tu correo');
+            Alert.alert(t.success || 'Exito', t.codeResentSuccess || 'Se ha reenviado el codigo a tu correo');
         } catch {
-            Alert.alert('Error', 'No se pudo reenviar el código');
+            Alert.alert(t.error || 'Error', t.resendCodeError || 'No se pudo reenviar el codigo');
         } finally {
             setLoading(false);
         }
@@ -223,7 +223,11 @@ export default function Recuperacion() {
         navigation.goBack();
     };
 
-    const stepTitle = step === 1 ? 'Recupera tu acceso' : step === 2 ? 'Verifica tu código' : 'Crea nueva contraseña';
+    const stepTitle = step === 1
+        ? (t.recoverAccessTitle || 'Recupera tu acceso')
+        : step === 2
+            ? (t.verifyCodeTitle || 'Verifica tu codigo')
+            : (t.createNewPasswordTitle || 'Crea nueva contrasena');
 
     return (
         <ScreenWrapper showHeader={false}>
@@ -240,7 +244,7 @@ export default function Recuperacion() {
                         <View style={styles.heroGlowTop} />
                         <View style={styles.heroGlowBottom} />
                         <Ionicons name="key-outline" size={34} color="#FFFFFF" />
-                        <Text style={styles.heroKicker}>RECUPERACIÓN</Text>
+                        <Text style={styles.heroKicker}>{t.recoveryKicker || 'RECUPERACION'}</Text>
                         <Text style={styles.heroTitle}>{stepTitle}</Text>
                         <View style={styles.stepPills}>
                             {[1, 2, 3].map((n) => (
@@ -261,17 +265,17 @@ export default function Recuperacion() {
                         {step === 1 ? (
                             <>
                                 <Field
-                                    label="Correo electrónico"
+                                    label={t.emailLabel || 'Correo electronico'}
                                     icon="mail-outline"
                                     value={email}
                                     onChangeText={setEmail}
-                                    placeholder="tu@correo.com"
+                                    placeholder={t.emailPlaceholder || 'tu@correo.com'}
                                     keyboardType="email-address"
                                     editable={!loading}
                                     error={errors.email}
                                     theme={theme}
                                 />
-                                <Text style={[styles.helperText, { color: theme.muted }]}>Te enviaremos un código de 6 dígitos.</Text>
+                                <Text style={[styles.helperText, { color: theme.muted }]}>{t.codeSentHelper || 'Te enviaremos un codigo de 6 digitos.'}</Text>
                                 <TouchableOpacity
                                     style={[styles.primaryButton, { backgroundColor: theme.brand }, loading && styles.disabled]}
                                     onPress={handleRequestReset}
@@ -281,7 +285,7 @@ export default function Recuperacion() {
                                         <ActivityIndicator color="#FFFFFF" />
                                     ) : (
                                         <>
-                                            <Text style={styles.primaryButtonText}>Enviar código</Text>
+                                            <Text style={styles.primaryButtonText}>{t.sendCode || 'Enviar codigo'}</Text>
                                             <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
                                         </>
                                     )}
@@ -292,7 +296,7 @@ export default function Recuperacion() {
                         {step === 2 ? (
                             <>
                                 <Field
-                                    label="Código de verificación"
+                                    label={t.verificationCodeLabel || 'Codigo de verificacion'}
                                     icon="shield-checkmark-outline"
                                     value={verificationCode}
                                     onChangeText={setVerificationCode}
@@ -307,7 +311,7 @@ export default function Recuperacion() {
                                 <View style={[styles.timerBox, { backgroundColor: `${theme.brand}14` }]}>
                                     <Ionicons name="hourglass-outline" size={16} color={theme.brand} />
                                     <Text style={[styles.timerText, { color: theme.text }]}>
-                                        Código válido por <Text style={{ color: theme.brand, fontWeight: '700' }}>{formatTime(timeLeft)}</Text>
+                                        {t.codeValidFor || 'Codigo valido por'} <Text style={{ color: theme.brand, fontWeight: '700' }}>{formatTime(timeLeft)}</Text>
                                     </Text>
                                 </View>
 
@@ -320,7 +324,7 @@ export default function Recuperacion() {
                                         <ActivityIndicator color="#FFFFFF" />
                                     ) : (
                                         <>
-                                            <Text style={styles.primaryButtonText}>Verificar código</Text>
+                                            <Text style={styles.primaryButtonText}>{t.verifyCode || 'Verificar codigo'}</Text>
                                             <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
                                         </>
                                     )}
@@ -328,10 +332,10 @@ export default function Recuperacion() {
 
                                 {timeLeft === 0 ? (
                                     <TouchableOpacity onPress={handleResendCode} disabled={loading}>
-                                        <Text style={[styles.resendText, { color: theme.brandSoft }]}>Reenviar código</Text>
+                                        <Text style={[styles.resendText, { color: theme.brandSoft }]}>{t.resendCode || 'Reenviar codigo'}</Text>
                                     </TouchableOpacity>
                                 ) : (
-                                    <Text style={[styles.helperTextCenter, { color: theme.muted }]}>Podrás reenviar cuando termine el temporizador</Text>
+                                    <Text style={[styles.helperTextCenter, { color: theme.muted }]}>{t.resendWhenTimerEnds || 'Podras reenviar cuando termine el temporizador'}</Text>
                                 )}
                             </>
                         ) : null}
@@ -339,11 +343,11 @@ export default function Recuperacion() {
                         {step === 3 ? (
                             <>
                                 <Field
-                                    label="Nueva contraseña"
+                                    label={t.newPasswordLabel || 'Nueva contrasena'}
                                     icon="lock-closed-outline"
                                     value={newPassword}
                                     onChangeText={setNewPassword}
-                                    placeholder="Mínimo 6 caracteres"
+                                    placeholder={t.minimumSixChars || 'Minimo 6 caracteres'}
                                     secureTextEntry={!showPassword}
                                     editable={!loading}
                                     error={errors.newPassword}
@@ -364,11 +368,11 @@ export default function Recuperacion() {
                                 />
 
                                 <Field
-                                    label="Confirmar contraseña"
+                                    label={t.confirmPasswordLabel || 'Confirmar contrasena'}
                                     icon="lock-closed-outline"
                                     value={confirmPassword}
                                     onChangeText={setConfirmPassword}
-                                    placeholder="Repite la contraseña"
+                                    placeholder={t.repeatPasswordPlaceholder || 'Repite la contrasena'}
                                     secureTextEntry={!showConfirmPassword}
                                     editable={!loading}
                                     error={errors.confirmPassword}
@@ -397,7 +401,7 @@ export default function Recuperacion() {
                                         <ActivityIndicator color="#FFFFFF" />
                                     ) : (
                                         <>
-                                            <Text style={styles.primaryButtonText}>Cambiar contraseña</Text>
+                                            <Text style={styles.primaryButtonText}>{t.changePasswordCta || 'Cambiar contrasena'}</Text>
                                             <Ionicons name="checkmark" size={18} color="#FFFFFF" />
                                         </>
                                     )}
@@ -408,7 +412,7 @@ export default function Recuperacion() {
                         <TouchableOpacity style={styles.backRow} onPress={handleGoBack} disabled={loading}>
                             <Ionicons name="arrow-back" size={18} color={theme.brandSoft} />
                             <Text style={[styles.backText, { color: theme.brandSoft }]}>
-                                {step === 1 ? 'Volver a Login' : 'Paso anterior'}
+                                {step === 1 ? (t.backToLogin || 'Volver a Login') : (t.previousStep || 'Paso anterior')}
                             </Text>
                         </TouchableOpacity>
                     </View>

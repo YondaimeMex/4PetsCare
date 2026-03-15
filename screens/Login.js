@@ -21,7 +21,7 @@ import { ScreenWrapper } from '../components';
 export default function Login() {
     const navigation = useNavigation();
     const { setIsLoggedIn } = useContext(AuthContext);
-    const { colors } = useApp();
+    const { colors, t } = useApp();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -39,18 +39,18 @@ export default function Login() {
 
         let hasErrors = false;
         if (!email.trim()) {
-            setErrors((prev) => ({ ...prev, email: 'El correo es obligatorio' }));
+            setErrors((prev) => ({ ...prev, email: t.emailRequiredLogin || 'El correo es obligatorio' }));
             hasErrors = true;
         } else if (!isValidEmail(email)) {
-            setErrors((prev) => ({ ...prev, email: 'Formato de correo inválido' }));
+            setErrors((prev) => ({ ...prev, email: t.invalidEmailFormat || 'Formato de correo invalido' }));
             hasErrors = true;
         }
 
         if (!password) {
-            setErrors((prev) => ({ ...prev, password: 'La contraseña es obligatoria' }));
+            setErrors((prev) => ({ ...prev, password: t.passwordRequiredLogin || 'La contrasena es obligatoria' }));
             hasErrors = true;
         } else if (password.length < 6) {
-            setErrors((prev) => ({ ...prev, password: 'Mínimo 6 caracteres' }));
+            setErrors((prev) => ({ ...prev, password: t.minimumSixChars || 'Minimo 6 caracteres' }));
             hasErrors = true;
         }
 
@@ -64,7 +64,7 @@ export default function Login() {
             });
 
             if (error) {
-                Alert.alert('Error', error.message || 'Credenciales inválidas');
+                Alert.alert(t.error || 'Error', error.message || t.invalidCredentials || 'Credenciales invalidas');
                 return;
             }
 
@@ -72,7 +72,7 @@ export default function Login() {
             setIsLoggedIn(true);
         } catch (error) {
             console.error(error);
-            Alert.alert('Error', 'No se pudo conectar con el servidor');
+            Alert.alert(t.error || 'Error', t.serverConnectionError || 'No se pudo conectar con el servidor');
         } finally {
             setLoading(false);
         }
@@ -95,7 +95,7 @@ export default function Login() {
                         <Ionicons name="paw" size={30} color="#FFFFFF" />
                         <Text style={styles.heroBrand}>4PetsCare</Text>
                     </View>
-                    <Text style={styles.heroClaim}>Cuidar mejor empieza aquí. Tu centro de salud para mascotas.</Text>
+                    <Text style={styles.heroClaim}>{t.loginClaim || 'Cuidar mejor empieza aqui. Tu centro de salud para mascotas.'}</Text>
                 </View>
 
                 <KeyboardAvoidingView
@@ -108,10 +108,10 @@ export default function Login() {
                         showsVerticalScrollIndicator={false}
                     >
                         <View style={[styles.formCard, { backgroundColor: cardBackground, borderColor: border }]}>
-                            <Text style={[styles.title, { color: textMain }]}>Bienvenido de vuelta</Text>
-                            <Text style={[styles.subtitle, { color: textMuted }]}>Administra vacunas, citas y bienestar en un solo lugar.</Text>
+                            <Text style={[styles.title, { color: textMain }]}>{t.welcomeBack || 'Bienvenido de vuelta'}</Text>
+                            <Text style={[styles.subtitle, { color: textMuted }]}>{t.loginSubtitle || 'Administra vacunas, citas y bienestar en un solo lugar.'}</Text>
 
-                            <Text style={[styles.label, { color: textMain }]}>Correo electrónico</Text>
+                            <Text style={[styles.label, { color: textMain }]}>{t.emailLabel || 'Correo electronico'}</Text>
                             <View
                                 style={[
                                     styles.inputShell,
@@ -126,7 +126,7 @@ export default function Login() {
                                     style={[styles.input, { color: textMain }]}
                                     value={email}
                                     onChangeText={setEmail}
-                                    placeholder="tu@correo.com"
+                                    placeholder={t.emailPlaceholder || 'tu@correo.com'}
                                     placeholderTextColor={textMuted}
                                     keyboardType="email-address"
                                     autoCapitalize="none"
@@ -136,7 +136,7 @@ export default function Login() {
                             </View>
                             {!!errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
 
-                            <Text style={[styles.label, { color: textMain }]}>Contraseña</Text>
+                            <Text style={[styles.label, { color: textMain }]}>{t.passwordLabel || 'Contrasena'}</Text>
                             <View
                                 style={[
                                     styles.inputShell,
@@ -151,7 +151,7 @@ export default function Login() {
                                     style={[styles.input, { color: textMain }]}
                                     value={password}
                                     onChangeText={setPassword}
-                                    placeholder="Mínimo 6 caracteres"
+                                    placeholder={t.minimumSixChars || 'Minimo 6 caracteres'}
                                     placeholderTextColor={textMuted}
                                     secureTextEntry={!showPassword}
                                     editable={!loading}
@@ -177,7 +177,7 @@ export default function Login() {
                                 onPress={() => navigation.navigate('Recuperación')}
                                 disabled={loading}
                             >
-                                <Text style={[styles.forgot, { color: brand }]}>Recuperar contraseña</Text>
+                                <Text style={[styles.forgot, { color: brand }]}>{t.recoverPassword || 'Recuperar contrasena'}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -189,11 +189,11 @@ export default function Login() {
                                 {loading ? (
                                     <View style={styles.loadingRow}>
                                         <ActivityIndicator size="small" color="#FFFFFF" />
-                                        <Text style={styles.primaryBtnText}>Iniciando sesión...</Text>
+                                        <Text style={styles.primaryBtnText}>{t.loggingIn || 'Iniciando sesion...'}</Text>
                                     </View>
                                 ) : (
                                     <View style={styles.ctaRow}>
-                                        <Text style={styles.primaryBtnText}>Entrar a 4PetsCare</Text>
+                                        <Text style={styles.primaryBtnText}>{t.enterApp || 'Entrar a 4PetsCare'}</Text>
                                         <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
                                     </View>
                                 )}
@@ -207,13 +207,13 @@ export default function Login() {
                             >
                                 <View style={styles.ctaRow}>
                                     <Ionicons name="person-add-outline" size={18} color={brand} />
-                                    <Text style={[styles.secondaryBtnText, { color: brand }]}>Crear cuenta</Text>
+                                    <Text style={[styles.secondaryBtnText, { color: brand }]}>{t.createAccount || 'Crear cuenta'}</Text>
                                 </View>
                             </TouchableOpacity>
 
                             <View style={[styles.trustWrap, { borderTopColor: border }]}>
                                 <Ionicons name="shield-checkmark-outline" size={16} color={accent} />
-                                <Text style={[styles.trustText, { color: textMuted }]}>Tus datos estan protegidos y sincronizados.</Text>
+                                <Text style={[styles.trustText, { color: textMuted }]}>{t.protectedData || 'Tus datos estan protegidos y sincronizados.'}</Text>
                             </View>
                         </View>
                     </ScrollView>

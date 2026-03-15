@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     View,
     Text,
@@ -6,7 +6,7 @@ import {
     StyleSheet,
     TextInput,
     Platform,
-    KeyboardAvoidingView,
+    Keyboard,
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
@@ -14,9 +14,10 @@ import { useApp } from '../context';
 import { ScreenWrapper } from '../components';
 
 export default function Mapa() {
-    const { colors } = useApp();
+    const { colors, t } = useApp();
     const [message, setMessage] = useState('');
     const [url, setUrl] = useState('https://www.google.com/maps/search/veterinarias');
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
 
     const theme = useMemo(() => ({
         brand: colors?.primaryDark || '#2F6E4F',
@@ -34,39 +35,65 @@ export default function Mapa() {
         if (!message.trim()) return;
         const mapsURL = `https://www.google.com/maps/search/${encodeURIComponent(message)}`;
         setUrl(mapsURL);
+        Keyboard.dismiss();
     };
+
+    useEffect(() => {
+        if (Platform.OS !== 'android') return undefined;
+
+        const showSubscription = Keyboard.addListener('keyboardDidShow', (event) => {
+            setKeyboardHeight(event.endCoordinates?.height || 0);
+        });
+        const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+            setKeyboardHeight(0);
+        });
+
+        return () => {
+            showSubscription.remove();
+            hideSubscription.remove();
+        };
+    }, []);
 
     return (
         <ScreenWrapper>
             <View style={[styles.container, { backgroundColor: theme.bg }]}>
-                <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
-                    <View style={styles.heroTopRow}>
-                        <View style={[styles.heroIconWrap, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
-                            <MaterialCommunityIcons name="map-marker-radius-outline" size={22} color="#FFFFFF" />
+                <View
+                    style={styles.mainContent}
+                    onStartShouldSetResponderCapture={() => {
+                        Keyboard.dismiss();
+                        return false;
+                    }}
+                >
+                    <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
+                        <View style={styles.heroTopRow}>
+                            <View style={[styles.heroIconWrap, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
+                                <MaterialCommunityIcons name="map-marker-radius-outline" size={22} color="#FFFFFF" />
+                            </View>
+                            <View style={[styles.pill, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                                <Text style={styles.pillText}>{t.mapPill || 'Veterinarias'}</Text>
+                            </View>
                         </View>
-                        <View style={[styles.pill, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                            <Text style={styles.pillText}>Veterinarias</Text>
-                        </View>
+                        <Text style={styles.heroKicker}>{t.mapKicker || 'MAPAS'}</Text>
+                        <Text style={styles.heroTitle}>{t.mapHeroTitle || 'Veterinarias cercanas'}</Text>
+                        <Text style={styles.heroSubtitle}>{t.mapHeroSubtitle || 'Busca clinicas y ubicaciones rapidas en Google Maps.'}</Text>
                     </View>
-                    <Text style={styles.heroKicker}>MAPAS</Text>
-                    <Text style={styles.heroTitle}>Veterinarias cercanas</Text>
-                    <Text style={styles.heroSubtitle}>Busca clínicas y ubicaciones rápidas en Google Maps.</Text>
+
+                    <View style={[styles.webViewCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <WebView source={{ uri: url }} style={{ flex: 1 }} />
+                    </View>
                 </View>
 
-                <View style={[styles.webViewCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                    <WebView source={{ uri: url }} style={{ flex: 1 }} />
-                </View>
-
-                <KeyboardAvoidingView
-                    style={styles.bottomInputWrap}
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+                <View
+                    style={[
+                        styles.bottomInputWrap,
+                        Platform.OS === 'android' && { paddingBottom: 14 + keyboardHeight },
+                    ]}
                 >
                     <View style={[styles.inputRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <Ionicons name="search-outline" size={18} color={theme.muted} style={{ marginRight: 8 }} />
                         <TextInput
                             style={[styles.input, { color: theme.text }]}
-                            placeholder="Buscar veterinarias"
+                            placeholder={t.mapSearchPlaceholder || 'Buscar veterinarias'}
                             placeholderTextColor={theme.muted}
                             value={message}
                             onChangeText={setMessage}
@@ -77,7 +104,7 @@ export default function Mapa() {
                             <MaterialCommunityIcons name="send" size={18} color="#FFFFFF" />
                         </TouchableOpacity>
                     </View>
-                </KeyboardAvoidingView>
+                </View>
             </View>
         </ScreenWrapper>
     );
@@ -85,6 +112,9 @@ export default function Mapa() {
 
 const styles = StyleSheet.create({
     container: {
+        flex: 1,
+    },
+    mainContent: {
         flex: 1,
     },
     heroCard: {

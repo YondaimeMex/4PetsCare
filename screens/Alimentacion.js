@@ -17,7 +17,7 @@ import { useApp } from '../context';
 import { ScreenWrapper } from '../components';
 
 export default function Alimentacion({ route }) {
-  const { colors } = useApp();
+  const { colors, t } = useApp();
   const { mascotaId } = route.params;
 
   const [data, setData] = useState({
@@ -74,7 +74,7 @@ export default function Alimentacion({ route }) {
 
       setData(dataActualizado);
       await AsyncStorage.setItem(storageKey, JSON.stringify(dataActualizado));
-      Alert.alert('Guardado', 'Cambios guardados correctamente.');
+      Alert.alert(t.savedTitle || 'Guardado', t.savedChangesSuccess || 'Cambios guardados correctamente.');
       setIsEditable(false);
     } catch (error) {
       console.log('Error guardando:', error);
@@ -160,9 +160,9 @@ export default function Alimentacion({ route }) {
     );
 
     if (encontrados.length > 0) {
-      Alert.alert('Alimento prohibido', `Revisa: ${encontrados.join(', ')}`);
+      Alert.alert(t.forbiddenFoodDetected || 'Alimento prohibido', `${t.reviewItemsPrefix || 'Revisa:'} ${encontrados.join(', ')}`);
     }
-  }, [recordatorioActual?.alimentos, prohibidos]);
+  }, [recordatorioActual?.alimentos, prohibidos, t]);
 
   const theme = useMemo(() => ({
     brand: colors?.primaryDark || '#2F6E4F',
@@ -187,30 +187,30 @@ export default function Alimentacion({ route }) {
             <View style={styles.heroGlowTop} />
             <View style={styles.heroGlowBottom} />
             <View style={styles.heroHeaderRow}>
-              <Text style={styles.heroKicker}>Plan nutricional</Text>
+              <Text style={styles.heroKicker}>{t.nutritionPlan || 'Plan nutricional'}</Text>
               <TouchableOpacity style={styles.toggleBtn} onPress={() => setIsEditable((prev) => !prev)}>
                 <Ionicons name={isEditable ? 'close' : 'create-outline'} size={20} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.heroTitle}>Alimentación diaria</Text>
-            <Text style={styles.heroSubtitle}>Controla horarios, porciones y alimentos clave para una dieta saludable.</Text>
+            <Text style={styles.heroTitle}>{t.dailyFeeding || 'Alimentacion diaria'}</Text>
+            <Text style={styles.heroSubtitle}>{t.feedingSubtitle || 'Controla horarios, porciones y alimentos clave para una dieta saludable.'}</Text>
 
             <View style={styles.pillRow}>
               <View style={styles.heroPill}>
                 <MaterialCommunityIcons name="food-apple-outline" size={14} color="#FFFFFF" />
-                <Text style={styles.heroPillText}>{data.recordatorios.length} recordatorios</Text>
+                <Text style={styles.heroPillText}>{data.recordatorios.length} {t.remindersCount || 'recordatorios'}</Text>
               </View>
             </View>
           </View>
 
           <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={styles.sectionHeaderRow}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Planificador de comidas</Text>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>{t.mealPlanner || 'Planificador de comidas'}</Text>
               {isEditable && (
                 <TouchableOpacity style={[styles.addBtn, { backgroundColor: theme.brand }]} onPress={agregarRecordatorio}>
                   <Ionicons name="add" size={16} color="#FFFFFF" />
-                  <Text style={styles.addBtnText}>Agregar</Text>
+                  <Text style={styles.addBtnText}>{t.add || 'Agregar'}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -231,41 +231,41 @@ export default function Alimentacion({ route }) {
                     onPress={() => setRecordatorioActivo(r.id)}
                   >
                     <Text style={[styles.chipText, { color: active ? '#FFFFFF' : theme.text }]}>
-                      Comida {index + 1}
+                      {t.mealLabel || 'Comida'} {index + 1}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
 
-            <Text style={[styles.label, { color: theme.text }]}>Alimentos</Text>
+            <Text style={[styles.label, { color: theme.text }]}>{t.foodsLabel || 'Alimentos'}</Text>
             <TextInput
               style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
-              placeholder="Ej: Croquetas y pollo"
+              placeholder={t.foodsExample || 'Ej: Croquetas y pollo'}
               placeholderTextColor={theme.placeholder}
               value={recordatorioActual?.alimentos || ''}
               editable={isEditable}
               onChangeText={(t) => actualizarCampo('alimentos', t)}
             />
 
-            <Text style={[styles.label, { color: theme.text }]}>Porción</Text>
+            <Text style={[styles.label, { color: theme.text }]}>{t.portionLabel || 'Porcion'}</Text>
             <TextInput
               style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
-              placeholder="Ej: 1 taza"
+              placeholder={t.portionExample || 'Ej: 1 taza'}
               placeholderTextColor={theme.placeholder}
               value={recordatorioActual?.porcion || ''}
               editable={isEditable}
               onChangeText={(t) => actualizarCampo('porcion', t)}
             />
 
-            <Text style={[styles.label, { color: theme.text }]}>Horario</Text>
+            <Text style={[styles.label, { color: theme.text }]}>{t.scheduleLabel || 'Horario'}</Text>
             <TouchableOpacity
               style={[styles.input, styles.timeInput, { borderColor: theme.border, backgroundColor: theme.bg }]}
               onPress={() => isEditable && setMostrarPicker(true)}
               activeOpacity={0.9}
             >
               <Ionicons name="time-outline" size={18} color={theme.brandSoft} />
-              <Text style={[styles.timeText, { color: theme.text }]}>Horario: {formatearHora(recordatorioActual?.hora || new Date())}</Text>
+              <Text style={[styles.timeText, { color: theme.text }]}>{t.schedulePrefix || 'Horario:'} {formatearHora(recordatorioActual?.hora || new Date())}</Text>
             </TouchableOpacity>
 
             {mostrarPicker && (
@@ -288,32 +288,34 @@ export default function Alimentacion({ route }) {
           </View>
 
           <ListEditor
-            title="Alimentos favoritos"
+            title={t.favoriteFoods || 'Alimentos favoritos'}
             icon="heart-outline"
             data={favoritos}
             editable={isEditable}
             onAdd={agregarFavorito}
             onUpdate={actualizarFavorito}
             onDelete={eliminarFavorito}
-            placeholder="Ej: Zanahoria"
+            placeholder={t.carrotExample || 'Ej: Zanahoria'}
             theme={theme}
+            addText={t.add || 'Agregar'}
           />
 
           <ListEditor
-            title="Alimentos prohibidos"
+            title={t.forbiddenFoods || 'Alimentos prohibidos'}
             icon="warning-outline"
             data={prohibidos}
             editable={isEditable}
             onAdd={agregarProhibido}
             onUpdate={actualizarProhibido}
             onDelete={eliminarProhibido}
-            placeholder="Ej: Chocolate"
+            placeholder={t.chocolateExample || 'Ej: Chocolate'}
             theme={theme}
+            addText={t.add || 'Agregar'}
           />
 
           {isEditable && (
             <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.brand }]} onPress={guardarDatos}>
-              <Text style={styles.saveBtnText}>Guardar cambios</Text>
+              <Text style={styles.saveBtnText}>{t.saveChanges || 'Guardar cambios'}</Text>
             </TouchableOpacity>
           )}
         </ScrollView>
@@ -322,7 +324,7 @@ export default function Alimentacion({ route }) {
   );
 }
 
-function ListEditor({ title, icon, data, editable, onAdd, onUpdate, onDelete, placeholder, theme }) {
+function ListEditor({ title, icon, data, editable, onAdd, onUpdate, onDelete, placeholder, theme, addText }) {
   return (
     <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
       <View style={styles.sectionHeaderRow}>
@@ -333,7 +335,7 @@ function ListEditor({ title, icon, data, editable, onAdd, onUpdate, onDelete, pl
         {editable && (
           <TouchableOpacity style={[styles.addBtn, { backgroundColor: theme.brand }]} onPress={onAdd}>
             <Ionicons name="add" size={16} color="#FFFFFF" />
-            <Text style={styles.addBtnText}>Agregar</Text>
+            <Text style={styles.addBtnText}>{addText}</Text>
           </TouchableOpacity>
         )}
       </View>

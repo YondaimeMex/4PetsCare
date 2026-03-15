@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import { View, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import Header from './Header';
 import SideMenu from './SideMenu';
 import NotificationsPanel from './NotificationsPanel';
+import TutorialOverlay from './TutorialOverlay';
 import { useApp } from '../../context';
 import { lightTheme } from '../../constants';
 
@@ -23,11 +24,27 @@ export default function ScreenWrapper({
         closeAll,
         colors: contextColors,
         isDarkMode,
+        registerTutorialViewport,
     } = useApp();
     const colors = contextColors || lightTheme;
+    const containerRef = useRef(null);
+
+    const measureViewport = useCallback(() => {
+        setTimeout(() => {
+            containerRef.current?.measureInWindow((x, y, width, height) => {
+                if (width > 0 && height > 0) {
+                    registerTutorialViewport({ x, y, width, height });
+                }
+            });
+        }, 0);
+    }, [registerTutorialViewport]);
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }, style]}>
+        <SafeAreaView
+            ref={containerRef}
+            onLayout={measureViewport}
+            style={[styles.container, { backgroundColor: colors.background }, style]}
+        >
             <StatusBar
                 style={isDarkMode ? 'light' : 'dark'}
                 translucent={false}
@@ -63,6 +80,9 @@ export default function ScreenWrapper({
 
             {/* Panel de notificaciones */}
             {isNotificationsOpen && <NotificationsPanel />}
+
+            {/* Tutorial guiado */}
+            <TutorialOverlay />
         </SafeAreaView>
     );
 }

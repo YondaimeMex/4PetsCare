@@ -9,7 +9,7 @@ import { supabase } from '../lib/Supabase';
 
 export default function Perfil() {
   const navigation = useNavigation();
-  const { userData, colors, t } = useApp();
+  const { userData, colors, t, language } = useApp();
 
   const [petsCount, setPetsCount] = useState(0);
   const [memberSince, setMemberSince] = useState('');
@@ -26,6 +26,48 @@ export default function Perfil() {
     danger: colors?.danger || '#E53935',
   }), [colors]);
 
+  const formatMemberSince = useCallback((rawDate) => {
+    if (!rawDate) return '';
+
+    const date = new Date(rawDate);
+    if (Number.isNaN(date.getTime())) return '';
+
+    const locale = language === 'en' ? 'en-US' : 'es-MX';
+    const formatted = date.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  }, [language]);
+
+  const loadMemberSince = useCallback(async () => {
+    const localDateCandidate =
+      userData?.created_at ||
+      userData?.createdAt ||
+      userData?.registeredAt ||
+      userData?.memberSince;
+
+    try {
+      // Local session is available even when remote auth check fails.
+      const { data: { session } } = await supabase.auth.getSession();
+      const sessionDate = session?.user?.created_at || session?.user?.createdAt;
+
+      if (sessionDate) {
+        setMemberSince(formatMemberSince(sessionDate));
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      const remoteDate = user?.created_at || user?.createdAt;
+
+      if (remoteDate) {
+        setMemberSince(formatMemberSince(remoteDate));
+        return;
+      }
+
+      setMemberSince(formatMemberSince(localDateCandidate));
+    } catch {
+      setMemberSince(formatMemberSince(localDateCandidate));
+    }
+  }, [formatMemberSince, userData]);
+
   useFocusEffect(
     useCallback(() => {
       AsyncStorage.getItem('@mascotas').then(raw => {
@@ -33,14 +75,8 @@ export default function Perfil() {
         setPetsCount(arr.length);
       }).catch(() => setPetsCount(0));
 
-      supabase.auth.getUser().then(({ data: { user } }) => {
-        if (user?.created_at) {
-          const date = new Date(user.created_at);
-          const formatted = date.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
-          setMemberSince(formatted.charAt(0).toUpperCase() + formatted.slice(1));
-        }
-      }).catch(() => { });
-    }, [])
+      loadMemberSince();
+    }, [loadMemberSince])
   );
 
   const menuOptions = [
@@ -60,11 +96,24 @@ export default function Perfil() {
       >
         {/* ── Hero ── */}
         <View style={[styles.hero, { backgroundColor: theme.brand }]}>
+          <View style={styles.heroGlowTop} />
+          <View style={styles.heroGlowBottom} />
+          <View style={styles.heroGlowAccent} />
+
+          <View style={styles.heroBadge}>
+            <Ionicons name="sparkles-outline" size={12} color="#FFFFFF" />
+            <Text style={styles.heroBadgeText}>4PetsCare</Text>
+          </View>
+
           <View style={styles.heroAvatarRow}>
-            <Image
-              source={{ uri: userData?.avatar || 'https://i.pravatar.cc/150' }}
-              style={[styles.avatar, { borderColor: 'rgba(255,255,255,0.4)' }]}
-            />
+            <View style={styles.avatarOuterRing}>
+              <View style={styles.avatarInnerRing}>
+                <Image
+                  source={{ uri: userData?.avatar || 'https://i.pravatar.cc/150' }}
+                  style={[styles.avatar, { borderColor: 'rgba(255,255,255,0.4)' }]}
+                />
+              </View>
+            </View>
             <TouchableOpacity
               style={styles.editAvatarBtn}
               onPress={() => navigation.navigate('EditarPerfil')}
@@ -73,18 +122,18 @@ export default function Perfil() {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.heroName}>{userData?.name || 'Mi perfil'}</Text>
+          <Text style={styles.heroName}>{userData?.name || t.myProfile || 'Mi perfil'}</Text>
           <Text style={styles.heroEmail}>{userData?.email || ''}</Text>
 
           <View style={styles.pillRow}>
             <View style={styles.pill}>
               <Ionicons name="paw" size={13} color="#FFFFFF" />
-              <Text style={styles.pillText}>{petsCount} {petsCount === 1 ? 'mascota' : 'mascotas'}</Text>
+              <Text style={styles.pillText}>{petsCount} {petsCount === 1 ? (t.petCountSingle || 'mascota') : (t.petCountPlural || 'mascotas')}</Text>
             </View>
             {memberSince ? (
               <View style={styles.pill}>
                 <Ionicons name="calendar-outline" size={13} color="#FFFFFF" />
-                <Text style={styles.pillText}>Desde {memberSince}</Text>
+                <Text style={styles.pillText}>{t.since || 'Desde'} {memberSince}</Text>
               </View>
             ) : null}
           </View>
@@ -92,7 +141,7 @@ export default function Perfil() {
 
         {/* ── Datos de contacto ── */}
         <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.muted }]}>INFORMACIÓN DE CONTACTO</Text>
+          <Text style={[styles.sectionTitle, { color: theme.muted }]}>{t.contactInfoTitle || 'INFORMACION DE CONTACTO'}</Text>
 
           {userData?.phone ? (
             <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
@@ -100,7 +149,7 @@ export default function Perfil() {
                 <Ionicons name="call-outline" size={18} color={theme.brandSoft} />
               </View>
               <View>
-                <Text style={[styles.infoLabel, { color: theme.muted }]}>Teléfono</Text>
+                <Text style={[styles.infoLabel, { color: theme.muted }]}>{t.phoneLabel || 'Telefono'}</Text>
                 <Text style={[styles.infoValue, { color: theme.text }]}>{userData.phone}</Text>
               </View>
             </View>
@@ -111,7 +160,7 @@ export default function Perfil() {
               <Ionicons name="mail-outline" size={18} color={theme.brandSoft} />
             </View>
             <View>
-              <Text style={[styles.infoLabel, { color: theme.muted }]}>Correo</Text>
+              <Text style={[styles.infoLabel, { color: theme.muted }]}>{t.emailWord || 'Correo'}</Text>
               <Text style={[styles.infoValue, { color: theme.text }]}>{userData?.email || '—'}</Text>
             </View>
           </View>
@@ -119,7 +168,7 @@ export default function Perfil() {
 
         {/* ── Menú de opciones ── */}
         <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.muted }]}>OPCIONES</Text>
+          <Text style={[styles.sectionTitle, { color: theme.muted }]}>{t.optionsTitle || 'OPCIONES'}</Text>
           {menuOptions.map((opt, i) => (
             <TouchableOpacity
               key={i}
@@ -163,13 +212,78 @@ const styles = StyleSheet.create({
   /* Hero */
   hero: {
     alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 10,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
     paddingTop: 36,
     paddingBottom: 32,
     paddingHorizontal: 24,
+    overflow: 'hidden',
+  },
+  heroGlowTop: {
+    position: 'absolute',
+    top: -42,
+    right: -24,
+    width: 150,
+    height: 150,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  heroGlowBottom: {
+    position: 'absolute',
+    bottom: -56,
+    left: -22,
+    width: 170,
+    height: 170,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.12)',
+  },
+  heroGlowAccent: {
+    position: 'absolute',
+    top: 84,
+    left: -40,
+    width: 110,
+    height: 110,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,127,90,0.25)',
+  },
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-end',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 10,
+  },
+  heroBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
   },
   heroAvatarRow: {
     position: 'relative',
     marginBottom: 14,
+  },
+  avatarOuterRing: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  avatarInnerRing: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)',
   },
   avatar: {
     width: 96,
@@ -179,35 +293,42 @@ const styles = StyleSheet.create({
   },
   editAvatarBtn: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
+    bottom: 4,
+    right: 4,
     backgroundColor: 'rgba(0,0,0,0.45)',
-    borderRadius: 12,
-    padding: 4,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.28)',
+    paddingHorizontal: 7,
+    paddingVertical: 6,
   },
   heroName: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
   },
   heroEmail: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.75)',
-    marginTop: 2,
-    marginBottom: 16,
+    color: 'rgba(255,255,255,0.84)',
+    marginTop: 4,
+    marginBottom: 14,
   },
   pillRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     gap: 10,
   },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.23)',
     borderRadius: 20,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     gap: 5,
   },
   pillText: {

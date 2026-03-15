@@ -29,19 +29,12 @@ export async function saveMascotaToDB(mascota) {
         const updated = [nueva, ...actuales];
 
         await AsyncStorage.setItem('@mascotas', JSON.stringify(updated));
-        return { success: true, message: 'Guardado local (AsyncStorage)', data: nueva };
+        return { success: true, data: nueva };
     } catch (err) {
         console.error('saveMascotaToDB - AsyncStorage error:', err);
-        return { success: false, message: 'No se pudo guardar localmente' };
+        return { success: false };
     }
 }
-
-const especies = [
-    { key: 'domestico', label: 'Doméstico (Perro, Gato, etc.)' },
-    { key: 'ave', label: 'Ave (Perico, Loro, etc.)' },
-    { key: 'acuatico', label: 'Acuático (Betta, Goldfish, etc.)' },
-    { key: 'reptiles', label: 'Reptiles (Tortuga, Iguana, etc.)' },
-];
 
 function Field({ label, icon, value, onChangeText, placeholder, keyboardType, theme }) {
     return (
@@ -64,7 +57,7 @@ function Field({ label, icon, value, onChangeText, placeholder, keyboardType, th
 
 export default function RegistroMascota() {
     const navigation = useNavigation();
-    const { colors } = useApp();
+    const { colors, t } = useApp();
 
     const [nombreMascota, setNombreMascota] = useState('');
     const [especie, setEspecie] = useState('');
@@ -88,6 +81,13 @@ export default function RegistroMascota() {
         inputBg: colors?.inputBackground || '#F6F8F4',
     }), [colors]);
 
+    const especies = useMemo(() => ([
+        { key: 'domestico', label: t.speciesDomestic || 'Domestico (Perro, Gato, etc.)' },
+        { key: 'ave', label: t.speciesBird || 'Ave (Perico, Loro, etc.)' },
+        { key: 'acuatico', label: t.speciesAquatic || 'Acuatico (Betta, Goldfish, etc.)' },
+        { key: 'reptiles', label: t.speciesReptile || 'Reptiles (Tortuga, Iguana, etc.)' },
+    ]), [t]);
+
     const selectEspecie = (option) => {
         setEspecie(option.label);
         setIsDropdownOpen(false);
@@ -97,7 +97,7 @@ export default function RegistroMascota() {
         try {
             const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (!permission.granted) {
-                Alert.alert('Permiso denegado', 'Necesitamos permiso para acceder a la galería.');
+                Alert.alert(t.permissionDenied || 'Permiso denegado', t.galleryPermissionPet || 'Necesitamos permiso para acceder a la galeria.');
                 return;
             }
 
@@ -120,7 +120,7 @@ export default function RegistroMascota() {
             }
         } catch (err) {
             console.error('pickImageFromLibrary error:', err);
-            Alert.alert('Error', 'No se pudo seleccionar la imagen.');
+            Alert.alert(t.error || 'Error', t.selectImageError || 'No se pudo seleccionar la imagen.');
         }
     };
 
@@ -128,7 +128,7 @@ export default function RegistroMascota() {
         try {
             const permission = await ImagePicker.requestCameraPermissionsAsync();
             if (!permission.granted) {
-                Alert.alert('Permiso denegado', 'Necesitamos permiso para usar la cámara.');
+                Alert.alert(t.permissionDenied || 'Permiso denegado', t.cameraPermissionPet || 'Necesitamos permiso para usar la camara.');
                 return;
             }
 
@@ -151,7 +151,7 @@ export default function RegistroMascota() {
             }
         } catch (err) {
             console.error('takePhotoWithCamera error:', err);
-            Alert.alert('Error', 'No se pudo tomar la foto.');
+            Alert.alert(t.error || 'Error', t.takePhotoError || 'No se pudo tomar la foto.');
         }
     };
 
@@ -162,7 +162,7 @@ export default function RegistroMascota() {
 
     const handleSave = async () => {
         if (!nombreMascota?.trim() || !especie?.trim()) {
-            Alert.alert('Campos faltantes', 'Ingresa el nombre y selecciona la especie de tu mascota.');
+            Alert.alert(t.missingFieldsTitle || 'Campos faltantes', t.missingPetNameSpecies || 'Ingresa el nombre y selecciona la especie de tu mascota.');
             return;
         }
 
@@ -181,7 +181,7 @@ export default function RegistroMascota() {
             const result = await saveMascotaToDB(mascotaData);
 
             if (result && result.success) {
-                Alert.alert('Guardado', `¡Mascota ${mascotaData.nombre} registrada con éxito!`);
+                Alert.alert(t.petSavedTitle || 'Guardado', `${mascotaData.nombre}: ${t.petRegisteredSuccess || 'Mascota registrada con exito'}`);
                 await NotificationService.saveNotification(
                     `¡Felicidades! Se ha guardado con éxito ${mascotaData.nombre} (${mascotaData.especie}).`
                 );
@@ -196,11 +196,11 @@ export default function RegistroMascota() {
 
                 navigation.replace('Mascotas');
             } else {
-                Alert.alert('Error al guardar', result?.message || 'No se pudo guardar la mascota.');
+                Alert.alert(t.saveErrorTitle || 'Error al guardar', t.localSaveError || 'No se pudo guardar localmente');
             }
         } catch (error) {
             console.error('Error guardando mascota:', error);
-            Alert.alert('Error', 'Ocurrió un error al guardar.');
+            Alert.alert(t.error || 'Error', t.genericSaveError || 'Ocurrio un error al guardar.');
         } finally {
             setLoading(false);
         }
@@ -216,26 +216,26 @@ export default function RegistroMascota() {
                                 <Ionicons name="paw-outline" size={20} color="#FFFFFF" />
                             </View>
                             <View style={[styles.heroPill, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                                <Text style={styles.heroPillText}>Nueva mascota</Text>
+                                <Text style={styles.heroPillText}>{t.newPet || 'Nueva mascota'}</Text>
                             </View>
                         </View>
                         <Text style={styles.heroKicker}>REGISTRO</Text>
-                        <Text style={styles.heroTitle}>Ficha de mascota</Text>
-                        <Text style={styles.heroSubtitle}>Completa los datos principales para empezar su seguimiento.</Text>
+                        <Text style={styles.heroTitle}>{t.petRecordTitle || 'Ficha de mascota'}</Text>
+                        <Text style={styles.heroSubtitle}>{t.petRecordSubtitle || 'Completa los datos principales para empezar su seguimiento.'}</Text>
                     </View>
 
                     <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <Field
-                            label="Nombre"
+                            label={t.petName || 'Nombre'}
                             icon="heart-outline"
                             value={nombreMascota}
                             onChangeText={setNombreMascota}
-                            placeholder="Ej. Toby"
+                            placeholder={t.petNameExample || 'Ej. Toby'}
                             theme={theme}
                         />
 
                         <View style={styles.fieldWrap}>
-                            <Text style={[styles.label, { color: theme.muted }]}>Especie</Text>
+                            <Text style={[styles.label, { color: theme.muted }]}>{t.speciesLabel || 'Especie'}</Text>
                             <TouchableOpacity
                                 style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
                                 onPress={() => setIsDropdownOpen((prev) => !prev)}
@@ -243,7 +243,7 @@ export default function RegistroMascota() {
                             >
                                 <Ionicons name="list-outline" size={18} color={theme.brandSoft} style={styles.leftIcon} />
                                 <Text style={[styles.dropdownValue, { color: especie ? theme.text : theme.muted }]}>
-                                    {especie || 'Selecciona una especie'}
+                                    {especie || t.selectSpecies || 'Selecciona una especie'}
                                 </Text>
                                 <MaterialIcons
                                     name={isDropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
@@ -268,22 +268,22 @@ export default function RegistroMascota() {
                         </View>
 
                         <Field
-                            label="Raza"
+                            label={t.breedLabel || 'Raza'}
                             icon="ribbon-outline"
                             value={raza}
                             onChangeText={setRaza}
-                            placeholder="Ej. Golden Retriever"
+                            placeholder={t.breedExample || 'Ej. Golden Retriever'}
                             theme={theme}
                         />
 
                         <View style={styles.row2}>
                             <View style={{ flex: 1 }}>
                                 <Field
-                                    label="Edad"
+                                    label={t.ageLabel || 'Edad'}
                                     icon="time-outline"
                                     value={edad}
                                     onChangeText={setEdad}
-                                    placeholder="Ej. 5"
+                                    placeholder={t.ageExample || 'Ej. 5'}
                                     keyboardType="numeric"
                                     theme={theme}
                                 />
@@ -291,11 +291,11 @@ export default function RegistroMascota() {
                             <View style={{ width: 10 }} />
                             <View style={{ flex: 1 }}>
                                 <Field
-                                    label="Peso (kg)"
+                                    label={`${t.weight || 'Peso'} (kg)`}
                                     icon="barbell-outline"
                                     value={peso}
                                     onChangeText={setPeso}
-                                    placeholder="Ej. 30"
+                                    placeholder={t.weightExample || 'Ej. 30'}
                                     keyboardType="numeric"
                                     theme={theme}
                                 />
@@ -304,7 +304,7 @@ export default function RegistroMascota() {
                     </View>
 
                     <View style={[styles.imageCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <Text style={[styles.label, { color: theme.muted }]}>Foto de tu mascota</Text>
+                        <Text style={[styles.label, { color: theme.muted }]}>{t.petPhotoLabel || 'Foto de tu mascota'}</Text>
 
                         {imageUri ? (
                             <>
@@ -314,13 +314,13 @@ export default function RegistroMascota() {
                                         style={[styles.secondarySmallBtn, { borderColor: theme.border }]}
                                         onPress={pickImageFromLibrary}
                                     >
-                                        <Text style={[styles.secondarySmallBtnText, { color: theme.text }]}>Cambiar</Text>
+                                        <Text style={[styles.secondarySmallBtnText, { color: theme.text }]}>{t.change || 'Cambiar'}</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         style={[styles.secondarySmallBtn, { borderColor: '#E53935' }]}
                                         onPress={removeImage}
                                     >
-                                        <Text style={[styles.secondarySmallBtnText, { color: '#E53935' }]}>Eliminar</Text>
+                                        <Text style={[styles.secondarySmallBtnText, { color: '#E53935' }]}>{t.delete || 'Eliminar'}</Text>
                                     </TouchableOpacity>
                                 </View>
                             </>
@@ -334,13 +334,13 @@ export default function RegistroMascota() {
                                         style={[styles.primarySmallBtn, { backgroundColor: theme.brandSoft }]}
                                         onPress={pickImageFromLibrary}
                                     >
-                                        <Text style={styles.primarySmallBtnText}>Galería</Text>
+                                        <Text style={styles.primarySmallBtnText}>{t.gallery || 'Galeria'}</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         style={[styles.primarySmallBtn, { backgroundColor: theme.accent }]}
                                         onPress={takePhotoWithCamera}
                                     >
-                                        <Text style={styles.primarySmallBtnText}>Cámara</Text>
+                                        <Text style={styles.primarySmallBtnText}>{t.camera || 'Camara'}</Text>
                                     </TouchableOpacity>
                                 </View>
                             </>
@@ -355,12 +355,12 @@ export default function RegistroMascota() {
                         {loading ? (
                             <>
                                 <ActivityIndicator size="small" color="#FFFFFF" />
-                                <Text style={styles.saveButtonText}>Guardando...</Text>
+                                <Text style={styles.saveButtonText}>{t.savingProgress || 'Guardando...'}</Text>
                             </>
                         ) : (
                             <>
                                 <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
-                                <Text style={styles.saveButtonText}>Guardar mascota</Text>
+                                <Text style={styles.saveButtonText}>{t.savePet || 'Guardar mascota'}</Text>
                             </>
                         )}
                     </TouchableOpacity>

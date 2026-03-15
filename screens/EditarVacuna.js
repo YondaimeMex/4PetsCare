@@ -15,12 +15,13 @@ import { Calendar } from 'react-native-calendars';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenWrapper } from '../components';
 import { useApp } from '../context';
+import { buildFormTheme, getSingleSelectedMarkedDates } from '../lib/formTheme';
 
 export default function EditarVacuna() {
     const navigation = useNavigation();
     const route = useRoute();
     const { vacuna } = route.params || {};
-    const { colors } = useApp();
+    const { colors, t } = useApp();
 
     const [nombreUsuario, setNombreUsuario] = useState('');
     const [nombreVeterinaria, setNombreVeterinaria] = useState('');
@@ -32,17 +33,7 @@ export default function EditarVacuna() {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isMascotasDropdownOpen, setIsMascotasDropdownOpen] = useState(false);
 
-    const theme = useMemo(() => ({
-        brand: colors?.primaryDark || '#2F6E4F',
-        brandSoft: colors?.primary || '#43A047',
-        accent: colors?.accent || '#FF7F5A',
-        bg: colors?.backgroundLight || '#F6F8F4',
-        card: colors?.background || '#FFFFFF',
-        border: colors?.border || '#E4E9E5',
-        text: colors?.text || '#22352D',
-        muted: colors?.textMuted || '#5D6E64',
-        inputBg: colors?.inputBackground || '#F6F8F4',
-    }), [colors]);
+    const theme = useMemo(() => buildFormTheme(colors), [colors]);
 
     useFocusEffect(
         useCallback(() => {
@@ -88,16 +79,11 @@ export default function EditarVacuna() {
         setIsDropdownOpen(false);
     };
 
-    const getMarkedDates = () => {
-        if (!selectedDate) return {};
-        return {
-            [selectedDate]: { selected: true, selectedColor: theme.brand },
-        };
-    };
+    const getMarkedDates = () => getSingleSelectedMarkedDates(selectedDate, theme.brand);
 
     const handleSave = async () => {
         if (!vacuna) {
-            Alert.alert('Error', 'No se encontró la vacuna a editar.');
+            Alert.alert(t.error || 'Error', t.vaccineNotFound || 'No se encontro la vacuna a editar.');
             return;
         }
 
@@ -105,7 +91,7 @@ export default function EditarVacuna() {
         const veterinariaLimpia = nombreVeterinaria.trim();
 
         if (!mascotaLimpia || !veterinariaLimpia || !selectedDate) {
-            Alert.alert('Faltan datos', 'Ingresa mascota, veterinaria y fecha de la vacuna.');
+            Alert.alert(t.missingData || 'Faltan datos', t.fillPetVetDate || 'Ingresa mascota, veterinaria y fecha de la vacuna.');
             return;
         }
 
@@ -139,13 +125,13 @@ export default function EditarVacuna() {
             await AsyncStorage.setItem('@citas', JSON.stringify(updatedCitas));
 
             setLoading(false);
-            Alert.alert('Éxito', `¡Vacuna actualizada para el ${selectedDate}!`, [
+            Alert.alert(t.success || 'Exito', `${t.vaccineUpdated || 'Vacuna actualizada para el'} ${selectedDate}!`, [
                 { text: 'OK', onPress: () => navigation.navigate('Calendario') },
             ]);
         } catch (error) {
             console.error('Error guardando cambios:', error);
             setLoading(false);
-            Alert.alert('Error', 'No se pudieron guardar los cambios.');
+            Alert.alert(t.error || 'Error', t.saveChangesError || 'No se pudieron guardar los cambios.');
         }
     };
 
@@ -154,13 +140,13 @@ export default function EditarVacuna() {
             <View style={[styles.container, { backgroundColor: theme.bg }]}>
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                     <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
-                        <Text style={styles.heroKicker}>VACUNAS</Text>
-                        <Text style={styles.heroTitle}>Editar vacuna</Text>
-                        <Text style={styles.heroSubtitle}>Ajusta mascota, veterinaria y fecha de aplicación.</Text>
+                        <Text style={styles.heroKicker}>{t.vaccineKicker || 'VACUNAS'}</Text>
+                        <Text style={styles.heroTitle}>{t.editVaccineTitle || 'Editar vacuna'}</Text>
+                        <Text style={styles.heroSubtitle}>{t.editVaccineSubtitle || 'Ajusta mascota, veterinaria y fecha de aplicacion.'}</Text>
                     </View>
 
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, zIndex: 101 }]}>
-                        <Text style={[styles.label, { color: theme.muted }]}>Mascota</Text>
+                        <Text style={[styles.label, { color: theme.muted }]}>{t.petLabel || 'Mascota'}</Text>
                         <TouchableOpacity
                             style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
                             onPress={() => setIsMascotasDropdownOpen((prev) => !prev)}
@@ -168,7 +154,7 @@ export default function EditarVacuna() {
                         >
                             <Ionicons name="paw-outline" size={18} color={theme.brandSoft} style={styles.leftIcon} />
                             <Text style={[styles.dropdownValue, { color: nombreUsuario ? theme.text : theme.muted }]}>
-                                {nombreUsuario || 'Selecciona una mascota'}
+                                {nombreUsuario || t.selectPetPlaceholder || 'Selecciona una mascota'}
                             </Text>
                             <MaterialIcons
                                 name={isMascotasDropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
@@ -181,7 +167,7 @@ export default function EditarVacuna() {
                             <View style={[styles.dropdownList, { backgroundColor: theme.card, borderColor: theme.border }]}>
                                 {mascotas.length === 0 ? (
                                     <View style={styles.emptyStateBox}>
-                                        <Text style={[styles.emptyStateText, { color: theme.muted }]}>No hay mascotas registradas.</Text>
+                                        <Text style={[styles.emptyStateText, { color: theme.muted }]}>{t.noRegisteredPets || 'No hay mascotas registradas.'}</Text>
                                     </View>
                                 ) : (
                                     mascotas.map((mascota, index) => (
@@ -199,7 +185,7 @@ export default function EditarVacuna() {
                     </View>
 
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, zIndex: 100 }]}>
-                        <Text style={[styles.label, { color: theme.muted }]}>Veterinaria</Text>
+                        <Text style={[styles.label, { color: theme.muted }]}>{t.vetFallback || 'Veterinaria'}</Text>
                         <TouchableOpacity
                             style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
                             onPress={() => setIsDropdownOpen((prev) => !prev)}
@@ -207,7 +193,7 @@ export default function EditarVacuna() {
                         >
                             <Ionicons name="business-outline" size={18} color={theme.brandSoft} style={styles.leftIcon} />
                             <Text style={[styles.dropdownValue, { color: nombreVeterinaria ? theme.text : theme.muted }]}>
-                                {nombreVeterinaria || 'Selecciona veterinaria'}
+                                {nombreVeterinaria || t.chooseVetPlaceholder || 'Selecciona veterinaria'}
                             </Text>
                             <MaterialIcons
                                 name={isDropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
@@ -220,7 +206,7 @@ export default function EditarVacuna() {
                             <View style={[styles.dropdownList, { backgroundColor: theme.card, borderColor: theme.border }]}>
                                 {veterinarias.length === 0 ? (
                                     <View style={styles.emptyStateBox}>
-                                        <Text style={[styles.emptyStateText, { color: theme.muted }]}>No hay veterinarias guardadas.</Text>
+                                        <Text style={[styles.emptyStateText, { color: theme.muted }]}>{t.noSavedVets || 'No hay veterinarias guardadas.'}</Text>
                                     </View>
                                 ) : (
                                     veterinarias.map((option, index) => (
@@ -238,7 +224,7 @@ export default function EditarVacuna() {
                     </View>
 
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <Text style={[styles.label, { color: theme.muted }]}>Fecha de vacuna</Text>
+                        <Text style={[styles.label, { color: theme.muted }]}>{t.vaccineDateLabel || 'Fecha de vacuna'}</Text>
                         <Calendar
                             onDayPress={(day) => setSelectedDate(day.dateString)}
                             markingType="simple"
@@ -256,7 +242,7 @@ export default function EditarVacuna() {
                             }}
                         />
                         {selectedDate ? (
-                            <Text style={[styles.selectedDateText, { color: theme.brand }]}>Fecha elegida: {selectedDate}</Text>
+                            <Text style={[styles.selectedDateText, { color: theme.brand }]}>{t.chosenDatePrefix || 'Fecha elegida:'} {selectedDate}</Text>
                         ) : null}
                     </View>
 
@@ -270,7 +256,7 @@ export default function EditarVacuna() {
                         ) : (
                             <>
                                 <Ionicons name="save-outline" size={18} color="#fff" />
-                                <Text style={styles.saveButtonText}>Guardar cambios</Text>
+                                <Text style={styles.saveButtonText}>{t.saveChanges || 'Guardar cambios'}</Text>
                             </>
                         )}
                     </TouchableOpacity>
@@ -280,7 +266,7 @@ export default function EditarVacuna() {
                         onPress={() => navigation.goBack()}
                         disabled={loading}
                     >
-                        <Text style={[styles.cancelButtonText, { color: theme.text }]}>Cancelar</Text>
+                        <Text style={[styles.cancelButtonText, { color: theme.text }]}>{t.cancel || 'Cancelar'}</Text>
                     </TouchableOpacity>
                 </ScrollView>
             </View>

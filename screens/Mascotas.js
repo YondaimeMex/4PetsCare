@@ -29,7 +29,7 @@ const getImageForEspecie = (m) => {
     return IMAGES.fallback;
 };
 
-function PetCard({ mascota, theme, onPress, onDelete, onVaccine }) {
+function PetCard({ mascota, theme, onPress, onDelete, onVaccine, t }) {
     return (
         <TouchableOpacity
             style={[styles.petCard, { backgroundColor: theme.card, borderColor: theme.border }]}
@@ -77,14 +77,14 @@ function PetCard({ mascota, theme, onPress, onDelete, onVaccine }) {
                         onPress={onVaccine}
                     >
                         <Ionicons name="medkit-outline" size={15} color={theme.brandSoft} />
-                        <Text style={[styles.actionBtnText, { color: theme.brandSoft }]}>Vacuna</Text>
+                        <Text style={[styles.actionBtnText, { color: theme.brandSoft }]}>{t.vaccineAction || 'Vacuna'}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.actionBtn, { backgroundColor: '#E5393514' }]}
                         onPress={onDelete}
                     >
                         <Ionicons name="trash-outline" size={15} color="#E53935" />
-                        <Text style={[styles.actionBtnText, { color: '#E53935' }]}>Eliminar</Text>
+                        <Text style={[styles.actionBtnText, { color: '#E53935' }]}>{t.removeAction || 'Eliminar'}</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -114,18 +114,18 @@ export default function Mascotas() {
             const raw = await AsyncStorage.getItem('@mascotas');
             setListaMascotas(raw ? JSON.parse(raw) : []);
         } catch {
-            Alert.alert('Error', 'No se pudieron cargar las mascotas.');
+            Alert.alert(t.error || 'Error', t.loadPetsError || 'No se pudieron cargar las mascotas.');
         }
     };
 
     const deleteMascota = (mascota) => {
         Alert.alert(
-            'Eliminar',
-            `¿Eliminar a ${mascota.nombre}?`,
+            t.removeAction || 'Eliminar',
+            `${t.deleteQuestion || 'Eliminar a'} ${mascota.nombre}?`,
             [
-                { text: 'Cancelar', style: 'cancel' },
+                { text: t.cancel || 'Cancelar', style: 'cancel' },
                 {
-                    text: 'Eliminar',
+                    text: t.delete || 'Eliminar',
                     style: 'destructive',
                     onPress: async () => {
                         try {
@@ -135,7 +135,7 @@ export default function Mascotas() {
                             await AsyncStorage.setItem('@mascotas', JSON.stringify(filtered));
                             setListaMascotas(filtered);
                         } catch {
-                            Alert.alert('Error', 'No se pudo eliminar la mascota.');
+                            Alert.alert(t.error || 'Error', t.deletePetError || 'No se pudo eliminar la mascota.');
                         }
                     },
                 },
@@ -147,10 +147,12 @@ export default function Mascotas() {
 
     const ListHeader = () => (
         <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
+            <View style={styles.heroGlowTop} />
+            <View style={styles.heroGlowBottom} />
             <View style={styles.heroTopRow}>
-                <View>
-                    <Text style={styles.heroKicker}>MIS MASCOTAS</Text>
-                    <Text style={styles.heroTitle}>Tu familia peluda</Text>
+                <View style={styles.heroTopInfo}>
+                    <Text style={styles.heroKicker}>{t.myPetsKicker || 'MIS MASCOTAS'}</Text>
+                    <Text style={styles.heroTitle} numberOfLines={2}>{t.furryFamilyTitle || 'Tu familia peluda'}</Text>
                 </View>
                 <TouchableOpacity
                     style={[styles.heroAddBtn, { backgroundColor: theme.accent }]}
@@ -158,7 +160,7 @@ export default function Mascotas() {
                     activeOpacity={0.85}
                 >
                     <Ionicons name="add" size={20} color="#FFFFFF" />
-                    <Text style={styles.heroAddText}>Agregar</Text>
+                    <Text style={styles.heroAddText} numberOfLines={1}>{t.add || 'Agregar'}</Text>
                 </TouchableOpacity>
             </View>
 
@@ -166,7 +168,7 @@ export default function Mascotas() {
                 <View style={styles.heroPill}>
                     <Ionicons name="paw" size={13} color="#FFFFFF" />
                     <Text style={styles.heroPillText}>
-                        {listaMascotas.length} {listaMascotas.length === 1 ? 'mascota' : 'mascotas'}
+                        {listaMascotas.length} {listaMascotas.length === 1 ? (t.petCountSingle || 'mascota') : (t.petCountPlural || 'mascotas')}
                     </Text>
                 </View>
                 <TouchableOpacity
@@ -174,7 +176,7 @@ export default function Mascotas() {
                     onPress={() => navigation.navigate('ProgramarCita')}
                 >
                     <Ionicons name="calendar-outline" size={13} color="#FFFFFF" />
-                    <Text style={styles.heroPillText}>Programar cita</Text>
+                    <Text style={styles.heroPillText} numberOfLines={1}>{t.scheduleAppointmentCta || 'Programar cita'}</Text>
                 </TouchableOpacity>
             </View>
         </View>
@@ -196,7 +198,7 @@ export default function Mascotas() {
                     <EmptyState
                         icon="paw"
                         title={t.noPets || 'No tienes mascotas registradas'}
-                        message="Registra tu primera mascota para comenzar a cuidarla"
+                        message={t.noPetsMessage || 'Registra tu primera mascota para comenzar a cuidarla'}
                         actionLabel={t.addPet || 'Agregar Mascota'}
                         onAction={() => navigation.navigate('RegistroMascota')}
                     />
@@ -205,6 +207,7 @@ export default function Mascotas() {
                     <PetCard
                         mascota={mascota}
                         theme={theme}
+                        t={t}
                         onPress={() =>
                             navigation.navigate('PerfilMascotaStack', {
                                 screen: 'PerfilMascota',
@@ -223,17 +226,45 @@ export default function Mascotas() {
 const styles = StyleSheet.create({
     /* Hero */
     heroCard: {
-        borderRadius: 0,
+        marginHorizontal: 16,
+        marginTop: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
         paddingHorizontal: 20,
         paddingTop: 24,
         paddingBottom: 28,
         marginBottom: 16,
+        overflow: 'hidden',
+    },
+    heroGlowTop: {
+        position: 'absolute',
+        top: -42,
+        right: -24,
+        width: 145,
+        height: 145,
+        borderRadius: 999,
+        backgroundColor: 'rgba(255,255,255,0.12)',
+    },
+    heroGlowBottom: {
+        position: 'absolute',
+        bottom: -56,
+        left: -22,
+        width: 130,
+        height: 130,
+        borderRadius: 999,
+        backgroundColor: 'rgba(0,0,0,0.1)',
     },
     heroTopRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         marginBottom: 16,
+    },
+    heroTopInfo: {
+        flex: 1,
+        minWidth: 0,
+        paddingRight: 8,
     },
     heroKicker: {
         fontSize: 11,
@@ -251,30 +282,37 @@ const styles = StyleSheet.create({
     heroAddBtn: {
         flexDirection: 'row',
         alignItems: 'center',
+        flexShrink: 1,
         gap: 5,
         paddingVertical: 8,
         paddingHorizontal: 14,
         borderRadius: 20,
     },
     heroAddText: {
+        flexShrink: 1,
         color: '#FFFFFF',
         fontWeight: '700',
         fontSize: 14,
     },
     heroPillRow: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         gap: 10,
     },
     heroPill: {
         flexDirection: 'row',
         alignItems: 'center',
+        maxWidth: '100%',
         gap: 5,
-        backgroundColor: 'rgba(255,255,255,0.2)',
+        backgroundColor: 'rgba(255,255,255,0.22)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
         borderRadius: 20,
-        paddingVertical: 4,
-        paddingHorizontal: 10,
+        paddingVertical: 6,
+        paddingHorizontal: 11,
     },
     heroPillText: {
+        flexShrink: 1,
         color: '#FFFFFF',
         fontSize: 12,
         fontWeight: '600',

@@ -9,7 +9,7 @@ export default function VacunaRegistrada() {
     const navigation = useNavigation();
     const route = useRoute();
     const { fechaAplicada } = route.params || {};
-    const { colors } = useApp();
+    const { colors, t } = useApp();
 
     const theme = useMemo(() => ({
         brand: colors?.primaryDark || '#2F6E4F',
@@ -35,31 +35,31 @@ export default function VacunaRegistrada() {
                         <View style={[styles.iconWrap, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
                             <FontAwesome5 name="syringe" size={20} color="#FFFFFF" />
                         </View>
-                        <Text style={styles.heroKicker}>REGISTRO COMPLETADO</Text>
-                        <Text style={styles.heroTitle}>¡Vacuna registrada!</Text>
-                        <Text style={styles.heroSubtitle}>La aplicación quedó guardada correctamente en tu calendario.</Text>
+                        <Text style={styles.heroKicker}>{t.vaccineRegisteredKicker || 'REGISTRO COMPLETADO'}</Text>
+                        <Text style={styles.heroTitle}>{t.vaccineRegisteredTitle || 'Vacuna registrada'}</Text>
+                        <Text style={styles.heroSubtitle}>{t.vaccineRegisteredSubtitle || 'La aplicacion quedo guardada correctamente en tu calendario.'}</Text>
                     </View>
 
                     <View style={[styles.dateCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <Text style={[styles.dateLabel, { color: theme.muted }]}>Fecha registrada</Text>
+                        <Text style={[styles.dateLabel, { color: theme.muted }]}>{t.registeredDateLabel || 'Fecha registrada'}</Text>
 
                         {fechaAplicada ? (
                             <Text style={[styles.dateText, { color: theme.success }]}>{fechaAplicada}</Text>
                         ) : (
                             <Text style={[styles.dateText, { color: '#E53935', fontSize: 18 }]}>
-                                No se encontró la fecha de registro.
+                                {t.noRegisteredDate || 'No se encontro la fecha de registro.'}
                             </Text>
                         )}
 
                         <View style={[styles.badge, { backgroundColor: `${theme.success}1f` }]}>
                             <Ionicons name="checkmark-circle" size={16} color={theme.success} />
-                            <Text style={[styles.badgeText, { color: theme.success }]}>Aplicación confirmada</Text>
+                            <Text style={[styles.badgeText, { color: theme.success }]}>{t.applicationConfirmed || 'Aplicacion confirmada'}</Text>
                         </View>
                     </View>
 
                     <TouchableOpacity style={[styles.acceptButton, { backgroundColor: theme.brand }]} onPress={handleAccept}>
                         <Ionicons name="home-outline" size={18} color="#FFFFFF" />
-                        <Text style={styles.acceptButtonText}>Volver al inicio</Text>
+                        <Text style={styles.acceptButtonText}>{t.backToHome || 'Volver al inicio'}</Text>
                     </TouchableOpacity>
                 </ScrollView>
             </View>

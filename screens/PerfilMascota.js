@@ -22,7 +22,7 @@ import { ScreenWrapper } from '../components';
 export default function PerfilMascota() {
     const navigation = useNavigation();
     const route = useRoute();
-    const { colors } = useApp();
+    const { colors, t } = useApp();
 
     const mascota = route.params?.mascota || {};
 
@@ -82,7 +82,7 @@ export default function PerfilMascota() {
 
     const guardarVacuna = async () => {
         if (!vacunaActual.nombre.trim() || !vacunaActual.fechaAplicacion.trim()) {
-            Alert.alert('Error', 'Completa todos los campos.');
+            Alert.alert(t.error || 'Error', t.completeAllFieldsShort || 'Completa todos los campos.');
             return;
         }
 
@@ -95,14 +95,14 @@ export default function PerfilMascota() {
 
         await guardarVacunas(nuevasVacunas);
         cerrarModal();
-        Alert.alert('Listo', isEditingVacuna ? 'Vacuna actualizada.' : 'Vacuna agregada.');
+        Alert.alert(t.ready || 'Listo', isEditingVacuna ? (t.vaccineUpdatedShort || 'Vacuna actualizada.') : (t.vaccineAddedShort || 'Vacuna agregada.'));
     };
 
     const eliminarVacuna = (id) => {
-        Alert.alert('Eliminar vacuna', 'Esta acción no se puede deshacer.', [
-            { text: 'Cancelar', style: 'cancel' },
+        Alert.alert(t.deleteVaccineTitle || 'Eliminar vacuna', t.irreversibleAction || 'Esta accion no se puede deshacer.', [
+            { text: t.cancel || 'Cancelar', style: 'cancel' },
             {
-                text: 'Eliminar',
+                text: t.delete || 'Eliminar',
                 style: 'destructive',
                 onPress: async () => {
                     const nuevasVacunas = vacunas.filter((v) => v.id !== id);
@@ -143,12 +143,12 @@ export default function PerfilMascota() {
             const actualizadas = lista.map((m) => (m.id === mascota.id ? mascotaEditada : m));
 
             await AsyncStorage.setItem('@mascotas', JSON.stringify(actualizadas));
-            Alert.alert('Guardado', 'La información fue actualizada.');
+            Alert.alert(t.savedTitle || 'Guardado', t.infoUpdated || 'La informacion fue actualizada.');
             setIsEditable(false);
             navigation.goBack();
         } catch (error) {
             console.log(error);
-            Alert.alert('Error', 'No se pudieron guardar los cambios.');
+            Alert.alert(t.error || 'Error', t.saveChangesError || 'No se pudieron guardar los cambios.');
         }
     };
 
@@ -174,7 +174,7 @@ export default function PerfilMascota() {
                         <View style={styles.heroGlowTop} />
                         <View style={styles.heroGlowBottom} />
                         <View style={styles.heroHeaderRow}>
-                            <Text style={styles.heroKicker}>Perfil de mascota</Text>
+                            <Text style={styles.heroKicker}>{t.petProfileTitle || 'Perfil de mascota'}</Text>
                             <TouchableOpacity
                                 style={styles.editToggle}
                                 onPress={() => setIsEditable((prev) => !prev)}
@@ -183,13 +183,13 @@ export default function PerfilMascota() {
                                 <Ionicons name={isEditable ? 'close' : 'create-outline'} size={20} color="#FFFFFF" />
                             </TouchableOpacity>
                         </View>
-                        <Text style={styles.heroTitle}>{nombre || 'Sin nombre'}</Text>
-                        <Text style={styles.heroSubtitle}>{raza || 'Raza no definida'}</Text>
+                        <Text style={styles.heroTitle}>{nombre || t.unnamed || 'Sin nombre'}</Text>
+                        <Text style={styles.heroSubtitle}>{raza || t.undefinedBreed || 'Raza no definida'}</Text>
 
                         <View style={styles.pillRow}>
                             <View style={styles.heroPill}>
                                 <MaterialCommunityIcons name="needle" size={14} color="#FFFFFF" />
-                                <Text style={styles.heroPillText}>{vacunas.length} vacunas registradas</Text>
+                                <Text style={styles.heroPillText}>{vacunas.length} {t.vaccinesRegistered || 'vacunas registradas'}</Text>
                             </View>
                         </View>
                     </View>
@@ -199,24 +199,24 @@ export default function PerfilMascota() {
                             style={[styles.tabBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
                             onPress={() => navigation.navigate('PerfilMascotaStack', { screen: 'Salud', params: { mascotaId: mascota.id } })}
                         >
-                            <Text style={[styles.tabText, { color: theme.text }]}>Salud</Text>
+                            <Text style={[styles.tabText, { color: theme.text }]}>{t.health || 'Salud'}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.tabBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
                             onPress={() => navigation.navigate('PerfilMascotaStack', { screen: 'Actividades', params: { mascotaId: mascota.id } })}
                         >
-                            <Text style={[styles.tabText, { color: theme.text }]}>Actividades</Text>
+                            <Text style={[styles.tabText, { color: theme.text }]}>{t.activities || 'Actividades'}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.tabBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
                             onPress={() => navigation.navigate('PerfilMascotaStack', { screen: 'Alimentacion', params: { mascotaId: mascota.id } })}
                         >
-                            <Text style={[styles.tabText, { color: theme.text }]}>Alimentación</Text>
+                            <Text style={[styles.tabText, { color: theme.text }]}>{t.feeding || 'Alimentacion'}</Text>
                         </TouchableOpacity>
                     </View>
 
                     <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <Text style={[styles.sectionTitle, { color: theme.text }]}>Identidad</Text>
+                        <Text style={[styles.sectionTitle, { color: theme.text }]}>{t.identity || 'Identidad'}</Text>
 
                         <TouchableOpacity onPress={pickImage} disabled={!isEditable} activeOpacity={0.9}>
                             {image ? (
@@ -224,20 +224,20 @@ export default function PerfilMascota() {
                             ) : (
                                 <View style={[styles.petImagePlaceholder, { backgroundColor: theme.bg, borderColor: theme.border }]}>
                                     <Ionicons name="paw-outline" size={52} color={theme.muted} />
-                                    <Text style={[styles.photoHint, { color: theme.muted }]}>Agregar foto</Text>
+                                    <Text style={[styles.photoHint, { color: theme.muted }]}>{t.addPhoto || 'Agregar foto'}</Text>
                                 </View>
                             )}
                         </TouchableOpacity>
 
                         <Field
-                            label="Nombre"
+                            label={t.petName || 'Nombre'}
                             value={nombre}
                             onChangeText={setNombre}
                             editable={isEditable}
                             theme={theme}
                         />
                         <Field
-                            label="Raza"
+                            label={t.breedLabel || 'Raza'}
                             value={raza}
                             onChangeText={setRaza}
                             editable={isEditable}
@@ -247,7 +247,7 @@ export default function PerfilMascota() {
                         <View style={styles.rowSplit}>
                             <View style={styles.colSplit}>
                                 <Field
-                                    label="Edad"
+                                    label={t.ageLabel || 'Edad'}
                                     value={edad}
                                     onChangeText={setEdad}
                                     editable={isEditable}
@@ -257,7 +257,7 @@ export default function PerfilMascota() {
                             </View>
                             <View style={styles.colSplit}>
                                 <Field
-                                    label="Peso (kg)"
+                                    label={`${t.weight || 'Peso'} (kg)`}
                                     value={peso}
                                     onChangeText={setPeso}
                                     editable={isEditable}
@@ -267,7 +267,7 @@ export default function PerfilMascota() {
                             </View>
                         </View>
 
-                        <Field label="Especie" value={especie} editable={false} theme={theme} />
+                        <Field label={t.speciesLabel || 'Especie'} value={especie} editable={false} theme={theme} />
 
                         {isEditable && (
                             <TouchableOpacity
@@ -275,7 +275,7 @@ export default function PerfilMascota() {
                                 onPress={guardarCambios}
                                 activeOpacity={0.9}
                             >
-                                <Text style={styles.saveBtnText}>Guardar cambios</Text>
+                                <Text style={styles.saveBtnText}>{t.saveChanges || 'Guardar cambios'}</Text>
                             </TouchableOpacity>
                         )}
                     </View>
@@ -284,7 +284,7 @@ export default function PerfilMascota() {
                         <View style={styles.sectionHeaderRow}>
                             <View style={styles.sectionHeaderTitleRow}>
                                 <MaterialCommunityIcons name="needle" size={18} color={theme.brandSoft} />
-                                <Text style={[styles.sectionTitle, { color: theme.text }]}>Cartilla de vacunas</Text>
+                                <Text style={[styles.sectionTitle, { color: theme.text }]}>{t.vaccineRecordBook || 'Cartilla de vacunas'}</Text>
                             </View>
                             <TouchableOpacity
                                 style={[styles.addBtn, { backgroundColor: theme.brand }]}
@@ -292,14 +292,14 @@ export default function PerfilMascota() {
                                 activeOpacity={0.9}
                             >
                                 <Ionicons name="add" size={16} color="#FFFFFF" />
-                                <Text style={styles.addBtnText}>Agregar</Text>
+                                <Text style={styles.addBtnText}>{t.add || 'Agregar'}</Text>
                             </TouchableOpacity>
                         </View>
 
                         {vacunas.length === 0 ? (
                             <View style={styles.emptyState}>
                                 <Ionicons name="clipboard-outline" size={26} color={theme.muted} />
-                                <Text style={[styles.emptyText, { color: theme.muted }]}>No hay vacunas registradas.</Text>
+                                <Text style={[styles.emptyText, { color: theme.muted }]}>{t.noVaccines || 'No hay vacunas registradas.'}</Text>
                             </View>
                         ) : (
                             vacunas.map((vacuna) => (
@@ -333,26 +333,26 @@ export default function PerfilMascota() {
                     <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <View style={styles.modalHeader}>
                             <Text style={[styles.modalTitle, { color: theme.text }]}>
-                                {isEditingVacuna ? 'Editar vacuna' : 'Nueva vacuna'}
+                                {isEditingVacuna ? (t.editVaccineModal || 'Editar vacuna') : (t.newVaccineModal || 'Nueva vacuna')}
                             </Text>
                             <TouchableOpacity onPress={cerrarModal}>
                                 <Ionicons name="close" size={24} color={theme.text} />
                             </TouchableOpacity>
                         </View>
 
-                        <Text style={[styles.modalLabel, { color: theme.text }]}>Nombre</Text>
+                        <Text style={[styles.modalLabel, { color: theme.text }]}>{t.petName || 'Nombre'}</Text>
                         <TextInput
                             style={[styles.modalInput, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
-                            placeholder="Ej: Rabia"
+                            placeholder={t.rabiesExample || 'Ej: Rabia'}
                             placeholderTextColor={theme.muted}
                             value={vacunaActual.nombre}
                             onChangeText={(text) => setVacunaActual({ ...vacunaActual, nombre: text })}
                         />
 
-                        <Text style={[styles.modalLabel, { color: theme.text }]}>Fecha de aplicación</Text>
+                        <Text style={[styles.modalLabel, { color: theme.text }]}>{t.applicationDateLabel || 'Fecha de aplicacion'}</Text>
                         <TextInput
                             style={[styles.modalInput, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
-                            placeholder="DD/MM/AAAA"
+                            placeholder={t.dateFormatPlaceholder || 'DD/MM/AAAA'}
                             placeholderTextColor={theme.muted}
                             value={vacunaActual.fechaAplicacion}
                             onChangeText={(text) => setVacunaActual({ ...vacunaActual, fechaAplicacion: text })}
@@ -360,10 +360,10 @@ export default function PerfilMascota() {
 
                         <View style={styles.modalActions}>
                             <TouchableOpacity style={[styles.modalBtnGhost, { borderColor: theme.border }]} onPress={cerrarModal}>
-                                <Text style={[styles.modalBtnGhostText, { color: theme.text }]}>Cancelar</Text>
+                                <Text style={[styles.modalBtnGhostText, { color: theme.text }]}>{t.cancel || 'Cancelar'}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={[styles.modalBtnPrimary, { backgroundColor: theme.brand }]} onPress={guardarVacuna}>
-                                <Text style={styles.modalBtnPrimaryText}>{isEditingVacuna ? 'Actualizar' : 'Guardar'}</Text>
+                                <Text style={styles.modalBtnPrimaryText}>{isEditingVacuna ? (t.update || 'Actualizar') : (t.save || 'Guardar')}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

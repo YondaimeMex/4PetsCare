@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -8,8 +8,26 @@ import { ScreenWrapper } from '../components';
 
 export default function HomeScreen() {
     const navigation = useNavigation();
-    const { colors: contextColors } = useApp();
+    const {
+        colors: contextColors,
+        t,
+        language,
+        registerTutorialTarget,
+        maybeStartTutorial,
+        isTutorialVisible,
+        tutorialStepIndex,
+        tutorialSteps,
+        tutorialTargets,
+        tutorialViewport,
+    } = useApp();
     const colors = contextColors || {};
+    const scrollViewRef = useRef(null);
+    const scrollOffsetRef = useRef(0);
+    const registerPetRef = useRef(null);
+    const calendarRef = useRef(null);
+    const emergenciesRef = useRef(null);
+    const vetMapRef = useRef(null);
+    const searchRef = useRef(null);
 
     const [upcomingVacunas, setUpcomingVacunas] = useState([]);
     const [upcomingCitas, setUpcomingCitas] = useState([]);
@@ -18,7 +36,8 @@ export default function HomeScreen() {
     const formatDate = (dateString) => {
         const options = { day: 'numeric', month: 'short' };
         const date = new Date(dateString);
-        return isNaN(date) ? dateString : date.toLocaleDateString('es-ES', options);
+        const locale = language === 'en' ? 'en-US' : 'es-ES';
+        return isNaN(date) ? dateString : date.toLocaleDateString(locale, options);
     };
 
     const isPastDate = (dateString) => {
@@ -68,11 +87,83 @@ export default function HomeScreen() {
         }
     };
 
+    const measureTarget = useCallback((key, ref) => {
+        setTimeout(() => {
+            ref?.current?.measureInWindow((x, y, width, height) => {
+                if (width > 0 && height > 0) {
+                    registerTutorialTarget(key, { x, y, width, height });
+                }
+            });
+        }, 0);
+    }, [registerTutorialTarget]);
+
+    const refreshTutorialTargets = useCallback(() => {
+        measureTarget('home.search', searchRef);
+        measureTarget('home.registerPet', registerPetRef);
+        measureTarget('home.calendar', calendarRef);
+        measureTarget('home.emergencies', emergenciesRef);
+        measureTarget('home.vetMap', vetMapRef);
+    }, [measureTarget]);
+
     useFocusEffect(
         useCallback(() => {
             loadCitas();
-        }, [])
+            setTimeout(() => {
+                refreshTutorialTargets();
+                maybeStartTutorial();
+            }, 220);
+        }, [maybeStartTutorial, refreshTutorialTargets])
     );
+
+    useEffect(() => {
+        if (!isTutorialVisible) return;
+
+        const currentStep = tutorialSteps[tutorialStepIndex];
+        const targetKey = currentStep?.targetKey;
+
+        if (!targetKey?.startsWith('home.')) return;
+
+        const target = tutorialTargets[targetKey];
+        const viewportHeight = tutorialViewport?.height || 0;
+
+        if (!target || viewportHeight <= 0) {
+            const retryTimer = setTimeout(() => {
+                refreshTutorialTargets();
+            }, 180);
+
+            return () => clearTimeout(retryTimer);
+        }
+
+        const topSafeArea = 150;
+        const bottomSafeArea = 210;
+        const targetTop = target.y;
+        const targetBottom = target.y + target.height;
+
+        let nextScrollOffset = null;
+
+        if (targetBottom > viewportHeight - bottomSafeArea) {
+            nextScrollOffset = Math.max(0, scrollOffsetRef.current + (targetBottom - (viewportHeight - bottomSafeArea)));
+        } else if (targetTop < topSafeArea) {
+            nextScrollOffset = Math.max(0, scrollOffsetRef.current - (topSafeArea - targetTop));
+        }
+
+        if (nextScrollOffset == null) return;
+
+        scrollViewRef.current?.scrollTo({ y: nextScrollOffset, animated: true });
+
+        const measureTimer = setTimeout(() => {
+            refreshTutorialTargets();
+        }, 420);
+
+        return () => clearTimeout(measureTimer);
+    }, [
+        isTutorialVisible,
+        refreshTutorialTargets,
+        tutorialStepIndex,
+        tutorialSteps,
+        tutorialTargets,
+        tutorialViewport,
+    ]);
 
     const upcomingEvents = useMemo(() => {
         const vacunas = upcomingVacunas.map((cita) => ({ ...cita, category: 'Vacuna' }));
@@ -84,10 +175,10 @@ export default function HomeScreen() {
 
     const greeting = useMemo(() => {
         const hour = new Date().getHours();
-        if (hour < 12) return 'Buenos dias';
-        if (hour < 19) return 'Buenas tardes';
-        return 'Buenas noches';
-    }, []);
+        if (hour < 12) return t.morningGreeting || 'Buenos dias';
+        if (hour < 19) return t.afternoonGreeting || 'Buenas tardes';
+        return t.eveningGreeting || 'Buenas noches';
+    }, [t]);
 
     const brand = colors?.primaryDark || '#2F6E4F';
     const brandSoft = colors?.primary || '#43A047';
@@ -101,21 +192,28 @@ export default function HomeScreen() {
     return (
         <ScreenWrapper>
             <ScrollView
+                ref={scrollViewRef}
                 style={[styles.scrollView, { backgroundColor: pageBackground }]}
                 contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}
+                scrollEventThrottle={16}
+                onScroll={(event) => {
+                    scrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+                }}
+                onMomentumScrollEnd={refreshTutorialTargets}
+                onScrollEndDrag={refreshTutorialTargets}
             >
                 <View style={[styles.heroCard, { backgroundColor: brand }]}>
                     <View style={styles.heroGlowTop} />
                     <View style={styles.heroGlowBottom} />
                     <Text style={styles.heroKicker}>{greeting}</Text>
-                    <Text style={styles.heroTitle}>Todo el cuidado de tus mascotas, hoy.</Text>
-                    <Text style={styles.heroSubtitle}>Mantiene vacunas, citas y recordatorios en orden sin esfuerzo.</Text>
+                    <Text style={styles.heroTitle}>{t.homeHeroTitle || 'Todo el cuidado de tus mascotas, hoy.'}</Text>
+                    <Text style={styles.heroSubtitle}>{t.homeHeroSubtitle || 'Mantiene vacunas, citas y recordatorios en orden sin esfuerzo.'}</Text>
 
                     <View style={styles.heroPillRow}>
                         <View style={[styles.heroPill, { backgroundColor: '#3B7C5E' }]}>
                             <Ionicons name="pulse-outline" size={14} color="#FFFFFF" />
-                            <Text style={styles.heroPillText}>{upcomingEvents.length} pendientes próximos</Text>
+                            <Text style={styles.heroPillText}>{upcomingEvents.length} {t.pendingSoon || 'pendientes proximos'}</Text>
                         </View>
                     </View>
 
@@ -126,7 +224,7 @@ export default function HomeScreen() {
                             activeOpacity={0.9}
                         >
                             <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
-                            <Text style={styles.heroButtonText}>Programar cita</Text>
+                            <Text style={styles.heroButtonText} numberOfLines={1}>{t.scheduleAppointmentCta || 'Programar cita'}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={styles.heroGhostButton}
@@ -134,31 +232,52 @@ export default function HomeScreen() {
                             activeOpacity={0.9}
                         >
                             <Ionicons name="paw-outline" size={16} color="#FFFFFF" />
-                            <Text style={styles.heroGhostText}>Ver mascotas</Text>
+                            <Text style={styles.heroGhostText} numberOfLines={1}>{t.viewPetsCta || 'Ver mascotas'}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
 
                 <View style={styles.metricsRow}>
                     <View style={[styles.metricCard, { backgroundColor: cardBackground, borderColor: border }]}>
-                        <Text style={[styles.metricLabel, { color: textMuted }]}>Vacunas próximas</Text>
+                        <Text style={[styles.metricLabel, { color: textMuted }]}>{t.upcomingVaccines || 'Vacunas proximas'}</Text>
                         <Text style={[styles.metricValue, { color: textMain }]}>{upcomingVacunas.length}</Text>
                     </View>
                     <View style={[styles.metricCard, { backgroundColor: cardBackground, borderColor: border }]}>
-                        <Text style={[styles.metricLabel, { color: textMuted }]}>Citas próximas</Text>
+                        <Text style={[styles.metricLabel, { color: textMuted }]}>{t.upcomingAppointments || 'Citas proximas'}</Text>
                         <Text style={[styles.metricValue, { color: textMain }]}>{upcomingCitas.length}</Text>
                     </View>
                     <View style={[styles.metricCard, { backgroundColor: cardBackground, borderColor: border }]}>
-                        <Text style={[styles.metricLabel, { color: textMuted }]}>Aplicadas</Text>
+                        <Text style={[styles.metricLabel, { color: textMuted }]}>{t.appliedCount || 'Aplicadas'}</Text>
                         <Text style={[styles.metricValue, { color: textMain }]}>{appliedVacunas.length}</Text>
                     </View>
                 </View>
 
+                <TouchableOpacity
+                    ref={searchRef}
+                    style={[styles.searchCard, { backgroundColor: cardBackground, borderColor: border }]}
+                    onPress={() => navigation.navigate('BuscadorGoogle')}
+                    onLayout={() => measureTarget('home.search', searchRef)}
+                    activeOpacity={0.9}
+                >
+                    <View style={[styles.searchIconWrap, { backgroundColor: '#EEF6F0' }]}>
+                        <Ionicons name="search-outline" size={18} color={brandSoft} />
+                    </View>
+                    <View style={styles.searchTextWrap}>
+                        <Text style={[styles.searchPlaceholder, { color: textMuted }]} numberOfLines={1}>
+                            {t.homeSearchPlaceholder || 'Busca sintomas, cuidados o recomendaciones'}
+                        </Text>
+                        <Text style={[styles.searchHint, { color: brandSoft }]} numberOfLines={1}>
+                            {t.homeSearchHint || 'Abrir buscador'}
+                        </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={textMuted} />
+                </TouchableOpacity>
+
                 <View style={[styles.sectionCard, { backgroundColor: cardBackground, borderColor: border }]}>
                     <View style={styles.sectionHeader}>
-                        <Text style={[styles.sectionTitle, { color: textMain }]}>Lo próximo</Text>
+                        <Text style={[styles.sectionTitle, { color: textMain }]}>{t.upNext || 'Lo proximo'}</Text>
                         <TouchableOpacity onPress={() => navigation.navigate('Calendario')}>
-                            <Text style={[styles.linkText, { color: brandSoft }]}>Ver calendario</Text>
+                            <Text style={[styles.linkText, { color: brandSoft }]}>{t.viewCalendar || 'Ver calendario'}</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -187,10 +306,10 @@ export default function HomeScreen() {
                                     </View>
                                     <View style={styles.eventContent}>
                                         <Text style={[styles.eventTitle, { color: textMain }]}>
-                                            {isVaccine ? 'Vacuna pendiente' : 'Cita pendiente'}
+                                            {isVaccine ? (t.pendingVaccine || 'Vacuna pendiente') : (t.pendingAppointment || 'Cita pendiente')}
                                         </Text>
                                         <Text style={[styles.eventMeta, { color: textMuted }]} numberOfLines={1}>
-                                            {event.usuario || 'Mascota'} - {event.veterinaria || 'Veterinaria'}
+                                            {event.usuario || t.petFallback || 'Mascota'} - {event.veterinaria || t.vetFallback || 'Veterinaria'}
                                         </Text>
                                     </View>
                                     <Text style={[styles.eventDate, { color: textMuted }]}>{formatDate(event.fecha)}</Text>
@@ -200,50 +319,58 @@ export default function HomeScreen() {
                     ) : (
                         <View style={styles.emptyStateWrap}>
                             <Ionicons name="sparkles-outline" size={20} color={accent} />
-                            <Text style={[styles.emptyStateText, { color: textMuted }]}>Aún no hay eventos. Programa la primera cita en 1 minuto.</Text>
+                            <Text style={[styles.emptyStateText, { color: textMuted }]}>{t.noEventsYet || 'Aun no hay eventos. Programa la primera cita en 1 minuto.'}</Text>
                         </View>
                     )}
                 </View>
 
                 <View style={styles.quickGrid}>
                     <TouchableOpacity
+                        ref={registerPetRef}
                         style={[styles.quickAction, { backgroundColor: cardBackground, borderColor: border }]}
                         onPress={() => navigation.navigate('RegistroMascota')}
+                        onLayout={() => measureTarget('home.registerPet', registerPetRef)}
                         activeOpacity={0.9}
                     >
                         <MaterialCommunityIcons name="paw" size={20} color={brandSoft} />
-                        <Text style={[styles.quickTitle, { color: textMain }]}>Registrar mascota</Text>
-                        <Text style={[styles.quickSubtitle, { color: textMuted }]}>Alta rápida en segundos</Text>
+                        <Text style={[styles.quickTitle, { color: textMain }]}>{t.registerPet || 'Registrar mascota'}</Text>
+                        <Text style={[styles.quickSubtitle, { color: textMuted }]}>{t.quickRegistration || 'Alta rapida en segundos'}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
+                        ref={calendarRef}
                         style={[styles.quickAction, { backgroundColor: cardBackground, borderColor: border }]}
                         onPress={() => navigation.navigate('Calendario')}
+                        onLayout={() => measureTarget('home.calendar', calendarRef)}
                         activeOpacity={0.9}
                     >
                         <Ionicons name="calendar-clear-outline" size={20} color={brandSoft} />
-                        <Text style={[styles.quickTitle, { color: textMain }]}>Calendario</Text>
-                        <Text style={[styles.quickSubtitle, { color: textMuted }]}>Agenda completa</Text>
+                        <Text style={[styles.quickTitle, { color: textMain }]}>{t.calendar || 'Calendario'}</Text>
+                        <Text style={[styles.quickSubtitle, { color: textMuted }]}>{t.fullAgenda || 'Agenda completa'}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
+                        ref={emergenciesRef}
                         style={[styles.quickAction, { backgroundColor: cardBackground, borderColor: border }]}
                         onPress={() => navigation.navigate('Emergencias')}
+                        onLayout={() => measureTarget('home.emergencies', emergenciesRef)}
                         activeOpacity={0.9}
                     >
                         <Ionicons name="alert-circle-outline" size={20} color={accent} />
-                        <Text style={[styles.quickTitle, { color: textMain }]}>Emergencias</Text>
-                        <Text style={[styles.quickSubtitle, { color: textMuted }]}>Atención inmediata</Text>
+                        <Text style={[styles.quickTitle, { color: textMain }]}>{t.emergencies || 'Emergencias'}</Text>
+                        <Text style={[styles.quickSubtitle, { color: textMuted }]}>{t.immediateAttention || 'Atencion inmediata'}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
+                        ref={vetMapRef}
                         style={[styles.quickAction, { backgroundColor: cardBackground, borderColor: border }]}
                         onPress={() => navigation.navigate('Mapas')}
+                        onLayout={() => measureTarget('home.vetMap', vetMapRef)}
                         activeOpacity={0.9}
                     >
                         <Ionicons name="map-outline" size={20} color={brandSoft} />
-                        <Text style={[styles.quickTitle, { color: textMain }]}>Mapa vet</Text>
-                        <Text style={[styles.quickSubtitle, { color: textMuted }]}>Encuentra opciones</Text>
+                        <Text style={[styles.quickTitle, { color: textMain }]}>{t.vetMap || 'Mapa vet'}</Text>
+                        <Text style={[styles.quickSubtitle, { color: textMuted }]}>{t.findOptions || 'Encuentra opciones'}</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -323,34 +450,42 @@ const styles = StyleSheet.create({
         marginTop: 14,
         flexDirection: 'row',
         alignItems: 'center',
+        minWidth: 0,
         gap: 8,
     },
     heroButton: {
-        borderRadius: 12,
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-        flexDirection: 'row',
-        alignItems: 'center',
-        alignSelf: 'flex-start',
-        gap: 8,
-    },
-    heroGhostButton: {
+        flex: 1,
+        minWidth: 0,
         borderRadius: 12,
         paddingVertical: 10,
         paddingHorizontal: 12,
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+    },
+    heroGhostButton: {
+        flex: 1,
+        minWidth: 0,
+        borderRadius: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
         gap: 6,
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.35)',
         backgroundColor: 'rgba(255,255,255,0.08)',
     },
     heroButtonText: {
+        flexShrink: 1,
         color: '#FFFFFF',
         fontSize: 14,
         fontWeight: '800',
     },
     heroGhostText: {
+        flexShrink: 1,
         color: '#FFFFFF',
         fontSize: 13,
         fontWeight: '700',
@@ -359,6 +494,35 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         gap: 10,
         marginTop: 14,
+    },
+    searchCard: {
+        marginTop: 14,
+        borderRadius: 16,
+        borderWidth: 1,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    searchIconWrap: {
+        width: 34,
+        height: 34,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    searchTextWrap: {
+        flex: 1,
+    },
+    searchPlaceholder: {
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    searchHint: {
+        marginTop: 2,
+        fontSize: 12,
+        fontWeight: '700',
     },
     metricCard: {
         flex: 1,

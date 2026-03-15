@@ -11,7 +11,7 @@ import NotificationService from './Notificaciones';
 
 export default function ProgramarCita() {
     const navigation = useNavigation();
-    const { colors } = useApp();
+    const { colors, t } = useApp();
 
     const theme = useMemo(() => ({
         brand: colors?.primaryDark || '#2F6E4F',
@@ -62,7 +62,10 @@ export default function ProgramarCita() {
         const vet = nombreVeterinaria.trim();
 
         if (!usuario || !vet || !selectedDate) {
-            Alert.alert('Faltan datos', `Completa todos los campos:\n${!usuario ? '- Nombre\n' : ''}${!vet ? '- Veterinaria\n' : ''}${!selectedDate ? '- Fecha' : ''}`);
+            Alert.alert(
+                t.missingData || 'Faltan datos',
+                `${t.completeAllFields || 'Completa todos los campos:'}\n${!usuario ? `- ${t.nameFieldLabel || 'Nombre'}\n` : ''}${!vet ? `- ${t.vetFallback || 'Veterinaria'}\n` : ''}${!selectedDate ? `- ${t.dateFieldLabel || 'Fecha'}` : ''}`
+            );
             return;
         }
 
@@ -86,8 +89,8 @@ export default function ProgramarCita() {
 
             setLoading(false);
             Alert.alert(
-                '¡Cita guardada!',
-                `${vet} — ${selectedDate} a las ${formatTime(selectedTime)}`,
+                t.appointmentSavedTitle || 'Cita guardada',
+                `${vet} - ${selectedDate} ${t.atTimeConnector || 'a las'} ${formatTime(selectedTime)}`,
                 [{ text: 'OK', onPress: () => navigation.navigate('Calendario') }]
             );
 
@@ -97,7 +100,7 @@ export default function ProgramarCita() {
             setSelectedTime(new Date());
         } catch {
             setLoading(false);
-            Alert.alert('Error', 'No se pudo guardar la cita.');
+            Alert.alert(t.error || 'Error', t.saveAppointmentError || 'No se pudo guardar la cita.');
         }
     };
 
@@ -112,32 +115,32 @@ export default function ProgramarCita() {
                 <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
                     <View style={styles.heroGlowTop} />
                     <View style={styles.heroGlowBottom} />
-                    <Text style={styles.heroKicker}>NUEVA CITA</Text>
-                    <Text style={styles.heroTitle}>Programar cita</Text>
-                    <Text style={styles.heroSubtitle}>Elige veterinaria, fecha y hora</Text>
+                    <Text style={styles.heroKicker}>{t.newAppointmentKicker || 'NUEVA CITA'}</Text>
+                    <Text style={styles.heroTitle}>{t.scheduleAppointmentCta || 'Programar cita'}</Text>
+                    <Text style={styles.heroSubtitle}>{t.chooseVetDateTime || 'Elige veterinaria, fecha y hora'}</Text>
                 </View>
 
                 {/* ── Nombre del usuario ── */}
                 <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                    <Text style={[styles.label, { color: theme.muted }]}>Nombre del usuario</Text>
+                    <Text style={[styles.label, { color: theme.muted }]}>{t.userNameLabel || 'Nombre del usuario'}</Text>
                     <TextInput
                         style={[styles.input, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }]}
                         value={nombreUsuario}
                         onChangeText={setNombreUsuario}
-                        placeholder="Ej. Gabriel Pérez"
+                        placeholder={t.userNamePlaceholder || 'Ej. Gabriel Perez'}
                         placeholderTextColor={theme.muted}
                     />
                 </View>
 
                 {/* ── Veterinaria ── */}
                 <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border, zIndex: 100 }]}>
-                    <Text style={[styles.label, { color: theme.muted }]}>Veterinaria</Text>
+                    <Text style={[styles.label, { color: theme.muted }]}>{t.vetFallback || 'Veterinaria'}</Text>
                     <TouchableOpacity
                         style={[styles.dropdownTrigger, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
                         onPress={() => setIsDropdownOpen(!isDropdownOpen)}
                     >
                         <Text style={[styles.dropdownText, { color: nombreVeterinaria ? theme.text : theme.muted }]}>
-                            {nombreVeterinaria || 'Elige una veterinaria'}
+                            {nombreVeterinaria || t.chooseVetPlaceholder || 'Elige una veterinaria'}
                         </Text>
                         <MaterialIcons
                             name={isDropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
@@ -151,14 +154,14 @@ export default function ProgramarCita() {
                             {veterinarias.length === 0 ? (
                                 <View style={styles.dropdownEmpty}>
                                     <Text style={[styles.dropdownEmptyText, { color: theme.muted }]}>
-                                        No hay veterinarias guardadas.
+                                        {t.noSavedVets || 'No hay veterinarias guardadas.'}
                                     </Text>
                                     <TouchableOpacity
                                         style={[styles.addVetBtn, { backgroundColor: theme.brand }]}
                                         onPress={() => { setIsDropdownOpen(false); navigation.navigate('RegistroVeterinaria'); }}
                                     >
                                         <Ionicons name="add" size={16} color="#FFF" />
-                                        <Text style={styles.addVetBtnText}>Registrar veterinaria</Text>
+                                        <Text style={styles.addVetBtnText}>{t.registerVet || 'Registrar veterinaria'}</Text>
                                     </TouchableOpacity>
                                 </View>
                             ) : (
@@ -177,7 +180,7 @@ export default function ProgramarCita() {
                                         onPress={() => { setIsDropdownOpen(false); navigation.navigate('RegistroVeterinaria'); }}
                                     >
                                         <Ionicons name="add-circle-outline" size={18} color={theme.brandSoft} />
-                                        <Text style={[styles.dropdownFooterText, { color: theme.brandSoft }]}>Agregar nueva veterinaria</Text>
+                                        <Text style={[styles.dropdownFooterText, { color: theme.brandSoft }]}>{t.addNewVet || 'Agregar nueva veterinaria'}</Text>
                                     </TouchableOpacity>
                                 </>
                             )}
@@ -187,7 +190,7 @@ export default function ProgramarCita() {
 
                 {/* ── Fecha ── */}
                 <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                    <Text style={[styles.label, { color: theme.muted }]}>Fecha de la cita</Text>
+                    <Text style={[styles.label, { color: theme.muted }]}>{t.appointmentDateLabel || 'Fecha de la cita'}</Text>
                     <Calendar
                         onDayPress={day => setSelectedDate(day.dateString)}
                         markingType="simple"
@@ -209,14 +212,14 @@ export default function ProgramarCita() {
                     {selectedDate ? (
                         <View style={[styles.selectedDatePill, { backgroundColor: `${theme.brand}14` }]}>
                             <Ionicons name="calendar" size={14} color={theme.brand} />
-                            <Text style={[styles.selectedDateText, { color: theme.brand }]}>Seleccionado: {selectedDate}</Text>
+                            <Text style={[styles.selectedDateText, { color: theme.brand }]}>{t.selectedDatePrefix || 'Seleccionado:'} {selectedDate}</Text>
                         </View>
                     ) : null}
                 </View>
 
                 {/* ── Hora ── */}
                 <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                    <Text style={[styles.label, { color: theme.muted }]}>Hora de la cita</Text>
+                    <Text style={[styles.label, { color: theme.muted }]}>{t.appointmentTimeLabel || 'Hora de la cita'}</Text>
                     <TouchableOpacity
                         style={[styles.timeRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
                         onPress={() => setShowTimePicker(true)}
@@ -248,7 +251,7 @@ export default function ProgramarCita() {
                     ) : (
                         <>
                             <Ionicons name="checkmark-circle-outline" size={22} color="#FFFFFF" />
-                            <Text style={styles.saveBtnText}>Programar cita</Text>
+                            <Text style={styles.saveBtnText}>{t.scheduleAppointmentCta || 'Programar cita'}</Text>
                         </>
                     )}
                 </TouchableOpacity>

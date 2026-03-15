@@ -4,57 +4,6 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../context';
 import { ScreenWrapper } from '../components';
 
-const petTips = [
-    {
-        title: 'Nutrición esencial',
-        text: 'Asegúrate de que la dieta de tu mascota sea balanceada y apropiada para su edad y nivel de actividad. Evita darle comida humana tóxica como chocolate o uvas.',
-        category: 'Nutrición',
-        icon: 'nutrition-outline',
-    },
-    {
-        title: 'Ejercicio diario',
-        text: 'El ejercicio regular es vital. Un perro necesita paseos; un gato, tiempo de juego. Esto previene obesidad y problemas de comportamiento.',
-        category: 'Actividad',
-        icon: 'walk-outline',
-    },
-    {
-        title: 'Salud dental',
-        text: 'Cepilla los dientes de tu mascota varias veces por semana con pasta especial para animales y reduce el riesgo de enfermedad periodontal.',
-        category: 'Salud',
-        icon: 'medical-outline',
-    },
-    {
-        title: 'Revisiones veterinarias',
-        text: 'No esperes a que tu mascota esté enferma. Las revisiones periódicas y las vacunas al día permiten detectar problemas temprano.',
-        category: 'Salud',
-        icon: 'bandage-outline',
-    },
-    {
-        title: 'Identificación segura',
-        text: 'Coloca una placa actualizada y considera microchip. Si se pierde, estos datos aumentan mucho la probabilidad de recuperarla rápido.',
-        category: 'Seguridad',
-        icon: 'shield-checkmark-outline',
-    },
-    {
-        title: 'Hidratación constante',
-        text: 'Proporciona agua fresca y limpia en todo momento. Lava el cuenco a diario para evitar crecimiento de bacterias.',
-        category: 'Nutrición',
-        icon: 'water-outline',
-    },
-    {
-        title: 'Socialización temprana',
-        text: 'Expón a tu mascota de forma segura a personas, sonidos y entornos para fomentar confianza y un temperamento equilibrado.',
-        category: 'Comportamiento',
-        icon: 'people-outline',
-    },
-    {
-        title: 'Control de parásitos',
-        text: 'Mantén un calendario de desparasitación interna y externa siguiendo las indicaciones de tu veterinario.',
-        category: 'Prevención',
-        icon: 'bug-outline',
-    },
-];
-
 export default function Consejos() {
     const { colors, t } = useApp();
 
@@ -70,28 +19,100 @@ export default function Consejos() {
         warning: colors?.warning || '#F9A825',
     }), [colors]);
 
+    const allCategory = t.allCategory || 'Todo';
+
+    const localizedTips = useMemo(() => {
+        const cNutrition = t.categoryNutrition || 'Nutricion';
+        const cActivity = t.categoryActivity || 'Actividad';
+        const cHealth = t.categoryHealth || 'Salud';
+        const cSafety = t.categorySafety || 'Seguridad';
+        const cBehavior = t.categoryBehavior || 'Comportamiento';
+        const cPrevention = t.categoryPrevention || 'Prevencion';
+
+        return [
+            {
+                title: t.tip1Title || 'Nutricion esencial',
+                text: t.tip1Text || 'Asegurate de que la dieta de tu mascota sea balanceada y apropiada para su edad y nivel de actividad. Evita darle comida humana toxica como chocolate o uvas.',
+                category: cNutrition,
+                icon: 'nutrition-outline',
+            },
+            {
+                title: t.tip2Title || 'Ejercicio diario',
+                text: t.tip2Text || 'El ejercicio regular es vital. Un perro necesita paseos; un gato, tiempo de juego. Esto previene obesidad y problemas de comportamiento.',
+                category: cActivity,
+                icon: 'walk-outline',
+            },
+            {
+                title: t.tip3Title || 'Salud dental',
+                text: t.tip3Text || 'Cepilla los dientes de tu mascota varias veces por semana con pasta especial para animales y reduce el riesgo de enfermedad periodontal.',
+                category: cHealth,
+                icon: 'medical-outline',
+            },
+            {
+                title: t.tip4Title || 'Revisiones veterinarias',
+                text: t.tip4Text || 'No esperes a que tu mascota este enferma. Las revisiones periodicas y las vacunas al dia permiten detectar problemas temprano.',
+                category: cHealth,
+                icon: 'bandage-outline',
+            },
+            {
+                title: t.tip5Title || 'Identificacion segura',
+                text: t.tip5Text || 'Coloca una placa actualizada y considera microchip. Si se pierde, estos datos aumentan mucho la probabilidad de recuperarla rapido.',
+                category: cSafety,
+                icon: 'shield-checkmark-outline',
+            },
+            {
+                title: t.tip6Title || 'Hidratacion constante',
+                text: t.tip6Text || 'Proporciona agua fresca y limpia en todo momento. Lava el cuenco a diario para evitar crecimiento de bacterias.',
+                category: cNutrition,
+                icon: 'water-outline',
+            },
+            {
+                title: t.tip7Title || 'Socializacion temprana',
+                text: t.tip7Text || 'Expon a tu mascota de forma segura a personas, sonidos y entornos para fomentar confianza y un temperamento equilibrado.',
+                category: cBehavior,
+                icon: 'people-outline',
+            },
+            {
+                title: t.tip8Title || 'Control de parasitos',
+                text: t.tip8Text || 'Manten un calendario de desparasitacion interna y externa siguiendo las indicaciones de tu veterinario.',
+                category: cPrevention,
+                icon: 'bug-outline',
+            },
+        ];
+    }, [t]);
+
     const categories = useMemo(
-        () => ['Todo', ...Array.from(new Set(petTips.map((tip) => tip.category)))],
-        []
+        () => [allCategory, ...Array.from(new Set(localizedTips.map((tip) => tip.category)))],
+        [allCategory, localizedTips]
     );
 
-    const [activeCategory, setActiveCategory] = useState('Todo');
-    const [currentTip, setCurrentTip] = useState(petTips[0]);
+    const [activeCategory, setActiveCategory] = useState(allCategory);
+    const [currentTip, setCurrentTip] = useState(localizedTips[0]);
+
+    useEffect(() => {
+        setActiveCategory(allCategory);
+        setCurrentTip(localizedTips[0]);
+    }, [allCategory, localizedTips]);
 
     const filteredTips = useMemo(() => {
-        if (activeCategory === 'Todo') return petTips;
-        return petTips.filter((tip) => tip.category === activeCategory);
-    }, [activeCategory]);
+        if (activeCategory === allCategory) return localizedTips;
+        return localizedTips.filter((tip) => tip.category === activeCategory);
+    }, [activeCategory, allCategory, localizedTips]);
 
     const pickRandomTip = useCallback((list) => {
         if (!list.length) return;
 
-        let next = list[Math.floor(Math.random() * list.length)];
-        if (list.length > 1 && currentTip?.title === next.title) {
-            next = list[(list.findIndex((tip) => tip.title === next.title) + 1) % list.length];
-        }
-        setCurrentTip(next);
-    }, [currentTip]);
+        setCurrentTip((prevTip) => {
+            let next = list[Math.floor(Math.random() * list.length)];
+
+            if (list.length > 1 && prevTip?.title === next.title) {
+                const prevIndex = list.findIndex((tip) => tip.title === next.title);
+                next = list[(prevIndex + 1) % list.length];
+            }
+
+            return next;
+        });
+    }, []);
 
     const updateTip = useCallback(() => {
         pickRandomTip(filteredTips);
@@ -100,7 +121,7 @@ export default function Consejos() {
 
     useEffect(() => {
         pickRandomTip(filteredTips);
-    }, [activeCategory]);
+    }, [activeCategory, filteredTips, pickRandomTip]);
 
     return (
         <ScreenWrapper>
@@ -110,6 +131,8 @@ export default function Consejos() {
                     showsVerticalScrollIndicator={false}
                 >
                     <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
+                        <View style={styles.heroGlowTop} />
+                        <View style={styles.heroGlowBottom} />
                         <View style={styles.heroTopRow}>
                             <View style={[styles.heroIconWrap, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
                                 <MaterialCommunityIcons name="lightbulb-on-outline" size={22} color="#FFFFFF" />
@@ -125,9 +148,9 @@ export default function Consejos() {
                         </View>
 
                         <Text style={styles.heroKicker}>{(t.tips || 'Consejos').toUpperCase()}</Text>
-                        <Text style={styles.heroTitle}>Guía diaria de bienestar</Text>
+                        <Text style={styles.heroTitle}>{t.tipsHeroTitle || 'Guia diaria de bienestar'}</Text>
                         <Text style={styles.heroSubtitle}>
-                            Recomendaciones prácticas para mejorar la salud y rutina de tu mascota.
+                            {t.tipsHeroSubtitle || 'Recomendaciones practicas para mejorar la salud y rutina de tu mascota.'}
                         </Text>
                     </View>
 
@@ -173,31 +196,22 @@ export default function Consejos() {
                     </View>
 
                     <View style={[styles.quickCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <Text style={[styles.quickTitle, { color: theme.text }]}>Checklist rápido</Text>
+                        <Text style={[styles.quickTitle, { color: theme.text }]}>{t.quickChecklist || 'Checklist rapido'}</Text>
 
                         <View style={styles.quickItem}>
                             <Ionicons name="checkmark-circle" size={16} color={theme.brandSoft} />
-                            <Text style={[styles.quickText, { color: theme.text }]}>Agua limpia y fresca disponible.</Text>
+                            <Text style={[styles.quickText, { color: theme.text }]}>{t.checklistWater || 'Agua limpia y fresca disponible.'}</Text>
                         </View>
                         <View style={styles.quickItem}>
                             <Ionicons name="checkmark-circle" size={16} color={theme.brandSoft} />
-                            <Text style={[styles.quickText, { color: theme.text }]}>Actividad física acorde a su edad.</Text>
+                            <Text style={[styles.quickText, { color: theme.text }]}>{t.checklistActivity || 'Actividad fisica acorde a su edad.'}</Text>
                         </View>
                         <View style={styles.quickItem}>
                             <Ionicons name="checkmark-circle" size={16} color={theme.brandSoft} />
-                            <Text style={[styles.quickText, { color: theme.text }]}>Revisión de señales de malestar.</Text>
+                            <Text style={[styles.quickText, { color: theme.text }]}>{t.checklistReview || 'Revision de senales de malestar.'}</Text>
                         </View>
                     </View>
                 </ScrollView>
-
-                <TouchableOpacity
-                    style={[styles.bottomButton, { backgroundColor: theme.brand }]}
-                    onPress={updateTip}
-                    activeOpacity={0.85}
-                >
-                    <Ionicons name="refresh" size={18} color="#FFFFFF" />
-                    <Text style={styles.bottomButtonText}>Generar otro consejo</Text>
-                </TouchableOpacity>
             </View>
         </ScreenWrapper>
     );
@@ -209,18 +223,37 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: 16,
-        paddingBottom: 96,
+        paddingBottom: 24,
     },
     heroCard: {
-        borderRadius: 18,
-        paddingHorizontal: 18,
-        paddingTop: 18,
-        paddingBottom: 22,
+        borderRadius: 20,
+        paddingHorizontal: 20,
+        paddingTop: 22,
+        paddingBottom: 24,
+        overflow: 'hidden',
+    },
+    heroGlowTop: {
+        position: 'absolute',
+        top: -38,
+        right: -26,
+        width: 135,
+        height: 135,
+        borderRadius: 999,
+        backgroundColor: 'rgba(255,255,255,0.12)',
+    },
+    heroGlowBottom: {
+        position: 'absolute',
+        bottom: -48,
+        left: -22,
+        width: 120,
+        height: 120,
+        borderRadius: 999,
+        backgroundColor: 'rgba(0,0,0,0.1)',
     },
     heroTopRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         marginBottom: 14,
     },
     heroIconWrap: {
@@ -235,6 +268,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 5,
         borderRadius: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
         paddingVertical: 7,
         paddingHorizontal: 11,
     },
@@ -254,6 +289,7 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 24,
         fontWeight: '800',
+        letterSpacing: 0.2,
     },
     heroSubtitle: {
         color: 'rgba(255,255,255,0.79)',
@@ -330,22 +366,5 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 14,
         lineHeight: 20,
-    },
-    bottomButton: {
-        position: 'absolute',
-        right: 16,
-        left: 16,
-        bottom: 16,
-        minHeight: 50,
-        borderRadius: 14,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-    },
-    bottomButtonText: {
-        color: '#FFFFFF',
-        fontSize: 15,
-        fontWeight: '700',
     },
 });

@@ -47,12 +47,12 @@ export default function ConfirmacionVacuna() {
 
     const handleSave = async () => {
         if (!selectedDate) {
-            Alert.alert('Error', 'Selecciona la fecha en que la vacuna fue aplicada.');
+            Alert.alert(t.error || 'Error', t.chooseVetRequiredDate || 'Selecciona la fecha en que la vacuna fue aplicada.');
             return false;
         }
 
         if (!selectedVeterinaria) {
-            Alert.alert('Error', 'Selecciona la veterinaria donde se aplicó la vacuna.');
+            Alert.alert(t.error || 'Error', t.chooseVetRequired || 'Selecciona la veterinaria donde se aplico la vacuna.');
             return false;
         }
 
@@ -61,7 +61,7 @@ export default function ConfirmacionVacuna() {
             fecha: selectedDate,
             tipo: 'Vacuna',
             veterinaria: selectedVeterinaria,
-            usuario: mascota?.nombre || 'Mi Mascota',
+            usuario: mascota?.nombre || t.myPet || 'Mi mascota',
         };
 
         try {
@@ -72,7 +72,7 @@ export default function ConfirmacionVacuna() {
             return true;
         } catch (error) {
             console.error('Error al guardar la cita en AsyncStorage:', error);
-            Alert.alert('Error', 'Hubo un problema al guardar el registro de la vacuna.');
+            Alert.alert(t.error || 'Error', t.vaccineRecordSaveError || 'Hubo un problema al guardar el registro de la vacuna.');
             return false;
         }
     };
@@ -87,16 +87,16 @@ export default function ConfirmacionVacuna() {
                                 <FontAwesome5 name="syringe" size={16} color="#FFFFFF" />
                             </View>
                             <View style={[styles.heroPill, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                                <Text style={styles.heroPillText}>{mascota?.nombre || 'Mi mascota'}</Text>
+                                <Text style={styles.heroPillText}>{mascota?.nombre || t.myPet || 'Mi mascota'}</Text>
                             </View>
                         </View>
-                        <Text style={styles.heroKicker}>VACUNA</Text>
-                        <Text style={styles.heroTitle}>Confirmar aplicación</Text>
-                        <Text style={styles.heroSubtitle}>Selecciona fecha y veterinaria para registrar correctamente.</Text>
+                        <Text style={styles.heroKicker}>{t.vaccineConfirmKicker || 'VACUNA'}</Text>
+                        <Text style={styles.heroTitle}>{t.confirmApplicationTitle || 'Confirmar aplicacion'}</Text>
+                        <Text style={styles.heroSubtitle}>{t.confirmApplicationSubtitle || 'Selecciona fecha y veterinaria para registrar correctamente.'}</Text>
                     </View>
 
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <Text style={[styles.label, { color: theme.muted }]}>Fecha aplicada</Text>
+                        <Text style={[styles.label, { color: theme.muted }]}>{t.appliedDateLabel || 'Fecha aplicada'}</Text>
                         <Calendar
                             onDayPress={(day) => setSelectedDate(day.dateString)}
                             markedDates={{
@@ -119,19 +119,19 @@ export default function ConfirmacionVacuna() {
                             }}
                         />
                         {selectedDate ? (
-                            <Text style={[styles.dateText, { color: theme.brand }]}>Fecha elegida: {selectedDate}</Text>
+                            <Text style={[styles.dateText, { color: theme.brand }]}>{t.chosenDatePrefix || 'Fecha elegida:'} {selectedDate}</Text>
                         ) : null}
                     </View>
 
                     <View style={[styles.card, { zIndex: 100, backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <Text style={[styles.label, { color: theme.muted }]}>Veterinaria</Text>
+                        <Text style={[styles.label, { color: theme.muted }]}>{t.vetFallback || 'Veterinaria'}</Text>
                         <TouchableOpacity
                             style={[styles.dropdownTrigger, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
                             onPress={() => setIsDropdownOpen(!isDropdownOpen)}
                         >
                             <Ionicons name="business-outline" size={18} color={theme.brandSoft} style={styles.leftIcon} />
                             <Text style={[styles.dropdownValue, { color: selectedVeterinaria ? theme.text : theme.muted }]}>
-                                {selectedVeterinaria || 'Elige una veterinaria'}
+                                {selectedVeterinaria || t.chooseVetPlaceholder || 'Elige una veterinaria'}
                             </Text>
                             <MaterialIcons
                                 name={isDropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
@@ -144,7 +144,7 @@ export default function ConfirmacionVacuna() {
                             <View style={[styles.dropdownList, { backgroundColor: theme.card, borderColor: theme.border }]}>
                                 {veterinarias.length === 0 ? (
                                     <View style={styles.emptyStateBox}>
-                                        <Text style={[styles.emptyStateText, { color: theme.muted }]}>No hay veterinarias guardadas.</Text>
+                                        <Text style={[styles.emptyStateText, { color: theme.muted }]}>{t.noSavedVets || 'No hay veterinarias guardadas.'}</Text>
                                     </View>
                                 ) : (
                                     veterinarias.map((option, index) => (
