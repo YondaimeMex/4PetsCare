@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     View,
     Text,
@@ -6,280 +6,197 @@ import {
     StyleSheet,
     TextInput,
     Platform,
-    KeyboardAvoidingView
+    Keyboard,
 } from 'react-native';
-
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context';
+import { ScreenWrapper } from '../components';
 
 export default function Mapa() {
-    const { colors, t, isDarkMode } = useApp();
+    const { colors, t } = useApp();
     const [message, setMessage] = useState('');
-    const [url, setUrl] = useState(
-        'https://www.google.com/maps/search/veterinarias'
-    );
+    const [url, setUrl] = useState('https://www.google.com/maps/search/veterinarias');
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+    const theme = useMemo(() => ({
+        brand: colors?.primaryDark || '#2F6E4F',
+        brandSoft: colors?.primary || '#43A047',
+        accent: colors?.accent || '#FF7F5A',
+        bg: colors?.backgroundLight || '#F6F8F4',
+        card: colors?.background || '#FFFFFF',
+        border: colors?.border || '#E4E9E5',
+        text: colors?.text || '#22352D',
+        muted: colors?.textMuted || '#5D6E64',
+        inputBg: colors?.inputBackground || '#F6F8F4',
+    }), [colors]);
+
+    const doSearch = () => {
+        if (!message.trim()) return;
+        const mapsURL = `https://www.google.com/maps/search/${encodeURIComponent(message)}`;
+        setUrl(mapsURL);
+        Keyboard.dismiss();
+    };
+
+    useEffect(() => {
+        if (Platform.OS !== 'android') return undefined;
+
+        const showSubscription = Keyboard.addListener('keyboardDidShow', (event) => {
+            setKeyboardHeight(event.endCoordinates?.height || 0);
+        });
+        const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+            setKeyboardHeight(0);
+        });
+
+        return () => {
+            showSubscription.remove();
+            hideSubscription.remove();
+        };
+    }, []);
 
     return (
-        <SafeAreaView style={styles.container}>
+        <ScreenWrapper>
+            <View style={[styles.container, { backgroundColor: theme.bg }]}>
+                <View
+                    style={styles.mainContent}
+                    onStartShouldSetResponderCapture={() => {
+                        Keyboard.dismiss();
+                        return false;
+                    }}
+                >
+                    <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
+                        <View style={styles.heroTopRow}>
+                            <View style={[styles.heroIconWrap, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
+                                <MaterialCommunityIcons name="map-marker-radius-outline" size={22} color="#FFFFFF" />
+                            </View>
+                            <View style={[styles.pill, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                                <Text style={styles.pillText}>{t.mapPill || 'Veterinarias'}</Text>
+                            </View>
+                        </View>
+                        <Text style={styles.heroKicker}>{t.mapKicker || 'MAPAS'}</Text>
+                        <Text style={styles.heroTitle}>{t.mapHeroTitle || 'Veterinarias cercanas'}</Text>
+                        <Text style={styles.heroSubtitle}>{t.mapHeroSubtitle || 'Busca clinicas y ubicaciones rapidas en Google Maps.'}</Text>
+                    </View>
 
-            <StatusBar style="auto" />
-
-            {/* TEXTO CENTRAL */}
-            <View style={styles.content}>
-                <View style={styles.centerMessageContainer}>
-                    <Text style={[styles.centerMessage, { color: colors.text }]}>
-                        Veterinarias cercanas
-                    </Text>
-                    <MaterialCommunityIcons
-                        name="map-marker-radius"
-                        size={40}
-                        color={colors.text}
-                        style={{ marginTop: 20 }}
-                    />
+                    <View style={[styles.webViewCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <WebView source={{ uri: url }} style={{ flex: 1 }} />
+                    </View>
                 </View>
-            </View>
 
-            {/* INPUT */}
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 15 : 0}
-            >
-                <View style={[styles.inputContainer, { backgroundColor: colors.card }]}>
-                    <View style={[styles.inputRow, { backgroundColor: isDarkMode ? colors.background : '#e9e9e9' }]}>
+                <View
+                    style={[
+                        styles.bottomInputWrap,
+                        Platform.OS === 'android' && { paddingBottom: 14 + keyboardHeight },
+                    ]}
+                >
+                    <View style={[styles.inputRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <Ionicons name="search-outline" size={18} color={theme.muted} style={{ marginRight: 8 }} />
                         <TextInput
-                            style={styles.input}
-                            placeholder="Buscar veterinarias"
-                            placeholderTextColor="#9b9b9b"
+                            style={[styles.input, { color: theme.text }]}
+                            placeholder={t.mapSearchPlaceholder || 'Buscar veterinarias'}
+                            placeholderTextColor={theme.muted}
                             value={message}
                             onChangeText={setMessage}
+                            returnKeyType="search"
+                            onSubmitEditing={doSearch}
                         />
-
-                        <TouchableOpacity
-                            style={[styles.sendButton, { backgroundColor: colors.card }]}
-                            onPress={() => {
-                                if (!message.trim()) return;
-
-                                const mapsURL =
-                                    'https://www.google.com/maps/search/' +
-                                    encodeURIComponent(message);
-
-                                setUrl(mapsURL);
-                            }}
-                        >
-                            <MaterialCommunityIcons name="send" size={20} color={colors.text} />
+                        <TouchableOpacity style={[styles.sendButton, { backgroundColor: theme.brand }]} onPress={doSearch}>
+                            <MaterialCommunityIcons name="send" size={18} color="#FFFFFF" />
                         </TouchableOpacity>
                     </View>
                 </View>
-            </KeyboardAvoidingView>
-
-            {/* MAPA */}
-            {url && (
-                <View style={[styles.webViewContainer, { backgroundColor: colors.background }]}>
-                    <WebView source={{ uri: url }} />
-                </View>
-            )}
-        </SafeAreaView>
+            </View>
+        </ScreenWrapper>
     );
 }
-
-// ================== ESTILOS ==================
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
     },
-
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingTop: 50,
-        paddingBottom: 10,
-        backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#ddd',
-        width: '100%',
-        marginBottom: 30,
-        zIndex: 50,
-    },
-
-    headerRight: {
-        flexDirection: 'row',
-        width: '45%',
-        justifyContent: 'space-between',
-    },
-
-    menuHamburguesa: {
-        padding: 5,
-    },
-
-    headerIcon: {
-        padding: 5,
-    },
-
-    overlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: '#00000080',
-        zIndex: 10,
-    },
-
-    sideMenu: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        bottom: 0,
-        width: 280,
-        backgroundColor: '#fff',
-        padding: 20,
-        zIndex: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 4, height: 0 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
-        elevation: 10,
+    mainContent: {
         flex: 1,
     },
-
-    menuHeader: {
+    heroCard: {
+        borderRadius: 18,
+        margin: 16,
+        marginBottom: 12,
+        paddingHorizontal: 18,
+        paddingTop: 18,
+        paddingBottom: 22,
+    },
+    heroTopRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 30,
-        paddingTop: 30,
+        marginBottom: 12,
     },
-
-    menuTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#333',
-    },
-
-    menuItem: {
-        flexDirection: 'row',
+    heroIconWrap: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
         alignItems: 'center',
-        paddingVertical: 50,
+        justifyContent: 'center',
+    },
+    pill: {
+        borderRadius: 16,
+        paddingVertical: 5,
         paddingHorizontal: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
     },
-
-    menuItemText: {
-        fontSize: 18,
-        marginLeft: 15,
-        color: '#333',
+    pillText: {
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: '700',
     },
-
-    content: {
-        flex: 1
+    heroKicker: {
+        color: 'rgba(255,255,255,0.74)',
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 1,
+        marginBottom: 4,
     },
-
-    centerMessageContainer: {
-        alignItems: 'center',
-        paddingTop: 120
+    heroTitle: {
+        color: '#FFFFFF',
+        fontSize: 24,
+        fontWeight: '800',
     },
-
-    centerMessage: {
-        fontSize: 20,
-        fontWeight: '700'
+    heroSubtitle: {
+        color: 'rgba(255,255,255,0.79)',
+        fontSize: 13,
+        lineHeight: 18,
+        marginTop: 6,
     },
-
-    inputContainer: {
-        paddingBottom: Platform.OS === 'android' ? 12 : 25,
-        paddingTop: 10,
-        backgroundColor: '#fff'
+    webViewCard: {
+        flex: 1,
+        marginHorizontal: 16,
+        marginBottom: 12,
+        borderRadius: 16,
+        borderWidth: 1,
+        overflow: 'hidden',
     },
-
+    bottomInputWrap: {
+        paddingHorizontal: 16,
+        paddingBottom: Platform.OS === 'android' ? 14 : 24,
+        paddingTop: 8,
+    },
     inputRow: {
-        width: '92%',
-        height: 54,
-        backgroundColor: '#e9e9e9',
+        minHeight: 54,
         borderRadius: 28,
+        borderWidth: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 12,
-        alignSelf: 'center'
+        paddingLeft: 14,
+        paddingRight: 8,
     },
-
     input: {
         flex: 1,
-        fontSize: 15
+        fontSize: 14,
     },
-
     sendButton: {
-        width: 48,
+        width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#fff',
         justifyContent: 'center',
-        alignItems: 'center'
-    },
-
-    webViewContainer: {
-        position: 'absolute',
-        top: 80,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: '#fff',
-        zIndex: 100
-    }
-});
-
-// Estilos para las notificaciones
-const notificationStyles = StyleSheet.create({
-    notificationsContainer: {
-        position: 'absolute',
-        top: 100,
-        right: 30,
-        width: 300,
-        maxHeight: 400,
-        backgroundColor: '#e0e0e0',
-        borderRadius: 10,
-        padding: 15,
-        zIndex: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
-    },
-    headerText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        textAlign: 'center',
-        marginBottom: 10,
-        color: 'black',
-    },
-    list: {
-        flexGrow: 0,
-    },
-    notificationItem: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
-    },
-    bullet: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: 'red',
-        marginRight: 10,
-        marginTop: 5,
-        flexShrink: 0,
-    },
-    notificationText: {
-        fontSize: 16,
-        flexShrink: 1,
+        alignItems: 'center',
     },
 });

@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, Alert } from 'react-native';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useNavigation, useIsFocused } from '@react-navigation/native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Alert } from 'react-native';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context';
-import { ScreenWrapper, Card, FloatingButton, EmptyState } from '../components';
-import { spacing, typography, borderRadius, lightTheme } from '../constants';
+import { ScreenWrapper, EmptyState } from '../components';
 
 // Diccionario centralizado de imágenes por especie
 const IMAGES = {
@@ -15,107 +14,118 @@ const IMAGES = {
     ave: 'https://images.pexels.com/photos/6279041/pexels-photo-6279041.jpeg',
     acuatico: 'https://images.pexels.com/photos/128756/pexels-photo-128756.jpeg',
     reptil: 'https://images.pexels.com/photos/735174/pexels-photo-735174.jpeg',
-    fallback: 'https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg'
+    fallback: 'https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg',
 };
 
 const getImageForEspecie = (m) => {
     if (m?.image) return m.image;
     const especie = m?.especie?.toLowerCase() || '';
     if (!especie) return IMAGES.default;
-
-    if (especie.includes('domestico')) {
-        const domesticOptions = [IMAGES.perro, IMAGES.gato];
-        return domesticOptions[Math.floor(Math.random() * domesticOptions.length)];
-    }
     if (especie.includes('perro') || especie.includes('dog')) return IMAGES.perro;
     if (especie.includes('gato') || especie.includes('cat')) return IMAGES.gato;
     if (especie.includes('ave')) return IMAGES.ave;
     if (especie.includes('acuatico')) return IMAGES.acuatico;
-    if (especie.includes('reptil') || especie.includes('reptiles')) return IMAGES.reptil;
-
+    if (especie.includes('reptil')) return IMAGES.reptil;
     return IMAGES.fallback;
 };
 
-// Componente para tarjeta de mascota
-const PetCardItem = ({ mascota, onPress, onDelete, onVaccine, colors }) => (
-    <TouchableOpacity onPress={onPress}>
-        <Card style={styles.petCard}>
-            <View style={styles.petCardContent}>
-                <View style={styles.petInfo}>
-                    <Text style={[styles.petName, { color: colors.text }]}>
-                        {mascota.nombre}
-                    </Text>
-                    <View style={styles.detailRow}>
-                        <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Especie:</Text>
-                        <Text style={[styles.detailValue, { color: colors.text }]}>{mascota.especie || '-'}</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Edad:</Text>
-                        <Text style={[styles.detailValue, { color: colors.text }]}>{mascota.edad || '-'}</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Peso:</Text>
-                        <Text style={[styles.detailValue, { color: colors.text }]}>{mascota.peso ? `${mascota.peso} kg` : '-'}</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Raza:</Text>
-                        <Text style={[styles.detailValue, { color: colors.text }]}>{mascota.raza || '-'}</Text>
-                    </View>
-                </View>
-                <Image
-                    source={{ uri: getImageForEspecie(mascota) }}
-                    style={styles.petImage}
-                />
-            </View>
+function PetCard({ mascota, theme, onPress, onDelete, onVaccine, t }) {
+    return (
+        <TouchableOpacity
+            style={[styles.petCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+            onPress={onPress}
+            activeOpacity={0.85}
+        >
+            <Image
+                source={{ uri: getImageForEspecie(mascota) }}
+                style={styles.petImage}
+            />
+            <View style={styles.petBody}>
+                <Text style={[styles.petName, { color: theme.text }]}>{mascota.nombre}</Text>
 
-            {/* Botones de acción */}
-            <View style={styles.actionButtons}>
-                <TouchableOpacity
-                    style={[styles.actionButton, { backgroundColor: `${colors.secondary}15` }]}
-                    onPress={onVaccine}
-                >
-                    <Ionicons name="medkit" size={18} color={colors.secondary} />
-                    <Text style={[styles.actionButtonText, { color: colors.secondary }]}>Vacuna</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.actionButton, { backgroundColor: `${colors.danger}15` }]}
-                    onPress={onDelete}
-                >
-                    <Ionicons name="trash" size={18} color={colors.danger} />
-                    <Text style={[styles.actionButtonText, { color: colors.danger }]}>Eliminar</Text>
-                </TouchableOpacity>
+                <View style={styles.chipRow}>
+                    {mascota.especie ? (
+                        <View style={[styles.chip, { backgroundColor: `${theme.brandSoft}18` }]}>
+                            <Text style={[styles.chipText, { color: theme.brandSoft }]}>{mascota.especie}</Text>
+                        </View>
+                    ) : null}
+                    {mascota.raza ? (
+                        <View style={[styles.chip, { backgroundColor: `${theme.muted}14` }]}>
+                            <Text style={[styles.chipText, { color: theme.muted }]}>{mascota.raza}</Text>
+                        </View>
+                    ) : null}
+                </View>
+
+                <View style={styles.metaRow}>
+                    {mascota.edad ? (
+                        <View style={styles.metaItem}>
+                            <Ionicons name="time-outline" size={13} color={theme.muted} />
+                            <Text style={[styles.metaText, { color: theme.muted }]}>{mascota.edad}</Text>
+                        </View>
+                    ) : null}
+                    {mascota.peso ? (
+                        <View style={styles.metaItem}>
+                            <Ionicons name="barbell-outline" size={13} color={theme.muted} />
+                            <Text style={[styles.metaText, { color: theme.muted }]}>{mascota.peso} kg</Text>
+                        </View>
+                    ) : null}
+                </View>
+
+                <View style={styles.actionRow}>
+                    <TouchableOpacity
+                        style={[styles.actionBtn, { backgroundColor: `${theme.brandSoft}18` }]}
+                        onPress={onVaccine}
+                    >
+                        <Ionicons name="medkit-outline" size={15} color={theme.brandSoft} />
+                        <Text style={[styles.actionBtnText, { color: theme.brandSoft }]}>{t.vaccineAction || 'Vacuna'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.actionBtn, { backgroundColor: '#E5393514' }]}
+                        onPress={onDelete}
+                    >
+                        <Ionicons name="trash-outline" size={15} color="#E53935" />
+                        <Text style={[styles.actionBtnText, { color: '#E53935' }]}>{t.removeAction || 'Eliminar'}</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
-        </Card>
-    </TouchableOpacity>
-);
+        </TouchableOpacity>
+    );
+}
 
 export default function Mascotas() {
     const navigation = useNavigation();
-    const isFocused = useIsFocused();
-    const { colors: contextColors, t } = useApp();
-    const colors = contextColors || lightTheme;
+    const { colors, t } = useApp();
+
+    const theme = useMemo(() => ({
+        brand: colors?.primaryDark || '#2F6E4F',
+        brandSoft: colors?.primary || '#43A047',
+        accent: colors?.accent || '#FF7F5A',
+        bg: colors?.backgroundLight || '#F6F8F4',
+        card: colors?.background || '#FFFFFF',
+        border: colors?.border || '#E4E9E5',
+        text: colors?.text || '#22352D',
+        muted: colors?.textMuted || '#5D6E64',
+    }), [colors]);
 
     const [listaMascotas, setListaMascotas] = useState([]);
 
     const loadMascotas = async () => {
         try {
             const raw = await AsyncStorage.getItem('@mascotas');
-            const arr = raw ? JSON.parse(raw) : [];
-            setListaMascotas(arr);
-        } catch (err) {
-            console.error('loadMascotas error:', err);
-            Alert.alert('Error', 'No se pudieron cargar las mascotas.');
+            setListaMascotas(raw ? JSON.parse(raw) : []);
+        } catch {
+            Alert.alert(t.error || 'Error', t.loadPetsError || 'No se pudieron cargar las mascotas.');
         }
     };
 
-    const deleteMascota = async (mascota) => {
+    const deleteMascota = (mascota) => {
         Alert.alert(
-            'Eliminar',
-            `¿Eliminar a ${mascota.nombre}?`,
+            t.removeAction || 'Eliminar',
+            `${t.deleteQuestion || 'Eliminar a'} ${mascota.nombre}?`,
             [
-                { text: 'Cancelar', style: 'cancel' },
+                { text: t.cancel || 'Cancelar', style: 'cancel' },
                 {
-                    text: 'Eliminar',
+                    text: t.delete || 'Eliminar',
                     style: 'destructive',
                     onPress: async () => {
                         try {
@@ -124,137 +134,259 @@ export default function Mascotas() {
                             const filtered = arr.filter(m => m.id !== mascota.id);
                             await AsyncStorage.setItem('@mascotas', JSON.stringify(filtered));
                             setListaMascotas(filtered);
-                        } catch (err) {
-                            Alert.alert('Error', 'No se pudo eliminar la mascota.');
+                        } catch {
+                            Alert.alert(t.error || 'Error', t.deletePetError || 'No se pudo eliminar la mascota.');
                         }
-                    }
-                }
+                    },
+                },
             ]
         );
     };
 
-    useEffect(() => {
-        if (isFocused) loadMascotas();
-    }, [isFocused]);
+    useFocusEffect(useCallback(() => { loadMascotas(); }, []));
+
+    const ListHeader = () => (
+        <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
+            <View style={styles.heroGlowTop} />
+            <View style={styles.heroGlowBottom} />
+            <View style={styles.heroTopRow}>
+                <View style={styles.heroTopInfo}>
+                    <Text style={styles.heroKicker}>{t.myPetsKicker || 'MIS MASCOTAS'}</Text>
+                    <Text style={styles.heroTitle} numberOfLines={2}>{t.furryFamilyTitle || 'Tu familia peluda'}</Text>
+                </View>
+                <TouchableOpacity
+                    style={[styles.heroAddBtn, { backgroundColor: theme.accent }]}
+                    onPress={() => navigation.navigate('RegistroMascota')}
+                    activeOpacity={0.85}
+                >
+                    <Ionicons name="add" size={20} color="#FFFFFF" />
+                    <Text style={styles.heroAddText} numberOfLines={1}>{t.add || 'Agregar'}</Text>
+                </TouchableOpacity>
+            </View>
+
+            <View style={styles.heroPillRow}>
+                <View style={styles.heroPill}>
+                    <Ionicons name="paw" size={13} color="#FFFFFF" />
+                    <Text style={styles.heroPillText}>
+                        {listaMascotas.length} {listaMascotas.length === 1 ? (t.petCountSingle || 'mascota') : (t.petCountPlural || 'mascotas')}
+                    </Text>
+                </View>
+                <TouchableOpacity
+                    style={styles.heroPill}
+                    onPress={() => navigation.navigate('ProgramarCita')}
+                >
+                    <Ionicons name="calendar-outline" size={13} color="#FFFFFF" />
+                    <Text style={styles.heroPillText} numberOfLines={1}>{t.scheduleAppointmentCta || 'Programar cita'}</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
 
     return (
         <ScreenWrapper>
-            <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={styles.content}
+            <FlatList
+                data={listaMascotas}
+                keyExtractor={(item) => String(item.id)}
+                style={{ backgroundColor: theme.bg }}
+                contentContainerStyle={[
+                    styles.listContent,
+                    listaMascotas.length === 0 && { flexGrow: 1 },
+                ]}
                 showsVerticalScrollIndicator={false}
-            >
-                {/* Título de la pantalla */}
-                <Text style={[styles.screenTitle, { color: colors.text }]}>
-                    {t.myPets || 'Mis Mascotas'}
-                </Text>
-
-                {listaMascotas.length === 0 ? (
+                ListHeaderComponent={<ListHeader />}
+                ListEmptyComponent={
                     <EmptyState
                         icon="paw"
                         title={t.noPets || 'No tienes mascotas registradas'}
-                        message="Registra tu primera mascota para comenzar a cuidarla"
+                        message={t.noPetsMessage || 'Registra tu primera mascota para comenzar a cuidarla'}
                         actionLabel={t.addPet || 'Agregar Mascota'}
                         onAction={() => navigation.navigate('RegistroMascota')}
                     />
-                ) : (
-                    listaMascotas.map((mascota) => (
-                        <PetCardItem
-                            key={mascota.id}
-                            mascota={mascota}
-                            colors={colors}
-                            onPress={() =>
-                                navigation.navigate("PerfilMascotaStack", {
-                                    screen: "PerfilMascota",
-                                    params: { mascota }
-                                })
-                            }
-                            onDelete={() => deleteMascota(mascota)}
-                            onVaccine={() => navigation.navigate('ConfirmacionVacuna', { mascota })}
-                        />
-                    ))
+                }
+                renderItem={({ item: mascota }) => (
+                    <PetCard
+                        mascota={mascota}
+                        theme={theme}
+                        t={t}
+                        onPress={() =>
+                            navigation.navigate('PerfilMascotaStack', {
+                                screen: 'PerfilMascota',
+                                params: { mascota },
+                            })
+                        }
+                        onDelete={() => deleteMascota(mascota)}
+                        onVaccine={() => navigation.navigate('ConfirmacionVacuna', { mascota })}
+                    />
                 )}
-            </ScrollView>
-
-            {/* Botones flotantes */}
-            <FloatingButton
-                position="left"
-                icon={<MaterialIcons name="edit-calendar" size={24} color={colors.textWhite} />}
-                onPress={() => navigation.navigate('ProgramarCita')}
-                style={{ backgroundColor: colors.secondary }}
-            />
-            <FloatingButton
-                position="right"
-                icon={<MaterialIcons name="add" size={28} color={colors.textWhite} />}
-                onPress={() => navigation.navigate('RegistroMascota')}
-                style={{ backgroundColor: colors.success }}
             />
         </ScreenWrapper>
     );
 }
 
 const styles = StyleSheet.create({
-    scrollView: {
-        flex: 1,
+    /* Hero */
+    heroCard: {
+        marginHorizontal: 16,
+        marginTop: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+        paddingHorizontal: 20,
+        paddingTop: 24,
+        paddingBottom: 28,
+        marginBottom: 16,
+        overflow: 'hidden',
     },
-    content: {
-        padding: spacing.lg,
-        paddingBottom: 100,
+    heroGlowTop: {
+        position: 'absolute',
+        top: -42,
+        right: -24,
+        width: 145,
+        height: 145,
+        borderRadius: 999,
+        backgroundColor: 'rgba(255,255,255,0.12)',
     },
-    screenTitle: {
-        ...typography.title,
-        textAlign: 'center',
-        marginBottom: spacing.lg,
+    heroGlowBottom: {
+        position: 'absolute',
+        bottom: -56,
+        left: -22,
+        width: 130,
+        height: 130,
+        borderRadius: 999,
+        backgroundColor: 'rgba(0,0,0,0.1)',
     },
-    petCard: {
-        marginBottom: spacing.md,
-    },
-    petCardContent: {
+    heroTopRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 16,
     },
-    petInfo: {
+    heroTopInfo: {
         flex: 1,
-        paddingRight: spacing.md,
+        minWidth: 0,
+        paddingRight: 8,
     },
-    petName: {
-        ...typography.subtitle,
-        marginBottom: spacing.sm,
+    heroKicker: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: 'rgba(255,255,255,0.7)',
+        letterSpacing: 1.2,
+        marginBottom: 4,
     },
-    detailRow: {
-        flexDirection: 'row',
-        marginBottom: spacing.xs,
+    heroTitle: {
+        fontSize: 22,
+        fontWeight: '800',
+        color: '#FFFFFF',
+        letterSpacing: 0.2,
     },
-    detailLabel: {
-        ...typography.bodySmall,
-        fontWeight: '600',
-        width: 70,
-    },
-    detailValue: {
-        ...typography.bodySmall,
-        flex: 1,
-    },
-    petImage: {
-        width: 100,
-        height: 120,
-        borderRadius: borderRadius.md,
-    },
-    actionButtons: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        marginTop: spacing.md,
-        gap: spacing.sm,
-    },
-    actionButton: {
+    heroAddBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: spacing.xs,
-        paddingHorizontal: spacing.sm,
-        borderRadius: borderRadius.sm,
+        flexShrink: 1,
+        gap: 5,
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+        borderRadius: 20,
     },
-    actionButtonText: {
-        ...typography.caption,
+    heroAddText: {
+        flexShrink: 1,
+        color: '#FFFFFF',
+        fontWeight: '700',
+        fontSize: 14,
+    },
+    heroPillRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+    },
+    heroPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        maxWidth: '100%',
+        gap: 5,
+        backgroundColor: 'rgba(255,255,255,0.22)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
+        borderRadius: 20,
+        paddingVertical: 6,
+        paddingHorizontal: 11,
+    },
+    heroPillText: {
+        flexShrink: 1,
+        color: '#FFFFFF',
+        fontSize: 12,
         fontWeight: '600',
-        marginLeft: spacing.xs,
+    },
+    /* List */
+    listContent: {
+        paddingBottom: 40,
+    },
+    /* Pet card */
+    petCard: {
+        marginHorizontal: 16,
+        marginBottom: 12,
+        borderRadius: 16,
+        borderWidth: 1,
+        overflow: 'hidden',
+        flexDirection: 'row',
+    },
+    petImage: {
+        width: 110,
+        height: '100%',
+        minHeight: 140,
+    },
+    petBody: {
+        flex: 1,
+        padding: 14,
+        justifyContent: 'space-between',
+    },
+    petName: {
+        fontSize: 17,
+        fontWeight: '700',
+        marginBottom: 6,
+    },
+    chipRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
+        marginBottom: 8,
+    },
+    chip: {
+        paddingVertical: 3,
+        paddingHorizontal: 8,
+        borderRadius: 8,
+    },
+    chipText: {
+        fontSize: 11,
+        fontWeight: '600',
+    },
+    metaRow: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 10,
+    },
+    metaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    metaText: {
+        fontSize: 12,
+    },
+    actionRow: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    actionBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingVertical: 5,
+        paddingHorizontal: 10,
+        borderRadius: 8,
+    },
+    actionBtnText: {
+        fontSize: 12,
+        fontWeight: '600',
     },
 });

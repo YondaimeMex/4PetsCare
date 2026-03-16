@@ -4,17 +4,17 @@ Aplicación móvil desarrollada con **React Native** usando **Expo Go**, cuyo pr
 
 ---
 
-## 🚀 Características
+## Características
 
-- ✨ Interfaz desarrollada con React Native  
-- 📲 Compatible con Android e iOS mediante Expo Go  
-- ⚡ Recarga en caliente (Hot Reload)  
-- 🧩 Arquitectura modular y escalable  
-- 🎨 Diseño responsivo  
+-  Interfaz desarrollada con React Native  
+-  Compatible con Android e iOS mediante Expo Go  
+-  Recarga en caliente (Hot Reload)  
+-  Arquitectura modular y escalable  
+-  Diseño responsivo  
 
 ---
 
-## 🛠️ Tecnologías utilizadas
+## Tecnologías utilizadas
 
 - React Native  
 - Expo  
@@ -24,7 +24,7 @@ Aplicación móvil desarrollada con **React Native** usando **Expo Go**, cuyo pr
 
 ---
 
-## 📦 Instalación
+##  Instalación
 
 Sigue estos pasos para ejecutar el proyecto localmente:
 
@@ -52,7 +52,7 @@ o con yarn:
 yarn install
 ````
 
-## ▶️ Ejecución del proyecto
+## ▶ Ejecución del proyecto
 
 ### 1. Inicia el servidor de desarrollo
 

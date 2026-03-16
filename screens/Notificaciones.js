@@ -1,24 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
-import { Platform, LogBox } from 'react-native';
+import { Platform } from 'react-native';
+import { translations } from '../constants/translations';
+import '../lib/notificationsBootstrap';
 
 const STORAGE_KEY = '@notificaciones_guardadas';
-
-// Ignorar el warning de expo-notifications en Expo Go (las notificaciones locales sí funcionan)
-LogBox.ignoreLogs(['expo-notifications: Android Push notifications']);
-
-// Configurar cómo se muestran las notificaciones cuando la app está abierta
-try {
-    Notifications.setNotificationHandler({
-        handleNotification: async () => ({
-            shouldShowAlert: true,
-            shouldPlaySound: true,
-            shouldSetBadge: true,
-        }),
-    });
-} catch (error) {
-    console.log('NotificationHandler setup skipped:', error.message);
-}
+const LANGUAGE_STORAGE_KEY = '@4PetsCare_language';
+const DEFAULT_LANGUAGE = 'es';
 
 class NotificationService {
     constructor() {
@@ -46,6 +34,21 @@ class NotificationService {
             console.log('NotificationService init error:', error.message);
             this.notificationsAvailable = false;
         }
+    }
+
+    async getCurrentLanguage() {
+        try {
+            const storedLanguage = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
+            const normalized = storedLanguage?.toLowerCase().split('-')[0] || DEFAULT_LANGUAGE;
+            return translations[normalized] ? normalized : DEFAULT_LANGUAGE;
+        } catch {
+            return DEFAULT_LANGUAGE;
+        }
+    }
+
+    async getDictionary() {
+        const lang = await this.getCurrentLanguage();
+        return translations[lang] || translations[DEFAULT_LANGUAGE];
     }
 
     /**
@@ -95,6 +98,7 @@ class NotificationService {
      */
     async scheduleAppointmentNotification(cita, horasAntes = 24) {
         try {
+            const dict = await this.getDictionary();
             const { id, usuario, veterinaria, fecha, hora } = cita;
 
             // Parsear la fecha (formato YYYY-MM-DD)
@@ -121,14 +125,15 @@ class NotificationService {
             const horaDisplay = formatTimeDisplay(appointmentHour, appointmentMinute);
 
             // Formatear fecha para el mensaje
-            const dateFormatted = new Date(year, month - 1, day).toLocaleDateString('es-ES', {
+            const locale = (await this.getCurrentLanguage()) === 'en' ? 'en-US' : 'es-ES';
+            const dateFormatted = new Date(year, month - 1, day).toLocaleDateString(locale, {
                 weekday: 'long',
                 day: 'numeric',
                 month: 'long'
             });
 
             // Guardar en el historial interno (esto siempre funciona)
-            await this.saveNotification(`📅 Cita programada: ${usuario} en ${veterinaria} el ${dateFormatted} a las ${horaDisplay}`);
+            await this.saveNotification(`📅 ${dict.appointmentSavedTitle || 'Cita guardada'}: ${usuario} ${dict.notificationBodyTodayAppointment || 'tiene cita en'} ${veterinaria} ${dict.notificationBodyAt || 'a las'} ${horaDisplay}`);
 
             // Si las notificaciones del sistema no están disponibles, solo guardamos en historial
             if (!this.notificationsAvailable) {
@@ -148,8 +153,8 @@ class NotificationService {
                     const trigger = { seconds: 5 };
                     const notificationId = await Notifications.scheduleNotificationAsync({
                         content: {
-                            title: '🐾 ¡Cita veterinaria hoy!',
-                            body: `${usuario} tiene cita en ${veterinaria} a las ${horaDisplay}`,
+                            title: `🐾 ${dict.notificationTitleTodayAppointment || 'Cita veterinaria hoy'}`,
+                            body: `${usuario} ${dict.notificationBodyTodayAppointment || 'tiene cita en'} ${veterinaria} ${dict.notificationBodyAt || 'a las'} ${horaDisplay}`,
                             data: { citaId: id, tipo: 'cita' },
                             sound: true,
                         },
@@ -170,8 +175,8 @@ class NotificationService {
 
             const notificationId = await Notifications.scheduleNotificationAsync({
                 content: {
-                    title: '🐾 Recordatorio de cita',
-                    body: `${usuario} tiene cita mañana en ${veterinaria} a las ${horaDisplay}`,
+                    title: `🐾 ${dict.notificationTitleReminder || 'Recordatorio de cita'}`,
+                    body: `${usuario} ${dict.notificationBodyTomorrow || 'tiene cita manana en'} ${veterinaria} ${dict.notificationBodyAt || 'a las'} ${horaDisplay}`,
                     data: { citaId: id, tipo: 'cita' },
                     sound: true,
                 },
@@ -293,7 +298,8 @@ class NotificationService {
         const saved = await AsyncStorage.getItem(STORAGE_KEY);
         this.notificationsData = saved ? JSON.parse(saved) : [];
 
-        const now = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
+        const locale = (await this.getCurrentLanguage()) === 'en' ? 'en-US' : 'es-ES';
+        const now = new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
 
         const notif = {
             id: Date.now(),
@@ -324,29 +330,27 @@ class NotificationService {
     startAutoNotifications(intervalSeconds = 300) {
         if (this.interval) clearInterval(this.interval);
 
-        const mensajes = [
-            '¡Revisa tus mascotas!',
-            'Recuerda la próxima cita.',
-            'Es hora de la vacuna.',
-            'No olvides tus tareas de hoy.',
-            'Hora de comer: ¡Sirve el alimento de tu mascota!',
-            'Paseo pendiente: ¡Saca a tu amigo peludo a estirar las patas!',
-            'Medicación importante: Administra la dosis de hoy.',
-            'Chequeo mensual: Revisa el peso y la piel de tu compañero.',
-            'Momento de mimos: ¡Dale un abrazo y juega con tu mascota!',
-            'Falta poco: Revisa el calendario para los próximos eventos.',
-            'Día de baño: ¡No olvides cepillar o bañar a tu mascota!',
-            '¡Que no falte el agua! Asegúrate de que su cuenco esté lleno.',
-            'Anti-pulgas: Recuerda aplicar el tratamiento preventivo.',
-        ];
+        this.interval = setInterval(async () => {
+            const dict = await this.getDictionary();
+            const mensajes = [
+                dict.notifReviewPets || 'Revisa tus mascotas',
+                dict.notifRememberAppointment || 'Recuerda la proxima cita.',
+                dict.notifVaccineTime || 'Es hora de la vacuna.',
+                dict.notifTodayTasks || 'No olvides tus tareas de hoy.',
+                dict.notifMealTime || 'Hora de comer: sirve el alimento de tu mascota.',
+                dict.notifWalkPending || 'Paseo pendiente: saca a tu amigo peludo a estirar las patas.',
+                dict.notifMedication || 'Medicacion importante: administra la dosis de hoy.',
+                dict.notifMonthlyCheck || 'Chequeo mensual: revisa el peso y la piel de tu companero.',
+                dict.notifCuddleTime || 'Momento de mimos: dale un abrazo y juega con tu mascota.',
+                dict.notifComingSoon || 'Falta poco: revisa el calendario para los proximos eventos.',
+                dict.notifBathDay || 'Dia de bano: no olvides cepillar o banar a tu mascota.',
+                dict.notifWaterReminder || 'Que no falte el agua: asegurate de que su cuenco este lleno.',
+                dict.notifFleaTreatment || 'Anti-pulgas: recuerda aplicar el tratamiento preventivo.',
+            ];
 
-        this.interval = setInterval(() => {
             const randomIndex = Math.floor(Math.random() * mensajes.length);
             const message = mensajes[randomIndex];
-
-            // Solo guardamos en el historial interno (AsyncStorage).
-            this.saveNotification(message);
-
+            await this.saveNotification(message);
         }, intervalSeconds * 1000);
     }
 

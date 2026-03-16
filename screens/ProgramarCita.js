@@ -1,22 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context';
-import { ScreenWrapper, Card, Button } from '../components';
-import { spacing, typography, borderRadius, lightTheme } from '../constants';
+import { ScreenWrapper } from '../components';
 import NotificationService from './Notificaciones';
 
 export default function ProgramarCita() {
     const navigation = useNavigation();
-    const isFocused = useIsFocused();
-    const { colors: contextColors, t } = useApp();
-    const colors = contextColors || lightTheme;
+    const { colors, t } = useApp();
 
-    // --- ESTADOS ---
+    const theme = useMemo(() => ({
+        brand: colors?.primaryDark || '#2F6E4F',
+        brandSoft: colors?.primary || '#43A047',
+        accent: colors?.accent || '#FF7F5A',
+        bg: colors?.backgroundLight || '#F6F8F4',
+        card: colors?.background || '#FFFFFF',
+        border: colors?.border || '#E4E9E5',
+        text: colors?.text || '#22352D',
+        muted: colors?.textMuted || '#5D6E64',
+        inputBg: colors?.inputBackground || '#F6F8F4',
+    }), [colors]);
+
     const [nombreUsuario, setNombreUsuario] = useState('');
     const [nombreVeterinaria, setVeterinaria] = useState('');
     const [selectedDate, setSelectedDate] = useState('');
@@ -26,243 +34,200 @@ export default function ProgramarCita() {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    // --- CARGA DE VETERINARIAS ---
     const loadVeterinarias = async () => {
         try {
-            const jsonValue = await AsyncStorage.getItem('@veterinarias');
-            const data = jsonValue != null ? JSON.parse(jsonValue) : [];
+            const raw = await AsyncStorage.getItem('@veterinarias');
+            const data = raw ? JSON.parse(raw) : [];
             data.sort((a, b) => a.label.localeCompare(b.label));
             setVeterinarias(data);
-        } catch (error) {
-            console.error("Error cargando veterinarias", error);
-        }
+        } catch { /* ignore */ }
     };
 
-    useEffect(() => {
-        if (isFocused) {
-            loadVeterinarias();
-        }
-    }, [isFocused]);
-
-    // --- MANEJADORES ---
-    const selectVeterinaria = (option) => {
-        setVeterinaria(option.label);
-        setIsDropdownOpen(false);
-    };
-
-    const getMarkedDates = () => {
-        if (!selectedDate) return {};
-        return {
-            [selectedDate]: { selected: true, selectedColor: colors.primary }
-        };
-    };
+    useFocusEffect(useCallback(() => { loadVeterinarias(); }, []));
 
     const formatTime = (date) => {
-        const hours = date.getHours();
-        const minutes = date.getMinutes();
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        const formattedHours = hours % 12 || 12;
-        const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
-        return `${formattedHours}:${formattedMinutes} ${ampm}`;
+        const h = date.getHours();
+        const m = date.getMinutes();
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        return `${h % 12 || 12}:${m < 10 ? `0${m}` : m} ${ampm}`;
     };
 
     const onTimeChange = (event, selected) => {
         setShowTimePicker(Platform.OS === 'ios');
-        if (selected) {
-            setSelectedTime(selected);
-        }
+        if (selected) setSelectedTime(selected);
     };
 
-    // --- GUARDAR CITA ---
     const handleSave = async () => {
         const usuario = nombreUsuario.trim();
         const vet = nombreVeterinaria.trim();
 
         if (!usuario || !vet || !selectedDate) {
             Alert.alert(
-                'Faltan datos',
-                `Por favor completa todos los campos:\n${!usuario ? '- Nombre del usuario\n' : ''}${!vet ? '- Veterinaria\n' : ''}${!selectedDate ? '- Fecha' : ''}`
+                t.missingData || 'Faltan datos',
+                `${t.completeAllFields || 'Completa todos los campos:'}\n${!usuario ? `- ${t.nameFieldLabel || 'Nombre'}\n` : ''}${!vet ? `- ${t.vetFallback || 'Veterinaria'}\n` : ''}${!selectedDate ? `- ${t.dateFieldLabel || 'Fecha'}` : ''}`
             );
             return;
         }
 
         setLoading(true);
-
         const horaFormateada = `${selectedTime.getHours().toString().padStart(2, '0')}:${selectedTime.getMinutes().toString().padStart(2, '0')}`;
 
         try {
-            const citasRaw = await AsyncStorage.getItem('@citas');
-            const citas = citasRaw ? JSON.parse(citasRaw) : [];
-
+            const raw = await AsyncStorage.getItem('@citas');
+            const citas = raw ? JSON.parse(raw) : [];
             const nuevaCita = {
                 id: Date.now().toString(),
-                usuario: usuario,
+                usuario,
                 veterinaria: vet,
                 fecha: selectedDate,
                 hora: horaFormateada,
-                tipo: 'Cita'
+                tipo: 'Cita',
             };
 
-            const nuevasCitas = [...citas, nuevaCita];
-            await AsyncStorage.setItem('@citas', JSON.stringify(nuevasCitas));
-
+            await AsyncStorage.setItem('@citas', JSON.stringify([...citas, nuevaCita]));
             await NotificationService.scheduleAppointmentNotification(nuevaCita, 24);
 
             setLoading(false);
             Alert.alert(
-                'Cita guardada',
-                `¡Cita en ${vet} registrada para el ${selectedDate} a las ${formatTime(selectedTime)}!`,
-                [{ text: "OK", onPress: () => navigation.navigate('Calendario') }]
+                t.appointmentSavedTitle || 'Cita guardada',
+                `${vet} - ${selectedDate} ${t.atTimeConnector || 'a las'} ${formatTime(selectedTime)}`,
+                [{ text: 'OK', onPress: () => navigation.navigate('Calendario') }]
             );
 
             setNombreUsuario('');
             setVeterinaria('');
             setSelectedDate('');
             setSelectedTime(new Date());
-
-        } catch (error) {
-            console.error("Error guardando cita:", error);
+        } catch {
             setLoading(false);
-            Alert.alert("Error", "No se pudo guardar la cita.");
+            Alert.alert(t.error || 'Error', t.saveAppointmentError || 'No se pudo guardar la cita.');
         }
     };
 
     return (
         <ScreenWrapper showBack={true}>
             <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={styles.content}
+                style={{ backgroundColor: theme.bg }}
+                contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Título */}
-                <Text style={[styles.screenTitle, { color: colors.text }]}>
-                    Programar Cita
-                </Text>
+                {/* ── Hero ── */}
+                <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
+                    <View style={styles.heroGlowTop} />
+                    <View style={styles.heroGlowBottom} />
+                    <Text style={styles.heroKicker}>{t.newAppointmentKicker || 'NUEVA CITA'}</Text>
+                    <Text style={styles.heroTitle}>{t.scheduleAppointmentCta || 'Programar cita'}</Text>
+                    <Text style={styles.heroSubtitle}>{t.chooseVetDateTime || 'Elige veterinaria, fecha y hora'}</Text>
+                </View>
 
-                {/* Campo: Nombre del usuario */}
-                <Card>
-                    <Text style={[styles.label, { color: colors.textMuted }]}>Nombre del usuario:</Text>
+                {/* ── Nombre del usuario ── */}
+                <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Text style={[styles.label, { color: theme.muted }]}>{t.userNameLabel || 'Nombre del usuario'}</Text>
                     <TextInput
-                        style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]}
+                        style={[styles.input, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }]}
                         value={nombreUsuario}
                         onChangeText={setNombreUsuario}
-                        placeholder="Ej. Gabriel Pérez"
-                        placeholderTextColor={colors.textMuted}
+                        placeholder={t.userNamePlaceholder || 'Ej. Gabriel Perez'}
+                        placeholderTextColor={theme.muted}
                     />
-                </Card>
+                </View>
 
-                {/* Campo: Veterinaria */}
-                <Card style={{ zIndex: 100 }}>
-                    <Text style={[styles.label, { color: colors.textMuted }]}>Seleccione la veterinaria:</Text>
-
+                {/* ── Veterinaria ── */}
+                <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border, zIndex: 100 }]}>
+                    <Text style={[styles.label, { color: theme.muted }]}>{t.vetFallback || 'Veterinaria'}</Text>
                     <TouchableOpacity
-                        style={[styles.dropdownTrigger, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}
+                        style={[styles.dropdownTrigger, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
                         onPress={() => setIsDropdownOpen(!isDropdownOpen)}
                     >
-                        <Text style={[styles.dropdownText, { color: nombreVeterinaria ? colors.text : colors.textMuted }]}>
-                            {nombreVeterinaria || 'Elige una veterinaria'}
+                        <Text style={[styles.dropdownText, { color: nombreVeterinaria ? theme.text : theme.muted }]}>
+                            {nombreVeterinaria || t.chooseVetPlaceholder || 'Elige una veterinaria'}
                         </Text>
                         <MaterialIcons
-                            name={isDropdownOpen ? "keyboard-arrow-up" : "keyboard-arrow-down"}
-                            size={24}
-                            color={colors.text}
+                            name={isDropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                            size={22}
+                            color={theme.muted}
                         />
                     </TouchableOpacity>
 
                     {isDropdownOpen && (
-                        <View style={[styles.dropdownList, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                        <View style={[styles.dropdownList, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             {veterinarias.length === 0 ? (
-                                <View style={styles.emptyDropdown}>
-                                    <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-                                        No hay veterinarias guardadas.
+                                <View style={styles.dropdownEmpty}>
+                                    <Text style={[styles.dropdownEmptyText, { color: theme.muted }]}>
+                                        {t.noSavedVets || 'No hay veterinarias guardadas.'}
                                     </Text>
                                     <TouchableOpacity
-                                        style={[styles.addVetButton, { backgroundColor: colors.secondary }]}
-                                        onPress={() => {
-                                            setIsDropdownOpen(false);
-                                            navigation.navigate('RegistroVeterinaria');
-                                        }}
+                                        style={[styles.addVetBtn, { backgroundColor: theme.brand }]}
+                                        onPress={() => { setIsDropdownOpen(false); navigation.navigate('RegistroVeterinaria'); }}
                                     >
-                                        <MaterialIcons name="add" size={18} color={colors.textWhite} />
-                                        <Text style={[styles.addVetButtonText, { color: colors.textWhite }]}>
-                                            Registrar Veterinaria
-                                        </Text>
+                                        <Ionicons name="add" size={16} color="#FFF" />
+                                        <Text style={styles.addVetBtnText}>{t.registerVet || 'Registrar veterinaria'}</Text>
                                     </TouchableOpacity>
                                 </View>
                             ) : (
                                 <>
-                                    {veterinarias.map((option, index) => (
+                                    {veterinarias.map((opt, i) => (
                                         <TouchableOpacity
-                                            key={index}
-                                            style={[styles.dropdownItem, { borderBottomColor: colors.border }]}
-                                            onPress={() => selectVeterinaria(option)}
+                                            key={i}
+                                            style={[styles.dropdownItem, { borderBottomColor: theme.border }]}
+                                            onPress={() => { setVeterinaria(opt.label); setIsDropdownOpen(false); }}
                                         >
-                                            <Text style={[styles.dropdownItemText, { color: colors.text }]}>
-                                                {option.label}
-                                            </Text>
+                                            <Text style={[styles.dropdownItemText, { color: theme.text }]}>{opt.label}</Text>
                                         </TouchableOpacity>
                                     ))}
                                     <TouchableOpacity
-                                        style={[styles.dropdownFooter, { borderTopColor: colors.border }]}
-                                        onPress={() => {
-                                            setIsDropdownOpen(false);
-                                            navigation.navigate('RegistroVeterinaria');
-                                        }}
+                                        style={[styles.dropdownFooter, { borderTopColor: theme.border }]}
+                                        onPress={() => { setIsDropdownOpen(false); navigation.navigate('RegistroVeterinaria'); }}
                                     >
-                                        <MaterialIcons name="add-circle-outline" size={20} color={colors.success} />
-                                        <Text style={[styles.dropdownFooterText, { color: colors.success }]}>
-                                            Agregar nueva veterinaria
-                                        </Text>
+                                        <Ionicons name="add-circle-outline" size={18} color={theme.brandSoft} />
+                                        <Text style={[styles.dropdownFooterText, { color: theme.brandSoft }]}>{t.addNewVet || 'Agregar nueva veterinaria'}</Text>
                                     </TouchableOpacity>
                                 </>
                             )}
                         </View>
                     )}
-                </Card>
+                </View>
 
-                {/* Campo: Calendario */}
-                <Card>
-                    <Text style={[styles.label, { color: colors.textMuted }]}>Fecha de la cita:</Text>
+                {/* ── Fecha ── */}
+                <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Text style={[styles.label, { color: theme.muted }]}>{t.appointmentDateLabel || 'Fecha de la cita'}</Text>
                     <Calendar
                         onDayPress={day => setSelectedDate(day.dateString)}
-                        markingType={'simple'}
-                        markedDates={getMarkedDates()}
+                        markingType="simple"
+                        markedDates={selectedDate ? { [selectedDate]: { selected: true, selectedColor: theme.brand } } : {}}
                         theme={{
-                            backgroundColor: colors.card,
-                            calendarBackground: colors.card,
-                            textSectionTitleColor: colors.textMuted,
-                            dayTextColor: colors.text,
-                            monthTextColor: colors.text,
-                            todayTextColor: colors.secondary,
-                            arrowColor: colors.primary,
+                            backgroundColor: theme.card,
+                            calendarBackground: theme.card,
+                            textSectionTitleColor: theme.muted,
+                            dayTextColor: theme.text,
+                            monthTextColor: theme.text,
+                            todayTextColor: theme.accent,
+                            arrowColor: theme.brand,
                             textDayFontWeight: '500',
-                            textDisabledColor: colors.textMuted,
-                            selectedDayBackgroundColor: colors.primary,
-                            selectedDayTextColor: colors.textWhite,
+                            textDisabledColor: theme.border,
+                            selectedDayBackgroundColor: theme.brand,
+                            selectedDayTextColor: '#FFFFFF',
                         }}
-                        style={[styles.calendar, { borderColor: colors.border }]}
                     />
-                    {selectedDate && (
-                        <Text style={[styles.selectedDateText, { color: colors.secondary }]}>
-                            Fecha elegida: {selectedDate}
-                        </Text>
-                    )}
-                </Card>
+                    {selectedDate ? (
+                        <View style={[styles.selectedDatePill, { backgroundColor: `${theme.brand}14` }]}>
+                            <Ionicons name="calendar" size={14} color={theme.brand} />
+                            <Text style={[styles.selectedDateText, { color: theme.brand }]}>{t.selectedDatePrefix || 'Seleccionado:'} {selectedDate}</Text>
+                        </View>
+                    ) : null}
+                </View>
 
-                {/* Campo: Hora */}
-                <Card>
-                    <Text style={[styles.label, { color: colors.textMuted }]}>Hora de la cita:</Text>
+                {/* ── Hora ── */}
+                <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Text style={[styles.label, { color: theme.muted }]}>{t.appointmentTimeLabel || 'Hora de la cita'}</Text>
                     <TouchableOpacity
-                        style={[styles.timePicker, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}
+                        style={[styles.timeRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
                         onPress={() => setShowTimePicker(true)}
                     >
-                        <Ionicons name="time-outline" size={24} color={colors.primary} />
-                        <Text style={[styles.timeText, { color: colors.text }]}>
-                            {formatTime(selectedTime)}
-                        </Text>
-                        <MaterialIcons name="keyboard-arrow-down" size={24} color={colors.textMuted} />
+                        <Ionicons name="time-outline" size={20} color={theme.brand} />
+                        <Text style={[styles.timeText, { color: theme.text }]}>{formatTime(selectedTime)}</Text>
+                        <MaterialIcons name="keyboard-arrow-down" size={20} color={theme.muted} />
                     </TouchableOpacity>
-
                     {showTimePicker && (
                         <DateTimePicker
                             value={selectedTime}
@@ -272,20 +237,21 @@ export default function ProgramarCita() {
                             onChange={onTimeChange}
                         />
                     )}
-                </Card>
+                </View>
 
-                {/* Botón Guardar */}
+                {/* ── Guardar ── */}
                 <TouchableOpacity
-                    style={[styles.saveButton, { backgroundColor: colors.success }, loading && styles.buttonDisabled]}
+                    style={[styles.saveBtn, { backgroundColor: loading ? theme.muted : theme.brand }]}
                     onPress={handleSave}
                     disabled={loading}
+                    activeOpacity={0.85}
                 >
                     {loading ? (
-                        <ActivityIndicator color={colors.textWhite} />
+                        <ActivityIndicator color="#FFFFFF" />
                     ) : (
                         <>
-                            <Ionicons name="checkmark-circle" size={24} color={colors.textWhite} />
-                            <Text style={styles.saveButtonText}>Programar Cita</Text>
+                            <Ionicons name="checkmark-circle-outline" size={22} color="#FFFFFF" />
+                            <Text style={styles.saveBtnText}>{t.scheduleAppointmentCta || 'Programar cita'}</Text>
                         </>
                     )}
                 </TouchableOpacity>
@@ -295,123 +261,181 @@ export default function ProgramarCita() {
 }
 
 const styles = StyleSheet.create({
-    scrollView: {
-        flex: 1,
+    scrollContent: {
+        paddingBottom: 48,
     },
-    content: {
-        padding: spacing.lg,
-        paddingBottom: spacing.xxl,
+    /* Hero */
+    heroCard: {
+        marginHorizontal: 16,
+        borderRadius: 20,
+        paddingHorizontal: 20,
+        paddingTop: 28,
+        paddingBottom: 28,
+        marginBottom: 16,
+        overflow: 'hidden',
     },
-    screenTitle: {
-        ...typography.title,
-        textAlign: 'center',
-        marginBottom: spacing.lg,
+    heroGlowTop: {
+        position: 'absolute',
+        right: -28,
+        top: -38,
+        width: 130,
+        height: 130,
+        borderRadius: 999,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+    },
+    heroGlowBottom: {
+        position: 'absolute',
+        left: -34,
+        bottom: -40,
+        width: 120,
+        height: 120,
+        borderRadius: 999,
+        backgroundColor: 'rgba(0,0,0,0.08)',
+    },
+    heroKicker: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: 'rgba(255,255,255,0.7)',
+        letterSpacing: 1.2,
+        marginBottom: 4,
+    },
+    heroTitle: {
+        fontSize: 24,
+        fontWeight: '800',
+        color: '#FFFFFF',
+    },
+    heroSubtitle: {
+        fontSize: 13,
+        color: 'rgba(255,255,255,0.75)',
+        marginTop: 4,
+    },
+    /* Sections */
+    section: {
+        marginHorizontal: 16,
+        marginBottom: 12,
+        borderRadius: 16,
+        borderWidth: 1,
+        padding: 16,
     },
     label: {
-        ...typography.label,
-        marginBottom: spacing.xs,
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 0.4,
+        marginBottom: 8,
     },
     input: {
         borderWidth: 1,
-        borderRadius: borderRadius.sm,
-        height: 50,
-        paddingHorizontal: spacing.md,
-        ...typography.body,
+        borderRadius: 12,
+        height: 48,
+        paddingHorizontal: 14,
+        fontSize: 15,
     },
+    /* Dropdown */
     dropdownTrigger: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         borderWidth: 1,
-        borderRadius: borderRadius.sm,
-        height: 50,
-        paddingHorizontal: spacing.md,
+        borderRadius: 12,
+        height: 48,
+        paddingHorizontal: 14,
     },
     dropdownText: {
-        ...typography.body,
+        fontSize: 15,
     },
     dropdownList: {
-        marginTop: spacing.xs,
+        marginTop: 8,
         borderWidth: 1,
-        borderRadius: borderRadius.sm,
+        borderRadius: 12,
         overflow: 'hidden',
     },
     dropdownItem: {
-        padding: spacing.md,
+        paddingVertical: 13,
+        paddingHorizontal: 14,
         borderBottomWidth: 1,
     },
     dropdownItemText: {
-        ...typography.body,
+        fontSize: 15,
     },
     dropdownFooter: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: spacing.md,
+        gap: 6,
+        padding: 13,
         borderTopWidth: 1,
     },
     dropdownFooterText: {
-        ...typography.body,
+        fontSize: 14,
         fontWeight: '600',
-        marginLeft: spacing.xs,
     },
-    emptyDropdown: {
-        padding: spacing.lg,
+    dropdownEmpty: {
+        padding: 20,
         alignItems: 'center',
+        gap: 12,
     },
-    emptyText: {
-        ...typography.bodySmall,
-        marginBottom: spacing.md,
+    dropdownEmptyText: {
+        fontSize: 13,
     },
-    addVetButton: {
+    addVetBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
-        borderRadius: borderRadius.round,
+        gap: 6,
+        paddingVertical: 9,
+        paddingHorizontal: 16,
+        borderRadius: 20,
     },
-    addVetButtonText: {
-        ...typography.buttonText,
-        marginLeft: spacing.xs,
+    addVetBtnText: {
+        color: '#FFF',
+        fontWeight: '700',
+        fontSize: 13,
     },
-    calendar: {
-        borderWidth: 1,
-        borderRadius: borderRadius.sm,
+    /* Date pill */
+    selectedDatePill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 10,
+        alignSelf: 'flex-start',
+        paddingVertical: 5,
+        paddingHorizontal: 10,
+        borderRadius: 20,
     },
     selectedDateText: {
-        ...typography.body,
+        fontSize: 13,
         fontWeight: '600',
-        textAlign: 'center',
-        marginTop: spacing.md,
     },
-    timePicker: {
+    /* Time */
+    timeRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        gap: 10,
         borderWidth: 1,
-        borderRadius: borderRadius.sm,
-        paddingVertical: spacing.md,
-        paddingHorizontal: spacing.md,
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 13,
     },
     timeText: {
-        ...typography.subtitle,
         flex: 1,
-        marginLeft: spacing.sm,
+        fontSize: 16,
+        fontWeight: '600',
     },
-    saveButton: {
+    /* Save */
+    saveBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: spacing.md,
-        borderRadius: borderRadius.md,
-        marginTop: spacing.lg,
+        gap: 8,
+        marginHorizontal: 16,
+        marginTop: 8,
+        marginBottom: 14,
+        paddingVertical: 16,
+        borderRadius: 14,
     },
-    buttonDisabled: {
-        opacity: 0.6,
-    },
-    saveButtonText: {
-        ...typography.buttonText,
+    saveBtnText: {
         color: '#FFFFFF',
-        marginLeft: spacing.sm,
+        fontSize: 16,
+        fontWeight: '700',
     },
 });
+

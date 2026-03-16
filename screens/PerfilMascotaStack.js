@@ -9,11 +9,16 @@ const Stack = createNativeStackNavigator();
 
 export default function PerfilMascotaStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{
+      headerShown: false,
+      freezeOnBlur: true,
+      animation: 'fade',
+      animationDuration: 150,
+    }}>
       <Stack.Screen name="PerfilMascota" component={PerfilMascota} />
       <Stack.Screen name="Salud" component={Salud} />
       <Stack.Screen name="Actividades" component={Actividades} />
-      <Stack.Screen name="Alimentacion" component={Alimentacion}/>
+      <Stack.Screen name="Alimentacion" component={Alimentacion} />
     </Stack.Navigator>
   );
 }

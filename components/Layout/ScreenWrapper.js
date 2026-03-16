@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import { View, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import Header from './Header';
 import SideMenu from './SideMenu';
 import NotificationsPanel from './NotificationsPanel';
+import TutorialOverlay from './TutorialOverlay';
 import { useApp } from '../../context';
 import { lightTheme } from '../../constants';
 
@@ -16,12 +17,39 @@ export default function ScreenWrapper({
     showHeader = true,
     style,
 }) {
-    const { isOverlayVisible, closeAll, colors: contextColors, isDarkMode } = useApp();
+    const {
+        isOverlayVisible,
+        isMenuOpen,
+        isNotificationsOpen,
+        closeAll,
+        colors: contextColors,
+        isDarkMode,
+        registerTutorialViewport,
+    } = useApp();
     const colors = contextColors || lightTheme;
+    const containerRef = useRef(null);
+
+    const measureViewport = useCallback(() => {
+        setTimeout(() => {
+            containerRef.current?.measureInWindow((x, y, width, height) => {
+                if (width > 0 && height > 0) {
+                    registerTutorialViewport({ x, y, width, height });
+                }
+            });
+        }, 0);
+    }, [registerTutorialViewport]);
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }, style]}>
-            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+        <SafeAreaView
+            ref={containerRef}
+            onLayout={measureViewport}
+            style={[styles.container, { backgroundColor: colors.background }, style]}
+        >
+            <StatusBar
+                style={isDarkMode ? 'light' : 'dark'}
+                translucent={false}
+                backgroundColor={colors.background}
+            />
 
             {/* Header */}
             {showHeader && (
@@ -34,7 +62,7 @@ export default function ScreenWrapper({
             )}
 
             {/* Contenido principal */}
-            <View style={styles.content}>
+            <View style={[styles.content, showHeader && styles.contentWithHeader]}>
                 {children}
             </View>
 
@@ -48,10 +76,13 @@ export default function ScreenWrapper({
             )}
 
             {/* Menú lateral */}
-            <SideMenu />
+            {isMenuOpen && <SideMenu />}
 
             {/* Panel de notificaciones */}
-            <NotificationsPanel />
+            {isNotificationsOpen && <NotificationsPanel />}
+
+            {/* Tutorial guiado */}
+            <TutorialOverlay />
         </SafeAreaView>
     );
 }
@@ -63,12 +94,15 @@ const styles = StyleSheet.create({
     content: {
         flex: 1,
     },
+    contentWithHeader: {
+        paddingTop: 2,
+    },
     overlay: {
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        zIndex: 10,
+        zIndex: 15,
     },
 });

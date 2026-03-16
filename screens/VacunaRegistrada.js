@@ -1,370 +1,164 @@
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useState } from 'react';
-import React from 'react';
 import { useApp } from '../context';
-
-import NotificationService from './Notificaciones';
-
-// Componente para mostrar cada notificación
-const NotificationItem = ({ text }) => (
-    <View style={notificationStyles.notificationItem}>
-        <View style={notificationStyles.bullet} />
-        <Text style={notificationStyles.notificationText}>{text}</Text>
-    </View>
-);
+import { ScreenWrapper } from '../components';
 
 export default function VacunaRegistrada() {
     const navigation = useNavigation();
     const route = useRoute();
     const { fechaAplicada } = route.params || {};
-    const { colors, t, isDarkMode } = useApp();
+    const { colors, t } = useApp();
 
-    // Estados del menú y notificaciones
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-    const [notificaciones, setNotificaciones] = useState([]);
+    const theme = useMemo(() => ({
+        brand: colors?.primaryDark || '#2F6E4F',
+        brandSoft: colors?.primary || '#43A047',
+        accent: colors?.accent || '#FF7F5A',
+        bg: colors?.backgroundLight || '#F6F8F4',
+        card: colors?.background || '#FFFFFF',
+        border: colors?.border || '#E4E9E5',
+        text: colors?.text || '#22352D',
+        muted: colors?.textMuted || '#5D6E64',
+        success: colors?.success || '#2E7D32',
+    }), [colors]);
 
-
-    // Función para abrir/cerrar menú lateral
-    const toggleMenu = () => {
-        const newState = !isMenuOpen;
-        setIsMenuOpen(newState);
-        if (newState) setIsNotificationsOpen(false);
-    };
-
-    const toggleNotifications = async () => {
-        const newState = !isNotificationsOpen;
-        setIsNotificationsOpen(newState);
-        if (newState) {
-            // Cargar notificaciones al abrir
-            setIsMenuOpen(false);
-            try {
-                const allNotifications = await NotificationService.getNotifications();
-                setNotificaciones(allNotifications);
-            } catch (error) {
-                console.error("Error al cargar notificaciones:", error);
-                setNotificaciones([]);
-            }
-        }
-    };
-
-    // Cierra menú o notificaciones al tocar fuera
-    const handleOverlayClick = () => {
-        if (isMenuOpen) toggleMenu();
-        if (isNotificationsOpen) toggleNotifications();
-    };
-
-    // Botón para volver al Home
     const handleAccept = () => {
-        navigation.navigate('Home');
+        navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
     };
-
-    // Muestra fondo oscuro si menú o notificaciones están abiertos
-    const isOverlayVisible = isMenuOpen || isNotificationsOpen;
 
     return (
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
-            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+        <ScreenWrapper showBack>
+            <View style={[styles.container, { backgroundColor: theme.bg }]}>
+                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                    <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
+                        <View style={[styles.iconWrap, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                            <FontAwesome5 name="syringe" size={20} color="#FFFFFF" />
+                        </View>
+                        <Text style={styles.heroKicker}>{t.vaccineRegisteredKicker || 'REGISTRO COMPLETADO'}</Text>
+                        <Text style={styles.heroTitle}>{t.vaccineRegisteredTitle || 'Vacuna registrada'}</Text>
+                        <Text style={styles.heroSubtitle}>{t.vaccineRegisteredSubtitle || 'La aplicacion quedo guardada correctamente en tu calendario.'}</Text>
+                    </View>
 
-            {/* Encabezado con íconos */}
-            <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-                {/* Botón menú */}
-                <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
-                    <MaterialIcons name="menu" size={32} color={colors.text} />
-                </TouchableOpacity>
+                    <View style={[styles.dateCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <Text style={[styles.dateLabel, { color: theme.muted }]}>{t.registeredDateLabel || 'Fecha registrada'}</Text>
 
-                {/* Íconos de notificación y perfil */}
-                <View style={styles.headerRight}>
-                    <TouchableOpacity style={styles.headerIcon} onPress={toggleNotifications}>
-                        <Ionicons name="notifications" size={32} color={colors.text} />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={styles.headerIcon}
-                        onPress={() => navigation.navigate('Perfil')}
-                    >
-                        <Ionicons name="person-circle-outline" size={32} color={colors.text} />
-                    </TouchableOpacity>
-                </View>
-            </View>
-
-            {/* Contenido principal */}
-            <ScrollView contentContainerStyle={styles.content}>
-                <View style={styles.cardVisualizacion}>
-                    <Text style={styles.titleVisualizacion}>¡Vacuna Registrada!</Text>
-                    <Text style={styles.subtitleVisualizacion}>La fecha de aplicación fue:</Text>
-                </View>
-
-                {/* Muestra la fecha registrada */}
-                {fechaAplicada ? (
-                    <Text style={styles.dateTextVisualizacion}>{fechaAplicada}</Text>
-                ) : (
-                    <Text style={[styles.dateTextVisualizacion, { color: '#FF3B30' }]}>
-                        No se encontró la fecha de registro.
-                    </Text>
-                )}
-
-                {/* Botón para aceptar y regresar */}
-                <TouchableOpacity
-                    style={styles.acceptButton}
-                    onPress={handleAccept}
-                >
-                    <Text style={styles.acceptButtonText}>Aceptar</Text>
-                </TouchableOpacity>
-            </ScrollView>
-
-            {/* Fondo oscuro al abrir menú o notificaciones */}
-            {isOverlayVisible && (
-                <TouchableOpacity
-                    style={styles.overlay}
-                    activeOpacity={1}
-                    onPress={handleOverlayClick}
-                />
-            )}
-
-            {/* Menú lateral */}
-            <View style={[
-                styles.sideMenu,
-                { transform: [{ translateX: isMenuOpen ? 0 : -300 }], backgroundColor: colors.card }
-            ]}>
-                <View style={styles.menuHeader}>
-                    <Text style={[styles.menuTitle, { color: colors.text }]}>Menú</Text>
-                    <TouchableOpacity onPress={toggleMenu}>
-                        <Ionicons name="close" size={30} color={colors.text} />
-                    </TouchableOpacity>
-                </View>
-
-                {/* Opciones del menú */}
-                <TouchableOpacity
-                    style={[styles.menuItem, { borderBottomColor: colors.border }]}
-                    onPress={() => navigation.navigate('Home')}
-                >
-                    <Ionicons name="home" size={24} color={colors.text} />
-                    <Text style={[styles.menuItemText, { color: colors.text }]}>Inicio</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
-                    <Ionicons name="paw-outline" size={30} color="#4BCF5C" />
-                    <Text style={[styles.menuItemText, { color: colors.text }]}>Mascotas</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
-                    <Ionicons name="calendar-number" size={30} color="#007AFF" />
-                    <Text style={[styles.menuItemText, { color: colors.text }]}>Calendario</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}>
-                    <MaterialIcons name="tips-and-updates" size={30} color="#FF9500" />
-                    <Text style={[styles.menuItemText, { color: colors.text }]}>Consejos</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
-                    <MaterialIcons name="emergency" size={30} color="#FF3B30" />
-                    <Text style={[styles.menuItemText, { color: colors.text }]}>Emergencias</Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Panel de notificaciones */}
-            {isNotificationsOpen && (
-                <View style={[notificationStyles.notificationsContainer, { backgroundColor: colors.card }]}>
-                    <Text style={[notificationStyles.headerText, { color: colors.text }]}>Notificaciones</Text>
-                    <ScrollView style={notificationStyles.list}>
-                        {notificaciones.length > 0 ? (
-                            notificaciones.map((n, index) => (
-                                <NotificationItem key={index} text={n.text} />
-                            ))
+                        {fechaAplicada ? (
+                            <Text style={[styles.dateText, { color: theme.success }]}>{fechaAplicada}</Text>
                         ) : (
-                            <Text style={{ textAlign: 'center', color: colors.textMuted, marginTop: 10 }}>No hay notificaciones.</Text>
+                            <Text style={[styles.dateText, { color: '#E53935', fontSize: 18 }]}>
+                                {t.noRegisteredDate || 'No se encontro la fecha de registro.'}
+                            </Text>
                         )}
-                    </ScrollView>
-                </View>
-            )}
-        </View>
+
+                        <View style={[styles.badge, { backgroundColor: `${theme.success}1f` }]}>
+                            <Ionicons name="checkmark-circle" size={16} color={theme.success} />
+                            <Text style={[styles.badgeText, { color: theme.success }]}>{t.applicationConfirmed || 'Aplicacion confirmada'}</Text>
+                        </View>
+                    </View>
+
+                    <TouchableOpacity style={[styles.acceptButton, { backgroundColor: theme.brand }]} onPress={handleAccept}>
+                        <Ionicons name="home-outline" size={18} color="#FFFFFF" />
+                        <Text style={styles.acceptButtonText}>{t.backToHome || 'Volver al inicio'}</Text>
+                    </TouchableOpacity>
+                </ScrollView>
+            </View>
+        </ScreenWrapper>
     );
 }
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff'
     },
     content: {
-        paddingHorizontal: 20,
-        paddingBottom: 50,
-        alignItems: 'center'
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+        padding: 16,
+        paddingBottom: 44,
         alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingTop: 50,
-        paddingBottom: 10,
-        backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#ddd',
+    },
+    heroCard: {
         width: '100%',
-        marginBottom: 30
-    },
-    headerRight: {
-        flexDirection: 'row',
-        width: '45%',
-        justifyContent: 'space-between'
-    },
-    menuHamburguesa: {
-        padding: 5
-    },
-    headerIcon: {
-        padding: 5
-    },
-    overlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: '#00000080',
-        zIndex: 10
-    },
-    sideMenu: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        bottom: 0,
-        width: 280,
-        backgroundColor: '#fff',
-        padding: 20,
-        zIndex: 20,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 4,
-            height: 0
-        }, shadowOpacity: 0.3,
-        shadowRadius: 5,
-        elevation: 10,
-        flex: 1
-    },
-    menuHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 30,
-        paddingTop: 30
-    },
-    menuTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#333'
-    },
-    menuItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 50,
-        paddingHorizontal: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee'
-    },
-    menuItemText: {
-        fontSize: 18,
-        marginLeft: 15,
-        color: '#333'
-    },
-
-    cardVisualizacion: {
-        backgroundColor: '#D4EDDA',
-        padding: 25,
-        borderRadius: 10,
-        marginBottom: 30,
-        width: '100%',
+        borderRadius: 18,
+        paddingHorizontal: 18,
+        paddingTop: 22,
+        paddingBottom: 22,
+        marginBottom: 14,
         alignItems: 'center',
     },
-    titleVisualizacion: {
-        fontWeight: 'bold',
-        fontSize: 24,
-        marginBottom: 10,
-        textAlign: 'center',
-        color: '#155724',
-    },
-    subtitleVisualizacion: {
-        fontSize: 18,
-        textAlign: 'center',
-        color: '#155724',
-    },
-    dateTextVisualizacion: {
-        marginTop: 10,
-        fontSize: 36,
-        textAlign: 'center',
-        fontWeight: 'bold',
-        color: '#4CAF50',
-        marginBottom: 40,
-    },
-
-    acceptButton: {
-        backgroundColor: '#4CAF50',
-        padding: 15,
-        borderRadius: 10,
+    iconWrap: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
-        width: '80%',
-        elevation: 5,
-        marginTop: 30,
+        marginBottom: 12,
+    },
+    heroKicker: {
+        color: 'rgba(255,255,255,0.74)',
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 1,
+        marginBottom: 4,
+        textAlign: 'center',
+    },
+    heroTitle: {
+        color: '#FFFFFF',
+        fontSize: 26,
+        fontWeight: '800',
+        textAlign: 'center',
+    },
+    heroSubtitle: {
+        color: 'rgba(255,255,255,0.79)',
+        fontSize: 13,
+        lineHeight: 18,
+        marginTop: 6,
+        textAlign: 'center',
+    },
+    dateCard: {
+        width: '100%',
+        borderRadius: 16,
+        borderWidth: 1,
+        paddingVertical: 22,
+        paddingHorizontal: 14,
+        alignItems: 'center',
+    },
+    dateLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 0.6,
+        marginBottom: 6,
+    },
+    dateText: {
+        fontSize: 30,
+        textAlign: 'center',
+        fontWeight: '800',
+        marginBottom: 18,
+    },
+    badge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: 16,
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+    },
+    badgeText: {
+        fontSize: 12,
+        fontWeight: '700',
+        marginLeft: 6,
+    },
+    acceptButton: {
+        marginTop: 16,
+        width: '100%',
+        minHeight: 50,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'row',
+        gap: 8,
     },
     acceptButtonText: {
         color: 'white',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-});
-
-const notificationStyles = StyleSheet.create({
-    notificationsContainer: {
-        position: 'absolute',
-        top: 100,
-        right: 30,
-        width: 300,
-        maxHeight: 400,
-        backgroundColor: '#e0e0e0',
-        borderRadius: 10,
-        padding: 15,
-        zIndex: 20,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 5
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5
-    },
-    headerText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        textAlign: 'center',
-        marginBottom: 10,
-        color: 'black'
-    },
-    list: {
-        flexGrow: 0
-    },
-    notificationItem: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#ccc'
-    },
-    bullet: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: 'red',
-        marginRight: 10,
-        marginTop: 5,
-        flexShrink: 0
-    },
-    notificationText: {
-        fontSize: 16,
-        flexShrink: 1
+        fontSize: 15,
+        fontWeight: '700',
     },
 });

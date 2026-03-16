@@ -1,90 +1,103 @@
-// RegistroMascota.js
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import {
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    StyleSheet,
+    ScrollView,
+    Alert,
+    ActivityIndicator,
+    Image,
+} from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../context';
+import { ScreenWrapper } from '../components';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+import NotificationService from './Notificaciones';
 
-
-// ----------------------------------------------------------------------------
-// saveMascotaToDB: guarda en AsyncStorage local (clave: @mascotas).
-// Retorna { success: boolean, message?: string, data?: any }
-// ----------------------------------------------------------------------------
 export async function saveMascotaToDB(mascota) {
     try {
         const raw = await AsyncStorage.getItem('@mascotas');
         const actuales = raw ? JSON.parse(raw) : [];
 
         const nueva = { id: uuidv4(), ...mascota };
-
         const updated = [nueva, ...actuales];
 
         await AsyncStorage.setItem('@mascotas', JSON.stringify(updated));
-        console.log('saveMascotaToDB: guardado en AsyncStorage ->', nueva);
-
-        return { success: true, message: 'Guardado local (AsyncStorage)', data: nueva };
+        return { success: true, data: nueva };
     } catch (err) {
         console.error('saveMascotaToDB - AsyncStorage error:', err);
-        return { success: false, message: 'No se pudo guardar localmente' };
+        return { success: false };
     }
 }
 
-// Importar el servicio de notificaciones
-import NotificationService from './Notificaciones';
-// Componente para mostrar cada notificación
-const NotificationItem = ({ text, date }) => (
-    <View style={notificationStyles.notificationItem}>
-        <View style={notificationStyles.bullet} />
-        <Text style={notificationStyles.notificationText}>{text} {"\n"}<Text style={{ fontSize: 12, color: '#555' }}>{date}</Text></Text>
-    </View>
-);
-
-const especies = [
-    { key: 'domestico', label: 'Domestico (Perro, Gato, etc)' },
-    { key: 'ave', label: 'Ave (Perico, Loro, etc)' },
-    { key: 'acuatico', label: 'Acuatico (Betta, Goldfish, etc)' },
-    { key: 'reptiles', label: 'Reptiles (Tortuga, Iguana, etc)' },
-];
+function Field({ label, icon, value, onChangeText, placeholder, keyboardType, theme }) {
+    return (
+        <View style={styles.fieldWrap}>
+            <Text style={[styles.label, { color: theme.muted }]}>{label}</Text>
+            <View style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+                <Ionicons name={icon} size={18} color={theme.brandSoft} style={styles.leftIcon} />
+                <TextInput
+                    style={[styles.input, { color: theme.text }]}
+                    value={value}
+                    onChangeText={onChangeText}
+                    placeholder={placeholder}
+                    placeholderTextColor={theme.muted}
+                    keyboardType={keyboardType}
+                />
+            </View>
+        </View>
+    );
+}
 
 export default function RegistroMascota() {
     const navigation = useNavigation();
-    const { colors, t, isDarkMode } = useApp();
+    const { colors, t } = useApp();
 
-    // campos
     const [nombreMascota, setNombreMascota] = useState('');
     const [especie, setEspecie] = useState('');
     const [raza, setRaza] = useState('');
     const [edad, setEdad] = useState('');
     const [peso, setPeso] = useState('');
-
-    // imagen: uri y key para forzar re-render/caché bust
     const [imageUri, setImageUri] = useState(null);
     const [imageKey, setImageKey] = useState(null);
-
-    // UI
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-    const [notificaciones, setNotificaciones] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    const Selectespecie = (option) => {
+    const theme = useMemo(() => ({
+        brand: colors?.primaryDark || '#2F6E4F',
+        brandSoft: colors?.primary || '#43A047',
+        accent: colors?.accent || '#FF7F5A',
+        bg: colors?.backgroundLight || '#F6F8F4',
+        card: colors?.background || '#FFFFFF',
+        border: colors?.border || '#E4E9E5',
+        text: colors?.text || '#22352D',
+        muted: colors?.textMuted || '#5D6E64',
+        inputBg: colors?.inputBackground || '#F6F8F4',
+    }), [colors]);
+
+    const especies = useMemo(() => ([
+        { key: 'domestico', label: t.speciesDomestic || 'Domestico (Perro, Gato, etc.)' },
+        { key: 'ave', label: t.speciesBird || 'Ave (Perico, Loro, etc.)' },
+        { key: 'acuatico', label: t.speciesAquatic || 'Acuatico (Betta, Goldfish, etc.)' },
+        { key: 'reptiles', label: t.speciesReptile || 'Reptiles (Tortuga, Iguana, etc.)' },
+    ]), [t]);
+
+    const selectEspecie = (option) => {
         setEspecie(option.label);
         setIsDropdownOpen(false);
     };
-    const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
 
-    // ---------- Image Picker (actualizado para SDK old/new) ----------
     const pickImageFromLibrary = async () => {
         try {
             const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (!permission.granted) {
-                Alert.alert('Permiso denegado', 'Necesitamos permiso para acceder a la galería.');
+                Alert.alert(t.permissionDenied || 'Permiso denegado', t.galleryPermissionPet || 'Necesitamos permiso para acceder a la galeria.');
                 return;
             }
 
@@ -95,11 +108,6 @@ export default function RegistroMascota() {
                 quality: 0.7,
             });
 
-            console.log('pickImageFromLibrary result:', result);
-
-            // Soporta ambos formatos:
-            // Nuevo: result.canceled / result.assets[0].uri
-            // Antiguo: result.cancelled / result.uri
             const uri =
                 (result.assets && result.assets[0] && result.assets[0].uri) ||
                 result.uri ||
@@ -107,16 +115,12 @@ export default function RegistroMascota() {
                 null;
 
             if (uri) {
-                // Forzar bust de cache en preview con key
                 setImageUri(uri);
                 setImageKey(Date.now());
-                console.log('Imagen seleccionada URI:', uri);
-            } else {
-                console.log('Selección cancelada o sin URI.');
             }
         } catch (err) {
             console.error('pickImageFromLibrary error:', err);
-            Alert.alert('Error', 'No se pudo seleccionar la imagen.');
+            Alert.alert(t.error || 'Error', t.selectImageError || 'No se pudo seleccionar la imagen.');
         }
     };
 
@@ -124,7 +128,7 @@ export default function RegistroMascota() {
         try {
             const permission = await ImagePicker.requestCameraPermissionsAsync();
             if (!permission.granted) {
-                Alert.alert('Permiso denegado', 'Necesitamos permiso para usar la cámara.');
+                Alert.alert(t.permissionDenied || 'Permiso denegado', t.cameraPermissionPet || 'Necesitamos permiso para usar la camara.');
                 return;
             }
 
@@ -135,8 +139,6 @@ export default function RegistroMascota() {
                 quality: 0.7,
             });
 
-            console.log('takePhotoWithCamera result:', result);
-
             const uri =
                 (result.assets && result.assets[0] && result.assets[0].uri) ||
                 result.uri ||
@@ -146,13 +148,10 @@ export default function RegistroMascota() {
             if (uri) {
                 setImageUri(uri);
                 setImageKey(Date.now());
-                console.log('Foto tomada URI:', uri);
-            } else {
-                console.log('Foto cancelada o sin URI.');
             }
         } catch (err) {
             console.error('takePhotoWithCamera error:', err);
-            Alert.alert('Error', 'No se pudo tomar la foto.');
+            Alert.alert(t.error || 'Error', t.takePhotoError || 'No se pudo tomar la foto.');
         }
     };
 
@@ -161,10 +160,9 @@ export default function RegistroMascota() {
         setImageKey(null);
     };
 
-    // Guarda los datos
     const handleSave = async () => {
         if (!nombreMascota?.trim() || !especie?.trim()) {
-            Alert.alert('Campos faltantes', 'Ingresa el nombre y selecciona la especie de tu mascota.');
+            Alert.alert(t.missingFieldsTitle || 'Campos faltantes', t.missingPetNameSpecies || 'Ingresa el nombre y selecciona la especie de tu mascota.');
             return;
         }
 
@@ -174,22 +172,20 @@ export default function RegistroMascota() {
             raza: raza.trim(),
             edad: edad.trim(),
             peso: peso.trim(),
-            image: imageUri || null, // guardamos la URI tal cual
-            imageKey: imageKey || null // opcional para bust cache al mostrar
+            image: imageUri || null,
+            imageKey: imageKey || null,
         };
-
-        console.log('handleSave -> mascotaData:', mascotaData);
 
         setLoading(true);
         try {
             const result = await saveMascotaToDB(mascotaData);
 
             if (result && result.success) {
-                Alert.alert('Guardado', `¡Mascota ${mascotaData.nombre} registrada con éxito!`);
+                Alert.alert(t.petSavedTitle || 'Guardado', `${mascotaData.nombre}: ${t.petRegisteredSuccess || 'Mascota registrada con exito'}`);
+                await NotificationService.saveNotification(
+                    `¡Felicidades! Se ha guardado con éxito ${mascotaData.nombre} (${mascotaData.especie}).`
+                );
 
-                await NotificationService.saveNotification(`¡Felicidades! Se ha guardado con exito ${mascotaData.nombre} (${mascotaData.especie}).`);
-
-                // limpiar formulario
                 setNombreMascota('');
                 setEspecie('');
                 setRaza('');
@@ -198,447 +194,352 @@ export default function RegistroMascota() {
                 setImageUri(null);
                 setImageKey(null);
 
-                navigation.navigate('Mascotas');
+                navigation.replace('Mascotas');
             } else {
-                const msg = (result && result.message) ? result.message : 'No se pudo guardar la mascota.';
-                Alert.alert('Error al guardar', msg);
+                Alert.alert(t.saveErrorTitle || 'Error al guardar', t.localSaveError || 'No se pudo guardar localmente');
             }
         } catch (error) {
             console.error('Error guardando mascota:', error);
-            Alert.alert('Error', 'Ocurrió un error al guardar. Revisa la consola.');
+            Alert.alert(t.error || 'Error', t.genericSaveError || 'Ocurrio un error al guardar.');
         } finally {
             setLoading(false);
         }
     };
 
-    const toggleMenu = () => {
-        const newState = !isMenuOpen;
-        setIsMenuOpen(newState);
-        if (newState) setIsNotificationsOpen(false);
-    };
-
-    const toggleNotifications = async () => {
-        const newState = !isNotificationsOpen;
-        setIsNotificationsOpen(newState);
-        if (newState) {
-            setIsMenuOpen(false);
-            try {
-                const allNotifications = await NotificationService.getNotifications();
-                setNotificaciones(allNotifications);
-            } catch (error) {
-                console.error("Error al cargar notificaciones:", error);
-            }
-        }
-    };
-
-    const handleOverlayClick = () => {
-        if (isMenuOpen) toggleMenu();
-        if (isNotificationsOpen) toggleNotifications();
-    };
-    const isOverlayVisible = isMenuOpen || isNotificationsOpen;
-
     return (
-        <ScrollView contentContainerStyle={styles.scrollContent} style={[styles.scrollContainer, { backgroundColor: colors.background }]}>
-            <StatusBar style={isDarkMode ? 'light' : 'dark'} />
-
-            <View style={styles.header}>
-                <TouchableOpacity style={styles.menuHamburguesa} onPress={toggleMenu}>
-                    <MaterialIcons name="menu" size={32} color={colors.text} />
-                </TouchableOpacity>
-
-                <View style={styles.headerRight}>
-                    <TouchableOpacity accessible accessibilityLabel="Notificaciones" style={[styles.floatingBtn, styles.headerIcon, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={toggleNotifications}>
-                        <Ionicons name="notifications" size={32} color={colors.text} />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity accessible accessibilityLabel="Perfil" style={[styles.floatingBtn, styles.headerIcon, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => navigation.navigate('Perfil')}>
-                        <Ionicons name="person-circle-outline" size={32} color={colors.text} />
-                    </TouchableOpacity>
-                </View>
-            </View>
-
-            {/* Formulario */}
-            <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.title, { color: colors.text }]}>¡Registra a tu mascota!</Text>
-                <Text style={[styles.label, { color: colors.text }]}>Nombre de tu mascota</Text>
-                <TextInput style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]} value={nombreMascota} onChangeText={setNombreMascota} placeholder="Ej. Toby" placeholderTextColor={colors.textMuted} accessibilityLabel="Nombre de la mascota" />
-            </View>
-
-            <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.label, { color: colors.text }]}>¿Qué mascota es?</Text>
-                <TouchableOpacity style={[styles.dropdownContainer, { backgroundColor: colors.inputBackground, borderColor: colors.border }]} onPress={toggleDropdown} accessibilityRole="button" accessibilityLabel="Seleccionar especie">
-                    <TextInput style={[styles.dropdownInput, { color: colors.text }]} value={especie} placeholder="Selecciona una especie" placeholderTextColor={colors.textMuted} editable={false} />
-                    <MaterialIcons name={isDropdownOpen ? 'arrow-drop-up' : 'arrow-drop-down'} size={24} color={colors.text} style={styles.dropdownIcon} />
-                </TouchableOpacity>
-
-                {isDropdownOpen && especies.map((option) => (
-                    <TouchableOpacity key={option.key} style={[styles.dropdownItem, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => Selectespecie(option)}>
-                        <Text style={[styles.dropdownText, { color: colors.text }]}>{option.label}</Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-
-            <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.label, { color: colors.text }]}>Raza de tu mascota</Text>
-                <TextInput style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]} value={raza} onChangeText={setRaza} placeholder="Ej. Golden Retriever" placeholderTextColor={colors.textMuted} />
-            </View>
-
-            <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.label, { color: colors.text }]}>Edad</Text>
-                <TextInput style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]} value={edad} onChangeText={setEdad} placeholder="Ej. 5" placeholderTextColor={colors.textMuted} keyboardType="numeric" />
-            </View>
-
-            <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.label, { color: colors.text }]}>Peso (kg)</Text>
-                <TextInput style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.text }]} value={peso} onChangeText={setPeso} placeholder="Ej. 30" placeholderTextColor={colors.textMuted} keyboardType="numeric" />
-            </View>
-
-            {/* Imagen */}
-            <View style={[styles.formCard, { alignItems: 'center', backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.label, { color: colors.text }]}>Imagen de tu mascota</Text>
-
-                {imageUri ? (
-                    <>
-                        {/* key forzar recarga si cambia imageUri */}
-                        <Image key={String(imageKey)} source={{ uri: imageUri }} style={styles.previewImage} />
-                        <View style={{ flexDirection: 'row', marginTop: 10 }}>
-                            <TouchableOpacity style={[styles.smallBtn, { marginRight: 8 }]} onPress={pickImageFromLibrary}>
-                                <Text style={styles.smallBtnText}>Cambiar</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={[styles.smallBtn, { backgroundColor: '#FF3B30' }]} onPress={removeImage}>
-                                <Text style={styles.smallBtnText}>Eliminar</Text>
-                            </TouchableOpacity>
+        <ScreenWrapper showBack>
+            <View style={[styles.container, { backgroundColor: theme.bg }]}>
+                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                    <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
+                        <View style={styles.heroTopRow}>
+                            <View style={[styles.heroIconWrap, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                                <Ionicons name="paw-outline" size={20} color="#FFFFFF" />
+                            </View>
+                            <View style={[styles.heroPill, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                                <Text style={styles.heroPillText}>{t.newPet || 'Nueva mascota'}</Text>
+                            </View>
                         </View>
-                    </>
-                ) : (
-                    <>
-                        <View style={styles.placeholderImage}>
-                            <Ionicons name="image" size={48} color="#bbb" />
-                        </View>
-
-                        <View style={{ flexDirection: 'row', marginTop: 10 }}>
-                            <TouchableOpacity style={styles.smallBtn} onPress={pickImageFromLibrary}>
-                                <Text style={styles.smallBtnText}>Galería</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={[styles.smallBtn, { marginLeft: 8 }]} onPress={takePhotoWithCamera}>
-                                <Text style={styles.smallBtnText}>Cámara</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </>
-                )}
-            </View>
-
-            <TouchableOpacity style={[styles.saveButton, loading && { opacity: 0.7 }]} onPress={handleSave} disabled={loading} accessibilityLabel="Guardar mascota">
-                {loading ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <ActivityIndicator size="small" />
-                        <Text style={[styles.saveButtonText, { marginLeft: 10 }]}>Guardando...</Text>
+                        <Text style={styles.heroKicker}>REGISTRO</Text>
+                        <Text style={styles.heroTitle}>{t.petRecordTitle || 'Ficha de mascota'}</Text>
+                        <Text style={styles.heroSubtitle}>{t.petRecordSubtitle || 'Completa los datos principales para empezar su seguimiento.'}</Text>
                     </View>
-                ) : (
-                    <Text style={styles.saveButtonText}>Guardar Mascota</Text>
-                )}
-            </TouchableOpacity>
 
-            {isOverlayVisible && (
-                <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={handleOverlayClick} />
-            )}
+                    <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <Field
+                            label={t.petName || 'Nombre'}
+                            icon="heart-outline"
+                            value={nombreMascota}
+                            onChangeText={setNombreMascota}
+                            placeholder={t.petNameExample || 'Ej. Toby'}
+                            theme={theme}
+                        />
 
-            {/* Menu lateral */}
-            <View style={[styles.sideMenu, { transform: [{ translateX: isMenuOpen ? 0 : -300 }], backgroundColor: colors.card }]}>
-                <View style={styles.menuHeader}>
-                    <Text style={[styles.menuTitle, { color: colors.text }]}>Menú</Text>
-                    <TouchableOpacity onPress={toggleMenu}>
-                        <Ionicons name="close" size={30} color={colors.text} />
-                    </TouchableOpacity>
-                </View>
+                        <View style={styles.fieldWrap}>
+                            <Text style={[styles.label, { color: theme.muted }]}>{t.speciesLabel || 'Especie'}</Text>
+                            <TouchableOpacity
+                                style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
+                                onPress={() => setIsDropdownOpen((prev) => !prev)}
+                                activeOpacity={0.8}
+                            >
+                                <Ionicons name="list-outline" size={18} color={theme.brandSoft} style={styles.leftIcon} />
+                                <Text style={[styles.dropdownValue, { color: especie ? theme.text : theme.muted }]}>
+                                    {especie || t.selectSpecies || 'Selecciona una especie'}
+                                </Text>
+                                <MaterialIcons
+                                    name={isDropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                                    size={22}
+                                    color={theme.muted}
+                                />
+                            </TouchableOpacity>
 
-                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => navigation.navigate('Home')}>
-                    <Ionicons name="home" size={24} color={colors.text} />
-                    <Text style={[styles.menuItemText, { color: colors.text }]}>Inicio</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Mascotas'); }}>
-                    <Ionicons name="paw-outline" size={30} color="#4BCF5C" />
-                    <Text style={[styles.menuItemText, { color: colors.text }]}>Mascotas</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Calendario'); }}>
-                    <Ionicons name="calendar-number" size={30} color="#007AFF" />
-                    <Text style={[styles.menuItemText, { color: colors.text }]}>Calendario</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Consejos'); }}>
-                    <MaterialIcons name="tips-and-updates" size={30} color="#FF9500" />
-                    <Text style={[styles.menuItemText, { color: colors.text }]}>Consejos</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.border }]} onPress={() => { toggleMenu(); navigation.navigate('Emergencias'); }}>
-                    <MaterialIcons name="emergency" size={30} color="#FF3B30" />
-                    <Text style={[styles.menuItemText, { color: colors.text }]}>Emergencias</Text>
-                </TouchableOpacity>
-            </View>
+                            {isDropdownOpen ? (
+                                <View style={[styles.dropdownList, { borderColor: theme.border, backgroundColor: theme.card }]}>
+                                    {especies.map((option) => (
+                                        <TouchableOpacity
+                                            key={option.key}
+                                            style={[styles.dropdownItem, { borderBottomColor: theme.border }]}
+                                            onPress={() => selectEspecie(option)}
+                                        >
+                                            <Text style={[styles.dropdownText, { color: theme.text }]}>{option.label}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            ) : null}
+                        </View>
 
-            {isNotificationsOpen && (
-                <View style={[notificationStyles.notificationsContainer, { backgroundColor: colors.card }]}>
-                    <Text style={[notificationStyles.headerText, { color: colors.text }]}>Notificaciones</Text>
-                    <ScrollView style={notificationStyles.list}>
-                        {notificaciones.length > 0 ? (
-                            notificaciones.map((n, index) => (
-                                <NotificationItem key={index} text={n.text} date={n.date} />
-                            ))
+                        <Field
+                            label={t.breedLabel || 'Raza'}
+                            icon="ribbon-outline"
+                            value={raza}
+                            onChangeText={setRaza}
+                            placeholder={t.breedExample || 'Ej. Golden Retriever'}
+                            theme={theme}
+                        />
+
+                        <View style={styles.row2}>
+                            <View style={{ flex: 1 }}>
+                                <Field
+                                    label={t.ageLabel || 'Edad'}
+                                    icon="time-outline"
+                                    value={edad}
+                                    onChangeText={setEdad}
+                                    placeholder={t.ageExample || 'Ej. 5'}
+                                    keyboardType="numeric"
+                                    theme={theme}
+                                />
+                            </View>
+                            <View style={{ width: 10 }} />
+                            <View style={{ flex: 1 }}>
+                                <Field
+                                    label={`${t.weight || 'Peso'} (kg)`}
+                                    icon="barbell-outline"
+                                    value={peso}
+                                    onChangeText={setPeso}
+                                    placeholder={t.weightExample || 'Ej. 30'}
+                                    keyboardType="numeric"
+                                    theme={theme}
+                                />
+                            </View>
+                        </View>
+                    </View>
+
+                    <View style={[styles.imageCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <Text style={[styles.label, { color: theme.muted }]}>{t.petPhotoLabel || 'Foto de tu mascota'}</Text>
+
+                        {imageUri ? (
+                            <>
+                                <Image key={String(imageKey)} source={{ uri: imageUri }} style={styles.previewImage} />
+                                <View style={styles.imageActionsRow}>
+                                    <TouchableOpacity
+                                        style={[styles.secondarySmallBtn, { borderColor: theme.border }]}
+                                        onPress={pickImageFromLibrary}
+                                    >
+                                        <Text style={[styles.secondarySmallBtnText, { color: theme.text }]}>{t.change || 'Cambiar'}</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.secondarySmallBtn, { borderColor: '#E53935' }]}
+                                        onPress={removeImage}
+                                    >
+                                        <Text style={[styles.secondarySmallBtnText, { color: '#E53935' }]}>{t.delete || 'Eliminar'}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </>
                         ) : (
-                            <Text style={{ textAlign: 'center', color: colors.textMuted, marginTop: 10 }}>No hay notificaciones.</Text>
+                            <>
+                                <View style={[styles.placeholderImage, { borderColor: theme.border, backgroundColor: theme.inputBg }]}>
+                                    <Ionicons name="image-outline" size={40} color={theme.muted} />
+                                </View>
+                                <View style={styles.imageActionsRow}>
+                                    <TouchableOpacity
+                                        style={[styles.primarySmallBtn, { backgroundColor: theme.brandSoft }]}
+                                        onPress={pickImageFromLibrary}
+                                    >
+                                        <Text style={styles.primarySmallBtnText}>{t.gallery || 'Galeria'}</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.primarySmallBtn, { backgroundColor: theme.accent }]}
+                                        onPress={takePhotoWithCamera}
+                                    >
+                                        <Text style={styles.primarySmallBtnText}>{t.camera || 'Camara'}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </>
                         )}
-                    </ScrollView>
-                </View>
-            )}
-        </ScrollView>
+                    </View>
+
+                    <TouchableOpacity
+                        style={[styles.saveButton, { backgroundColor: theme.brand }, loading && { opacity: 0.7 }]}
+                        onPress={handleSave}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <>
+                                <ActivityIndicator size="small" color="#FFFFFF" />
+                                <Text style={styles.saveButtonText}>{t.savingProgress || 'Guardando...'}</Text>
+                            </>
+                        ) : (
+                            <>
+                                <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
+                                <Text style={styles.saveButtonText}>{t.savePet || 'Guardar mascota'}</Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                </ScrollView>
+            </View>
+        </ScreenWrapper>
     );
 }
 
-// Estilos (iguales a los que tenías, con algunos extras para imagen)
 const styles = StyleSheet.create({
-    scrollContainer: {
+    container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
     },
     scrollContent: {
-        paddingHorizontal: 20,
-        paddingTop: 40,
-        paddingBottom: 50,
-        alignItems: 'center',
+        padding: 16,
+        paddingBottom: 44,
     },
-    header: {
+    heroCard: {
+        borderRadius: 18,
+        paddingHorizontal: 18,
+        paddingTop: 18,
+        paddingBottom: 22,
+        marginBottom: 12,
+    },
+    heroTopRow: {
         flexDirection: 'row',
+        alignItems: 'center',
         justifyContent: 'space-between',
+        marginBottom: 12,
+    },
+    heroIconWrap: {
+        width: 38,
+        height: 38,
+        borderRadius: 12,
         alignItems: 'center',
-        marginBottom: 30,
-        width: '100%',
-        paddingHorizontal: 5
+        justifyContent: 'center',
     },
-    headerRight: {
-        flexDirection: 'row',
-        width: '45%',
-        justifyContent: 'space-between',
-    },
-    menuHamburguesa: {
-        padding: 5,
-    },
-    headerIcon: {
-        padding: 8,
-    },
-    floatingBtn: {
-        backgroundColor: '#fff',
-        padding: 8,
-        borderRadius: 50,
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-        borderWidth: 1,
-        borderColor: '#ccc',
-    },
-    overlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: '#00000080',
-        zIndex: 10,
-    },
-    sideMenu: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        bottom: 0,
-        width: 280,
-        backgroundColor: '#fff',
-        padding: 20,
-        zIndex: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 4, height: 0 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
-        elevation: 10,
-        flex: 1,
-    },
-    menuHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 30,
-        paddingTop: 30,
-    },
-    menuTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#333',
-    },
-    menuItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 50,
+    heroPill: {
+        borderRadius: 16,
+        paddingVertical: 5,
         paddingHorizontal: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
     },
-    menuItemText: {
-        fontSize: 18,
-        marginLeft: 15,
-        color: '#333',
+    heroPillText: {
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    heroKicker: {
+        color: 'rgba(255,255,255,0.74)',
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 1,
+        marginBottom: 4,
+    },
+    heroTitle: {
+        color: '#FFFFFF',
+        fontSize: 24,
+        fontWeight: '800',
+    },
+    heroSubtitle: {
+        color: 'rgba(255,255,255,0.79)',
+        fontSize: 13,
+        lineHeight: 18,
+        marginTop: 6,
     },
     formCard: {
-        backgroundColor: '#fff',
-        padding: 20,
-        marginBottom: 20,
-        width: '90%',
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 5,
+        padding: 14,
+        marginBottom: 12,
     },
-    label: {
-        fontSize: 16,
-        marginBottom: 5,
-        fontWeight: 'normal',
-    },
-    input: {
-        width: '100%',
-        height: 45,
-        backgroundColor: '#eee',
-        paddingHorizontal: 10,
+    imageCard: {
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 5,
-        marginBottom: 20,
-    },
-    title: {
-        fontWeight: 'bold',
-        fontSize: 20,
-        marginBottom: 20,
-        alignSelf: 'center',
-        color: '#333'
-    },
-    dropdownContainer: {
-        flexDirection: 'row',
+        padding: 14,
+        marginBottom: 12,
         alignItems: 'center',
-        backgroundColor: '#eee',
-        height: 45,
-        borderRadius: 5,
+    },
+    fieldWrap: {
         marginBottom: 10,
-        borderWidth: 1,
-        borderColor: '#ddd',
     },
-    dropdownInput: {
-        flex: 1,
-        paddingHorizontal: 10,
-        color: '#000',
-    },
-    dropdownIcon: {
-        paddingRight: 5,
-    },
-    dropdownItem: {
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderColor: '#ccc',
-        padding: 12,
-        marginTop: -1,
-        width: '100%',
-    },
-    dropdownText: {
-        fontSize: 16,
-        color: '#333',
-    },
-    saveButton: {
-        backgroundColor: '#4CAF50',
-        padding: 15,
-        borderRadius: 8,
-        alignItems: 'center',
-        marginTop: 20,
-        width: '90%',
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-    },
-    saveButtonText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    // Imagen
-    placeholderImage: {
-        width: 150,
-        height: 120,
-        borderRadius: 8,
-        backgroundColor: '#fafafa',
-        borderWidth: 1,
-        borderColor: '#eee',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    previewImage: {
-        width: 150,
-        height: 120,
-        borderRadius: 8,
-        resizeMode: 'cover',
-    },
-    smallBtn: {
-        backgroundColor: '#007AFF',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 6,
-    },
-    smallBtnText: {
-        color: '#fff',
-        fontWeight: '600',
-    },
-});
-
-// Estilos para las notificaciones
-const notificationStyles = StyleSheet.create({
-    notificationsContainer: {
-        position: 'absolute',
-        top: 100,
-        right: 30,
-        width: 300,
-        maxHeight: 400,
-        backgroundColor: '#e0e0e0',
-        borderRadius: 10,
-        padding: 15,
-        zIndex: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
-    },
-    headerText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        textAlign: 'center',
-        marginBottom: 10,
-        color: 'black',
-    },
-    list: {
-        flexGrow: 0,
-    },
-    notificationItem: {
+    row2: {
         flexDirection: 'row',
         alignItems: 'flex-start',
+    },
+    label: {
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 0.6,
+        marginBottom: 6,
+    },
+    inputRow: {
+        minHeight: 48,
+        borderWidth: 1,
+        borderRadius: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+    },
+    leftIcon: {
+        marginRight: 8,
+    },
+    input: {
+        flex: 1,
+        fontSize: 14,
+        paddingVertical: 11,
+    },
+    dropdownValue: {
+        flex: 1,
+        fontSize: 14,
+    },
+    dropdownList: {
+        borderWidth: 1,
+        borderRadius: 10,
+        marginTop: 6,
+        overflow: 'hidden',
+    },
+    dropdownItem: {
+        paddingHorizontal: 12,
         paddingVertical: 10,
         borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
     },
-    bullet: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: 'red',
-        marginRight: 10,
-        marginTop: 5,
-        flexShrink: 0,
+    dropdownText: {
+        fontSize: 13,
     },
-    notificationText: {
-        fontSize: 16,
-        flexShrink: 1,
+    placeholderImage: {
+        width: 170,
+        height: 130,
+        borderRadius: 12,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    previewImage: {
+        width: 170,
+        height: 130,
+        borderRadius: 12,
+        resizeMode: 'cover',
+    },
+    imageActionsRow: {
+        marginTop: 10,
+        flexDirection: 'row',
+        gap: 8,
+    },
+    primarySmallBtn: {
+        borderRadius: 10,
+        minHeight: 36,
+        paddingHorizontal: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    primarySmallBtnText: {
+        color: '#FFFFFF',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    secondarySmallBtn: {
+        borderRadius: 10,
+        minHeight: 36,
+        borderWidth: 1,
+        paddingHorizontal: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    secondarySmallBtnText: {
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    saveButton: {
+        minHeight: 50,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'row',
+        gap: 8,
+    },
+    saveButtonText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '700',
     },
 });
