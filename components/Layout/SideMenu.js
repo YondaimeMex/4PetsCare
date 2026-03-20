@@ -1,15 +1,52 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../../context';
 import { lightTheme } from '../../constants';
+import { supabase } from '../../lib/Supabase';
 
 export default function SideMenu() {
     const navigation = useNavigation();
-    const { isMenuOpen, closeMenu, colors: contextColors, t, userData, registerTutorialTarget } = useApp();
+    const { isMenuOpen, closeMenu, colors: contextColors, t, registerTutorialTarget } = useApp();
     const colors = contextColors || lightTheme;
     const tipsItemRef = useRef(null);
+
+    const [perfil, setPerfil] = useState({ nombre: '', email: '', foto_url: '' });
+
+    // Cargar perfil desde Supabase cada vez que se abre el menú
+    useEffect(() => {
+        if (!isMenuOpen) return;
+        const loadPerfil = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session?.user) return;
+
+                const { data } = await supabase
+                    .from('perfiles')
+                    .select('nombre, email, foto_url')
+                    .eq('id', session.user.id)
+                    .single();
+
+                if (data) {
+                    setPerfil({
+                        nombre: data.nombre || session.user.email || '',
+                        email: data.email || session.user.email || '',
+                        foto_url: data.foto_url || '',
+                    });
+                } else {
+                    setPerfil({
+                        nombre: session.user.email || '',
+                        email: session.user.email || '',
+                        foto_url: '',
+                    });
+                }
+            } catch (err) {
+                console.error('SideMenu loadPerfil error:', err);
+            }
+        };
+        loadPerfil();
+    }, [isMenuOpen]);
 
     const measureTarget = useCallback((key, ref) => {
         setTimeout(() => {
@@ -53,7 +90,6 @@ export default function SideMenu() {
         return <MaterialIcons name={item.icon} size={20} color={color} />;
     };
 
-    // No renderizar si el menú está cerrado para evitar interceptar toques
     if (!isMenuOpen) return null;
 
     return (
@@ -69,10 +105,17 @@ export default function SideMenu() {
         >
             <View style={styles.menuHeader}>
                 <View style={styles.userBlock}>
-                    <Image source={{ uri: userData?.avatar }} style={[styles.avatar, { borderColor: `${theme.brand}33` }]} />
+                    <Image
+                        source={{ uri: perfil.foto_url || 'https://i.pravatar.cc/150' }}
+                        style={[styles.avatar, { borderColor: `${theme.brand}33` }]}
+                    />
                     <View style={styles.userMeta}>
-                        <Text style={[styles.userName, { color: theme.text }]} numberOfLines={1}>{userData?.name || t.user || 'Usuario'}</Text>
-                        <Text style={[styles.userEmail, { color: theme.muted }]} numberOfLines={1}>{userData?.email || ''}</Text>
+                        <Text style={[styles.userName, { color: theme.text }]} numberOfLines={1}>
+                            {perfil.nombre || t.user || 'Usuario'}
+                        </Text>
+                        <Text style={[styles.userEmail, { color: theme.muted }]} numberOfLines={1}>
+                            {perfil.email}
+                        </Text>
                     </View>
                 </View>
                 <TouchableOpacity onPress={closeMenu} accessibilityLabel={t.closeMenuAction || 'Cerrar menu'}>
@@ -114,83 +157,16 @@ export default function SideMenu() {
 }
 
 const styles = StyleSheet.create({
-    sideMenu: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        bottom: 0,
-        width: 300,
-        paddingHorizontal: 14,
-        paddingBottom: 10,
-        zIndex: 20,
-        borderRightWidth: 1,
-        shadowColor: '#000',
-        shadowOffset: { width: 4, height: 0 },
-        shadowOpacity: 0.12,
-        shadowRadius: 14,
-        elevation: 8,
-    },
-    menuHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 10,
-        marginTop: 12,
-    },
-    userBlock: {
-        flexDirection: 'row',
-        flex: 1,
-        paddingRight: 8,
-    },
-    avatar: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        borderWidth: 2,
-    },
-    userMeta: {
-        marginLeft: 9,
-        flex: 1,
-        justifyContent: 'center',
-    },
-    userName: {
-        fontSize: 14,
-        fontWeight: '700',
-    },
-    userEmail: {
-        fontSize: 11,
-        marginTop: 2,
-    },
-    menuTitle: {
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 0.7,
-        marginBottom: 8,
-        marginLeft: 4,
-    },
-    menuList: {
-        flex: 1,
-    },
-    menuItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        minHeight: 54,
-        borderRadius: 12,
-        borderWidth: 1,
-        paddingHorizontal: 10,
-        marginBottom: 8,
-    },
-    menuIconWrap: {
-        width: 32,
-        height: 32,
-        borderRadius: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    menuItemText: {
-        flex: 1,
-        marginLeft: 8,
-        fontSize: 14,
-        fontWeight: '600',
-    },
+    sideMenu: { position: 'absolute', top: 0, left: 0, bottom: 0, width: 300, paddingHorizontal: 14, paddingBottom: 10, zIndex: 20, borderRightWidth: 1, shadowColor: '#000', shadowOffset: { width: 4, height: 0 }, shadowOpacity: 0.12, shadowRadius: 14, elevation: 8 },
+    menuHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, marginTop: 12 },
+    userBlock: { flexDirection: 'row', flex: 1, paddingRight: 8 },
+    avatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2 },
+    userMeta: { marginLeft: 9, flex: 1, justifyContent: 'center' },
+    userName: { fontSize: 14, fontWeight: '700' },
+    userEmail: { fontSize: 11, marginTop: 2 },
+    menuTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.7, marginBottom: 8, marginLeft: 4 },
+    menuList: { flex: 1 },
+    menuItem: { flexDirection: 'row', alignItems: 'center', minHeight: 54, borderRadius: 12, borderWidth: 1, paddingHorizontal: 10, marginBottom: 8 },
+    menuIconWrap: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+    menuItemText: { flex: 1, marginLeft: 8, fontSize: 14, fontWeight: '600' },
 });

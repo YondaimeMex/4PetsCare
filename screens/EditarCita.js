@@ -1,21 +1,15 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
-    View,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    StyleSheet,
-    ScrollView,
-    Alert,
-    ActivityIndicator,
+    View, Text, TextInput, TouchableOpacity,
+    StyleSheet, ScrollView, Alert, ActivityIndicator,
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenWrapper } from '../components';
 import { useApp } from '../context';
 import { buildFormTheme, getSingleSelectedMarkedDates } from '../lib/formTheme';
+import { supabase } from '../lib/Supabase';
 
 export default function EditarCita() {
     const navigation = useNavigation();
@@ -24,7 +18,7 @@ export default function EditarCita() {
     const { colors, t } = useApp();
 
     const [nombreUsuario, setNombreUsuario] = useState('');
-    const [nombreVeterinaria, setVeterinaria] = useState('');
+    const [selectedVeterinaria, setSelectedVeterinaria] = useState(null); // { id, nombre }
     const [selectedDate, setSelectedDate] = useState('');
     const [veterinarias, setVeterinarias] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -36,27 +30,34 @@ export default function EditarCita() {
         useCallback(() => {
             if (cita) {
                 setNombreUsuario(cita.usuario || '');
-                setVeterinaria(cita.veterinaria || '');
                 setSelectedDate(cita.fecha || '');
-                loadVeterinarias();
+                loadVeterinarias(cita.veterinaria_id);
             }
         }, [cita])
     );
 
-    const loadVeterinarias = async () => {
+    const loadVeterinarias = async (currentVetId) => {
         try {
-            const jsonValue = await AsyncStorage.getItem('@veterinarias');
-            const data = jsonValue != null ? JSON.parse(jsonValue) : [];
-            data.sort((a, b) => a.label.localeCompare(b.label));
-            setVeterinarias(data);
-        } catch (error) {
-            console.error('Error cargando veterinarias', error);
-        }
-    };
+            const { data, error } = await supabase
+                .from('veterinarias')
+                .select('id, nombre')
+                .order('nombre', { ascending: true });
 
-    const selectVeterinaria = (option) => {
-        setVeterinaria(option.label);
-        setIsDropdownOpen(false);
+            if (error) { console.error('loadVeterinarias error:', error); return; }
+            setVeterinarias(data || []);
+
+            // Preseleccionar la veterinaria actual de la cita
+            if (currentVetId && data) {
+                const current = data.find(v => v.id === currentVetId);
+                if (current) setSelectedVeterinaria(current);
+            } else if (cita?.veterinaria_nombre) {
+                // Fallback: buscar por nombre si viene del calendario
+                const current = (data || []).find(v => v.nombre === cita.veterinaria_nombre);
+                if (current) setSelectedVeterinaria(current);
+            }
+        } catch (err) {
+            console.error('loadVeterinarias exception:', err);
+        }
     };
 
     const getMarkedDates = () => getSingleSelectedMarkedDates(selectedDate, theme.brand);
@@ -66,50 +67,36 @@ export default function EditarCita() {
             Alert.alert(t.error || 'Error', t.appointmentNotFound || 'No se encontro la cita a editar.');
             return;
         }
-
         const usuarioLimpio = nombreUsuario.trim();
-        const veterinariaLimpia = nombreVeterinaria.trim();
-
-        if (!usuarioLimpio || !veterinariaLimpia || !selectedDate) {
+        if (!usuarioLimpio || !selectedVeterinaria || !selectedDate) {
             Alert.alert(t.missingData || 'Faltan datos', t.fillNameVetDate || 'Ingresa nombre, veterinaria y fecha.');
             return;
         }
 
         setLoading(true);
         try {
-            const citasRaw = await AsyncStorage.getItem('@citas');
-            const citas = citasRaw ? JSON.parse(citasRaw) : [];
+            const { error } = await supabase
+                .from('citas')
+                .update({
+                    usuario: usuarioLimpio,
+                    veterinaria_id: selectedVeterinaria.id,
+                    fecha: selectedDate,
+                })
+                .eq('id', cita.id);
 
-            const updatedCitas = citas.filter((c) => {
-                if (cita.id != null && c.id != null) {
-                    return c.id !== cita.id;
-                }
-
-                return !(
-                    c.fecha === cita.fecha &&
-                    c.usuario === cita.usuario &&
-                    c.veterinaria === cita.veterinaria &&
-                    c.tipo === 'Cita'
-                );
-            });
-
-            const citaActualizada = {
-                ...cita,
-                usuario: usuarioLimpio,
-                veterinaria: veterinariaLimpia,
-                fecha: selectedDate,
-                tipo: 'Cita',
-            };
-
-            updatedCitas.push(citaActualizada);
-            await AsyncStorage.setItem('@citas', JSON.stringify(updatedCitas));
+            if (error) {
+                console.error('EditarCita error:', error);
+                Alert.alert(t.error || 'Error', t.saveChangesError || 'No se pudieron guardar los cambios.');
+                setLoading(false);
+                return;
+            }
 
             setLoading(false);
             Alert.alert(t.success || 'Exito', `${t.appointmentUpdated || 'Cita actualizada para el'} ${selectedDate}!`, [
                 { text: 'OK', onPress: () => navigation.navigate('Calendario') },
             ]);
-        } catch (error) {
-            console.error('Error guardando cambios:', error);
+        } catch (err) {
+            console.error('EditarCita exception:', err);
             setLoading(false);
             Alert.alert(t.error || 'Error', t.saveChangesError || 'No se pudieron guardar los cambios.');
         }
@@ -119,12 +106,14 @@ export default function EditarCita() {
         <ScreenWrapper showBack showMenu={false} showNotifications={false} showProfile={false}>
             <View style={[styles.container, { backgroundColor: theme.bg }]}>
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+
                     <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
                         <Text style={styles.heroKicker}>{t.editAppointmentKicker || 'CITAS'}</Text>
                         <Text style={styles.heroTitle}>{t.editAppointmentTitle || 'Editar cita'}</Text>
                         <Text style={styles.heroSubtitle}>{t.editAppointmentSubtitle || 'Actualiza usuario, clinica y fecha.'}</Text>
                     </View>
 
+                    {/* ── Nombre ── */}
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <Text style={[styles.label, { color: theme.muted }]}>{t.userNameLabel || 'Nombre del usuario'}</Text>
                         <View style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
@@ -139,6 +128,7 @@ export default function EditarCita() {
                         </View>
                     </View>
 
+                    {/* ── Veterinaria ── */}
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, zIndex: 100 }]}>
                         <Text style={[styles.label, { color: theme.muted }]}>{t.vetFallback || 'Veterinaria'}</Text>
                         <TouchableOpacity
@@ -147,8 +137,8 @@ export default function EditarCita() {
                             activeOpacity={0.8}
                         >
                             <Ionicons name="business-outline" size={18} color={theme.brandSoft} style={styles.leftIcon} />
-                            <Text style={[styles.dropdownValue, { color: nombreVeterinaria ? theme.text : theme.muted }]}>
-                                {nombreVeterinaria || t.chooseVetPlaceholder || 'Elige una veterinaria'}
+                            <Text style={[styles.dropdownValue, { color: selectedVeterinaria ? theme.text : theme.muted }]}>
+                                {selectedVeterinaria?.nombre || t.chooseVetPlaceholder || 'Elige una veterinaria'}
                             </Text>
                             <MaterialIcons
                                 name={isDropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
@@ -156,7 +146,6 @@ export default function EditarCita() {
                                 color={theme.muted}
                             />
                         </TouchableOpacity>
-
                         {isDropdownOpen ? (
                             <View style={[styles.dropdownList, { backgroundColor: theme.card, borderColor: theme.border }]}>
                                 {veterinarias.length === 0 ? (
@@ -164,13 +153,13 @@ export default function EditarCita() {
                                         <Text style={[styles.emptyStateText, { color: theme.muted }]}>{t.noSavedVets || 'No hay veterinarias guardadas.'}</Text>
                                     </View>
                                 ) : (
-                                    veterinarias.map((option, index) => (
+                                    veterinarias.map((option) => (
                                         <TouchableOpacity
-                                            key={index}
+                                            key={option.id}
                                             style={[styles.dropdownItem, { borderBottomColor: theme.border }]}
-                                            onPress={() => selectVeterinaria(option)}
+                                            onPress={() => { setSelectedVeterinaria(option); setIsDropdownOpen(false); }}
                                         >
-                                            <Text style={[styles.dropdownItemText, { color: theme.text }]}>{option.label}</Text>
+                                            <Text style={[styles.dropdownItemText, { color: theme.text }]}>{option.nombre}</Text>
                                         </TouchableOpacity>
                                     ))
                                 )}
@@ -178,6 +167,7 @@ export default function EditarCita() {
                         ) : null}
                     </View>
 
+                    {/* ── Fecha ── */}
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <Text style={[styles.label, { color: theme.muted }]}>{t.appointmentDateLabel || 'Fecha de la cita'}</Text>
                         <Calendar
@@ -230,123 +220,27 @@ export default function EditarCita() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    scrollContent: {
-        padding: 16,
-        paddingBottom: 42,
-    },
-    heroCard: {
-        borderRadius: 18,
-        paddingHorizontal: 18,
-        paddingTop: 18,
-        paddingBottom: 22,
-        marginBottom: 12,
-    },
-    heroKicker: {
-        color: 'rgba(255,255,255,0.74)',
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 1,
-        marginBottom: 4,
-    },
-    heroTitle: {
-        color: '#FFFFFF',
-        fontSize: 24,
-        fontWeight: '800',
-    },
-    heroSubtitle: {
-        color: 'rgba(255,255,255,0.79)',
-        fontSize: 13,
-        lineHeight: 18,
-        marginTop: 6,
-    },
-    card: {
-        borderRadius: 16,
-        borderWidth: 1,
-        marginBottom: 12,
-        padding: 14,
-    },
-    label: {
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 0.6,
-        marginBottom: 6,
-    },
-    inputRow: {
-        minHeight: 48,
-        borderRadius: 10,
-        borderWidth: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 10,
-    },
-    leftIcon: {
-        marginRight: 8,
-    },
-    input: {
-        flex: 1,
-        fontSize: 14,
-        paddingVertical: 11,
-    },
-    dropdownValue: {
-        flex: 1,
-        fontSize: 14,
-    },
-    dropdownList: {
-        marginTop: 6,
-        borderWidth: 1,
-        borderRadius: 10,
-        overflow: 'hidden',
-    },
-    dropdownItem: {
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-    },
-    dropdownItemText: {
-        fontSize: 13,
-    },
-    emptyStateBox: {
-        padding: 14,
-        alignItems: 'center',
-    },
-    emptyStateText: {
-        fontSize: 13,
-    },
-    selectedDateText: {
-        marginTop: 10,
-        fontSize: 13,
-        fontWeight: '700',
-        textAlign: 'center',
-    },
-    saveButton: {
-        minHeight: 50,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexDirection: 'row',
-        gap: 8,
-    },
-    cancelButton: {
-        minHeight: 48,
-        marginTop: 10,
-        borderRadius: 12,
-        borderWidth: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    buttonDisabled: {
-        opacity: 0.7,
-    },
-    saveButtonText: {
-        color: '#fff',
-        fontSize: 15,
-        fontWeight: '700',
-    },
-    cancelButtonText: {
-        fontSize: 14,
-        fontWeight: '600',
-    },
+    container: { flex: 1 },
+    scrollContent: { padding: 16, paddingBottom: 42 },
+    heroCard: { borderRadius: 18, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 22, marginBottom: 12 },
+    heroKicker: { color: 'rgba(255,255,255,0.74)', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
+    heroTitle: { color: '#FFFFFF', fontSize: 24, fontWeight: '800' },
+    heroSubtitle: { color: 'rgba(255,255,255,0.79)', fontSize: 13, lineHeight: 18, marginTop: 6 },
+    card: { borderRadius: 16, borderWidth: 1, marginBottom: 12, padding: 14 },
+    label: { fontSize: 11, fontWeight: '700', letterSpacing: 0.6, marginBottom: 6 },
+    inputRow: { minHeight: 48, borderRadius: 10, borderWidth: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10 },
+    leftIcon: { marginRight: 8 },
+    input: { flex: 1, fontSize: 14, paddingVertical: 11 },
+    dropdownValue: { flex: 1, fontSize: 14 },
+    dropdownList: { marginTop: 6, borderWidth: 1, borderRadius: 10, overflow: 'hidden' },
+    dropdownItem: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1 },
+    dropdownItemText: { fontSize: 13 },
+    emptyStateBox: { padding: 14, alignItems: 'center' },
+    emptyStateText: { fontSize: 13 },
+    selectedDateText: { marginTop: 10, fontSize: 13, fontWeight: '700', textAlign: 'center' },
+    saveButton: { minHeight: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+    cancelButton: { minHeight: 48, marginTop: 10, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+    buttonDisabled: { opacity: 0.7 },
+    saveButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+    cancelButtonText: { fontSize: 14, fontWeight: '600' },
 });

@@ -2,17 +2,22 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenWrapper } from '../components';
 import { useApp } from '../context';
 import { supabase } from '../lib/Supabase';
 
 export default function Perfil() {
   const navigation = useNavigation();
-  const { userData, colors, t, language } = useApp();
+  const { colors, t, language } = useApp();
 
   const [petsCount, setPetsCount] = useState(0);
   const [memberSince, setMemberSince] = useState('');
+  const [profileData, setProfileData] = useState({
+    nombre: '',
+    email: '',
+    telefono: '',
+    foto_url: '',
+  });
 
   const theme = useMemo(() => ({
     brand: colors?.primaryDark || '#2F6E4F',
@@ -28,63 +33,65 @@ export default function Perfil() {
 
   const formatMemberSince = useCallback((rawDate) => {
     if (!rawDate) return '';
-
     const date = new Date(rawDate);
     if (Number.isNaN(date.getTime())) return '';
-
     const locale = language === 'en' ? 'en-US' : 'es-MX';
     const formatted = date.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
     return formatted.charAt(0).toUpperCase() + formatted.slice(1);
   }, [language]);
 
-  const loadMemberSince = useCallback(async () => {
-    const localDateCandidate =
-      userData?.created_at ||
-      userData?.createdAt ||
-      userData?.registeredAt ||
-      userData?.memberSince;
-
+  const loadProfileData = useCallback(async () => {
     try {
-      // Local session is available even when remote auth check fails.
       const { data: { session } } = await supabase.auth.getSession();
-      const sessionDate = session?.user?.created_at || session?.user?.createdAt;
+      const user = session?.user;
+      if (!user) return;
 
-      if (sessionDate) {
-        setMemberSince(formatMemberSince(sessionDate));
-        return;
+      // Fecha de registro
+      setMemberSince(formatMemberSince(user.created_at));
+
+      // Datos del perfil desde tabla perfiles
+      const { data: perfil } = await supabase
+        .from('perfiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (perfil) {
+        setProfileData({
+          nombre: perfil.nombre || user.email || '',
+          email: perfil.email || user.email || '',
+          telefono: perfil.telefono || '',
+          foto_url: perfil.foto_url || '',
+        });
+      } else {
+        setProfileData({
+          nombre: user.email || '',
+          email: user.email || '',
+          telefono: '',
+          foto_url: '',
+        });
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
-      const remoteDate = user?.created_at || user?.createdAt;
+      // Conteo de mascotas desde Supabase
+      const { count } = await supabase
+        .from('mascotas')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
 
-      if (remoteDate) {
-        setMemberSince(formatMemberSince(remoteDate));
-        return;
-      }
-
-      setMemberSince(formatMemberSince(localDateCandidate));
-    } catch {
-      setMemberSince(formatMemberSince(localDateCandidate));
+      setPetsCount(count || 0);
+    } catch (err) {
+      console.error('loadProfileData error:', err);
     }
-  }, [formatMemberSince, userData]);
+  }, [formatMemberSince]);
 
-  useFocusEffect(
-    useCallback(() => {
-      AsyncStorage.getItem('@mascotas').then(raw => {
-        const arr = raw ? JSON.parse(raw) : [];
-        setPetsCount(arr.length);
-      }).catch(() => setPetsCount(0));
-
-      loadMemberSince();
-    }, [loadMemberSince])
-  );
+  useFocusEffect(useCallback(() => { loadProfileData(); }, [loadProfileData]));
 
   const menuOptions = [
     { icon: 'person-outline', label: t.editProfile || 'Editar perfil', screen: 'EditarPerfil' },
     { icon: 'paw-outline', label: t.myPets || 'Mis mascotas', screen: 'Mascotas' },
     { icon: 'calendar-outline', label: t.myAppointments || 'Mis citas', screen: 'Calendario' },
     { icon: 'notifications-outline', label: t.notifications || 'Notificaciones', screen: 'Notificaciones' },
-    { icon: 'settings-outline', label: t.settings || 'Configuración', screen: 'Configuracion' },
+    { icon: 'settings-outline', label: t.settings || 'Configuracion', screen: 'Configuracion' },
   ];
 
   return (
@@ -99,17 +106,15 @@ export default function Perfil() {
           <View style={styles.heroGlowTop} />
           <View style={styles.heroGlowBottom} />
           <View style={styles.heroGlowAccent} />
-
           <View style={styles.heroBadge}>
             <Ionicons name="sparkles-outline" size={12} color="#FFFFFF" />
             <Text style={styles.heroBadgeText}>4PetsCare</Text>
           </View>
-
           <View style={styles.heroAvatarRow}>
             <View style={styles.avatarOuterRing}>
               <View style={styles.avatarInnerRing}>
                 <Image
-                  source={{ uri: userData?.avatar || 'https://i.pravatar.cc/150' }}
+                  source={{ uri: profileData.foto_url || 'https://i.pravatar.cc/150' }}
                   style={[styles.avatar, { borderColor: 'rgba(255,255,255,0.4)' }]}
                 />
               </View>
@@ -121,10 +126,8 @@ export default function Perfil() {
               <Ionicons name="camera-outline" size={16} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
-
-          <Text style={styles.heroName}>{userData?.name || t.myProfile || 'Mi perfil'}</Text>
-          <Text style={styles.heroEmail}>{userData?.email || ''}</Text>
-
+          <Text style={styles.heroName}>{profileData.nombre || t.myProfile || 'Mi perfil'}</Text>
+          <Text style={styles.heroEmail}>{profileData.email}</Text>
           <View style={styles.pillRow}>
             <View style={styles.pill}>
               <Ionicons name="paw" size={13} color="#FFFFFF" />
@@ -142,26 +145,24 @@ export default function Perfil() {
         {/* ── Datos de contacto ── */}
         <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.muted }]}>{t.contactInfoTitle || 'INFORMACION DE CONTACTO'}</Text>
-
-          {userData?.phone ? (
+          {profileData.telefono ? (
             <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
               <View style={[styles.infoIcon, { backgroundColor: `${theme.brandSoft}18` }]}>
                 <Ionicons name="call-outline" size={18} color={theme.brandSoft} />
               </View>
               <View>
                 <Text style={[styles.infoLabel, { color: theme.muted }]}>{t.phoneLabel || 'Telefono'}</Text>
-                <Text style={[styles.infoValue, { color: theme.text }]}>{userData.phone}</Text>
+                <Text style={[styles.infoValue, { color: theme.text }]}>{profileData.telefono}</Text>
               </View>
             </View>
           ) : null}
-
           <View style={styles.infoRow}>
             <View style={[styles.infoIcon, { backgroundColor: `${theme.brandSoft}18` }]}>
               <Ionicons name="mail-outline" size={18} color={theme.brandSoft} />
             </View>
             <View>
               <Text style={[styles.infoLabel, { color: theme.muted }]}>{t.emailWord || 'Correo'}</Text>
-              <Text style={[styles.infoValue, { color: theme.text }]}>{userData?.email || '—'}</Text>
+              <Text style={[styles.infoValue, { color: theme.text }]}>{profileData.email}</Text>
             </View>
           </View>
         </View>
@@ -196,9 +197,7 @@ export default function Perfil() {
           activeOpacity={0.8}
         >
           <MaterialIcons name="logout" size={18} color={theme.danger} />
-          <Text style={[styles.logoutText, { color: theme.danger }]}>
-            {t.logout || 'Cerrar sesión'}
-          </Text>
+          <Text style={[styles.logoutText, { color: theme.danger }]}>{t.logout || 'Cerrar sesion'}</Text>
         </TouchableOpacity>
       </ScrollView>
     </ScreenWrapper>
@@ -206,213 +205,32 @@ export default function Perfil() {
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    paddingBottom: 48,
-  },
-  /* Hero */
-  hero: {
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 10,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    paddingTop: 36,
-    paddingBottom: 32,
-    paddingHorizontal: 24,
-    overflow: 'hidden',
-  },
-  heroGlowTop: {
-    position: 'absolute',
-    top: -42,
-    right: -24,
-    width: 150,
-    height: 150,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-  },
-  heroGlowBottom: {
-    position: 'absolute',
-    bottom: -56,
-    left: -22,
-    width: 170,
-    height: 170,
-    borderRadius: 999,
-    backgroundColor: 'rgba(0,0,0,0.12)',
-  },
-  heroGlowAccent: {
-    position: 'absolute',
-    top: 84,
-    left: -40,
-    width: 110,
-    height: 110,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,127,90,0.25)',
-  },
-  heroBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    alignSelf: 'flex-end',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    marginBottom: 10,
-  },
-  heroBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  heroAvatarRow: {
-    position: 'relative',
-    marginBottom: 14,
-  },
-  avatarOuterRing: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.22)',
-  },
-  avatarInnerRing: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.18)',
-  },
-  avatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: 3,
-  },
-  editAvatarBtn: {
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.28)',
-    paddingHorizontal: 7,
-    paddingVertical: 6,
-  },
-  heroName: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
-  },
-  heroEmail: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.84)',
-    marginTop: 4,
-    marginBottom: 14,
-  },
-  pillRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.23)',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    gap: 5,
-  },
-  pillText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  /* Sections */
-  section: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 8,
-  },
-  /* Info rows */
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  infoIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  infoLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginTop: 1,
-  },
-  /* Menu rows */
-  menuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-  },
-  menuIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  menuLabel: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  /* Logout */
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginHorizontal: 16,
-    marginTop: 20,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1.5,
-  },
-  logoutText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
+  scrollContent: { paddingBottom: 48 },
+  hero: { alignItems: 'center', marginHorizontal: 16, marginTop: 10, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', paddingTop: 36, paddingBottom: 32, paddingHorizontal: 24, overflow: 'hidden' },
+  heroGlowTop: { position: 'absolute', top: -42, right: -24, width: 150, height: 150, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.15)' },
+  heroGlowBottom: { position: 'absolute', bottom: -56, left: -22, width: 170, height: 170, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.12)' },
+  heroGlowAccent: { position: 'absolute', top: 84, left: -40, width: 110, height: 110, borderRadius: 999, backgroundColor: 'rgba(255,127,90,0.25)' },
+  heroBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-end', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 10 },
+  heroBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
+  heroAvatarRow: { position: 'relative', marginBottom: 14 },
+  avatarOuterRing: { width: 112, height: 112, borderRadius: 56, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.22)' },
+  avatarInnerRing: { width: 104, height: 104, borderRadius: 52, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)' },
+  avatar: { width: 96, height: 96, borderRadius: 48, borderWidth: 3 },
+  editAvatarBtn: { position: 'absolute', bottom: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', paddingHorizontal: 7, paddingVertical: 6 },
+  heroName: { fontSize: 22, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.3 },
+  heroEmail: { fontSize: 13, color: 'rgba(255,255,255,0.84)', marginTop: 4, marginBottom: 14 },
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
+  pill: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.23)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', paddingVertical: 6, paddingHorizontal: 12, gap: 5 },
+  pillText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
+  section: { marginHorizontal: 16, marginTop: 16, borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
+  sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
+  infoIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  infoLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0.3 },
+  infoValue: { fontSize: 14, fontWeight: '500', marginTop: 1 },
+  menuRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1 },
+  menuIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  menuLabel: { flex: 1, fontSize: 15, fontWeight: '500' },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 16, marginTop: 20, paddingVertical: 14, borderRadius: 14, borderWidth: 1.5 },
+  logoutText: { fontSize: 15, fontWeight: '600' },
 });

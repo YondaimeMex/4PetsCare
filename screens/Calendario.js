@@ -3,10 +3,9 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'rea
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context';
 import { ScreenWrapper } from '../components';
-import NotificationService from './Notificaciones';
+import { supabase } from '../lib/Supabase';
 
 const formatTimeDisplay = (hora) => {
     if (!hora) return null;
@@ -47,26 +46,21 @@ export default function Calendario() {
     const deleteCita = async (citaToDelete) => {
         Alert.alert(
             t.confirmDeletion || 'Confirmar eliminacion',
-            `${t.deleteAppointmentQuestion || 'Eliminar la cita con'} ${citaToDelete.veterinaria}?`,
+            `${t.deleteAppointmentQuestion || 'Eliminar la cita con'} ${citaToDelete.veterinaria_nombre}?`,
             [
                 { text: t.cancel || 'Cancelar', style: 'cancel' },
                 {
                     text: t.delete || 'Eliminar', style: 'destructive',
                     onPress: async () => {
                         try {
-                            const raw = await AsyncStorage.getItem('@citas');
-                            const citas = raw ? JSON.parse(raw) : [];
-                            const updated = citas.filter(c =>
-                                citaToDelete.id != null && c.id != null
-                                    ? c.id !== citaToDelete.id
-                                    : c.fecha !== citaToDelete.fecha ||
-                                    c.usuario !== citaToDelete.usuario ||
-                                    c.veterinaria !== citaToDelete.veterinaria ||
-                                    c.tipo !== 'Cita'
-                            );
-                            await AsyncStorage.setItem('@citas', JSON.stringify(updated));
-                            if (citaToDelete.id) {
-                                await NotificationService.cancelAppointmentNotification(citaToDelete.id);
+                            const { error } = await supabase
+                                .from('citas')
+                                .delete()
+                                .eq('id', citaToDelete.id);
+
+                            if (error) {
+                                Alert.alert(t.error || 'Error', t.deleteAppointmentError || 'No se pudo eliminar la cita.');
+                                return;
                             }
                             await loadCalendarData();
                         } catch {
@@ -88,17 +82,15 @@ export default function Calendario() {
                     text: t.delete || 'Eliminar', style: 'destructive',
                     onPress: async () => {
                         try {
-                            const raw = await AsyncStorage.getItem('@citas');
-                            const citas = raw ? JSON.parse(raw) : [];
-                            const updated = citas.filter(c =>
-                                vacunaToDelete.id != null && c.id != null
-                                    ? c.id !== vacunaToDelete.id
-                                    : !(c.fecha === vacunaToDelete.fecha &&
-                                        c.usuario === vacunaToDelete.usuario &&
-                                        c.veterinaria === vacunaToDelete.veterinaria &&
-                                        (c.tipo === 'Vacuna' || c.veterinaria === 'Vacuna Registrada'))
-                            );
-                            await AsyncStorage.setItem('@citas', JSON.stringify(updated));
+                            const { error } = await supabase
+                                .from('vacunas')
+                                .delete()
+                                .eq('id', vacunaToDelete.id);
+
+                            if (error) {
+                                Alert.alert(t.error || 'Error', t.deleteVaccineError || 'No se pudo eliminar la vacuna.');
+                                return;
+                            }
                             await loadCalendarData();
                         } catch {
                             Alert.alert(t.error || 'Error', t.deleteVaccineError || 'No se pudo eliminar la vacuna.');
@@ -114,39 +106,61 @@ export default function Calendario() {
             const newMarked = {};
             const allFetched = [];
 
+            // Campañas fijas
             FIXED_CAMPANAS.forEach(c => {
                 if (!newMarked[c.fecha]) newMarked[c.fecha] = { dots: [] };
                 newMarked[c.fecha].dots.push({ key: `campana-${c.fecha}`, color: theme.danger, selectedDotColor: '#FFF' });
                 allFetched.push(c);
             });
 
-            const raw = await AsyncStorage.getItem('@citas');
-            const citas = raw ? JSON.parse(raw) : [];
+            // Citas desde Supabase
+            const { data: citas } = await supabase
+                .from('citas')
+                .select('*, veterinarias(nombre)')
+                .eq('tipo', 'Cita')
+                .order('fecha', { ascending: true });
 
-            citas.forEach(cita => {
+            (citas || []).forEach(cita => {
                 const date = cita.fecha;
                 if (!date) return;
                 if (!newMarked[date]) newMarked[date] = { dots: [] };
-
-                const esCita = cita.tipo === 'Cita';
-                const esVacuna = cita.tipo === 'Vacuna' || cita.veterinaria === 'Vacuna Registrada';
-
-                if (esCita) {
-                    if (!newMarked[date].dots.find(d => d.color === theme.brandSoft)) {
-                        newMarked[date].dots.push({ key: `cita-${date}`, color: theme.brandSoft, selectedDotColor: '#FFF' });
-                    }
-                    allFetched.push({ ...cita, tipo: 'cita' });
-                } else if (esVacuna) {
-                    if (!newMarked[date].dots.find(d => d.color === theme.success)) {
-                        newMarked[date].dots.push({ key: `vacuna-${date}`, color: theme.success, selectedDotColor: '#FFF' });
-                    }
-                    allFetched.push({ ...cita, tipo: 'vacuna' });
+                if (!newMarked[date].dots.find(d => d.color === theme.brandSoft)) {
+                    newMarked[date].dots.push({ key: `cita-${date}`, color: theme.brandSoft, selectedDotColor: '#FFF' });
                 }
+                allFetched.push({
+                    ...cita,
+                    tipo: 'cita',
+                    veterinaria_nombre: cita.veterinarias?.nombre || cita.usuario || '',
+                });
+            });
+
+            // Vacunas desde Supabase
+            const { data: vacunas } = await supabase
+                .from('vacunas')
+                .select('*, mascotas(nombre), veterinarias(nombre)')
+                .order('fecha_aplicacion', { ascending: true });
+
+            (vacunas || []).forEach(vacuna => {
+                const date = vacuna.fecha_aplicacion;
+                if (!date) return;
+                if (!newMarked[date]) newMarked[date] = { dots: [] };
+                if (!newMarked[date].dots.find(d => d.color === theme.success)) {
+                    newMarked[date].dots.push({ key: `vacuna-${date}`, color: theme.success, selectedDotColor: '#FFF' });
+                }
+                allFetched.push({
+                    ...vacuna,
+                    fecha: vacuna.fecha_aplicacion,
+                    tipo: 'vacuna',
+                    veterinaria_nombre: vacuna.veterinarias?.nombre || '',
+                    mascota_nombre: vacuna.mascotas?.nombre || '',
+                });
             });
 
             setMarkedDatesData(newMarked);
             setAllCitas(allFetched);
-        } catch { /* ignore */ }
+        } catch (err) {
+            console.error('loadCalendarData error:', err);
+        }
     };
 
     const handleDayPress = (day) => {
@@ -198,7 +212,6 @@ export default function Calendario() {
                             <Text style={styles.heroCtaText} numberOfLines={1}>{t.newAppointment || 'Nueva cita'}</Text>
                         </TouchableOpacity>
                     </View>
-
                     <View style={styles.heroPillRow}>
                         <View style={styles.heroPill}>
                             <Ionicons name="calendar-outline" size={13} color="#FFF" />
@@ -251,9 +264,7 @@ export default function Calendario() {
                 {/* ── Eventos del día ── */}
                 {selectedDate ? (
                     <View style={[styles.eventsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <Text style={[styles.eventsTitle, { color: theme.text }]}>
-                            {selectedDate}
-                        </Text>
+                        <Text style={[styles.eventsTitle, { color: theme.text }]}>{selectedDate}</Text>
 
                         {selectedDayEvents.length === 0 ? (
                             <Text style={[styles.emptyEvents, { color: theme.muted }]}>
@@ -263,14 +274,11 @@ export default function Calendario() {
                             selectedDayEvents.map((event, i) => {
                                 if (event.tipo === 'cita') {
                                     return (
-                                        <View
-                                            key={`cita-${i}`}
-                                            style={[styles.eventRow, { borderColor: theme.border }]}
-                                        >
+                                        <View key={`cita-${i}`} style={[styles.eventRow, { borderColor: theme.border }]}>
                                             <View style={[styles.eventDot, { backgroundColor: theme.brandSoft }]} />
                                             <View style={{ flex: 1 }}>
                                                 <Text style={[styles.eventLabel, { color: theme.brandSoft }]}>{t.scheduledAppointmentLabel || 'Cita programada'}</Text>
-                                                <Text style={[styles.eventDetail, { color: theme.text }]}>{event.veterinaria}</Text>
+                                                <Text style={[styles.eventDetail, { color: theme.text }]}>{event.veterinaria_nombre}</Text>
                                                 {event.hora ? (
                                                     <Text style={[styles.eventMeta, { color: theme.muted }]}>{formatTimeDisplay(event.hora)}</Text>
                                                 ) : null}
@@ -308,7 +316,10 @@ export default function Calendario() {
                                             <View style={[styles.eventDot, { backgroundColor: theme.success }]} />
                                             <View style={{ flex: 1 }}>
                                                 <Text style={[styles.eventLabel, { color: theme.success }]}>{t.vaccineAppliedLabel || 'Vacuna aplicada'}</Text>
-                                                <Text style={[styles.eventDetail, { color: theme.text }]}>{event.veterinaria}</Text>
+                                                <Text style={[styles.eventDetail, { color: theme.text }]}>{event.mascota_nombre}</Text>
+                                                {event.veterinaria_nombre ? (
+                                                    <Text style={[styles.eventMeta, { color: theme.muted }]}>{event.veterinaria_nombre}</Text>
+                                                ) : null}
                                             </View>
                                             <View style={styles.eventActions}>
                                                 <TouchableOpacity
@@ -338,178 +349,32 @@ export default function Calendario() {
 }
 
 const styles = StyleSheet.create({
-    scrollContent: {
-        paddingBottom: 48,
-    },
-    /* Hero */
-    heroCard: {
-        marginHorizontal: 16,
-        borderRadius: 20,
-        paddingHorizontal: 20,
-        paddingTop: 24,
-        paddingBottom: 28,
-        marginBottom: 16,
-        overflow: 'hidden',
-    },
-    heroGlowTop: {
-        position: 'absolute',
-        right: -28,
-        top: -36,
-        width: 130,
-        height: 130,
-        borderRadius: 999,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-    },
-    heroGlowBottom: {
-        position: 'absolute',
-        left: -32,
-        bottom: -40,
-        width: 120,
-        height: 120,
-        borderRadius: 999,
-        backgroundColor: 'rgba(0,0,0,0.08)',
-    },
-    heroTopRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 16,
-    },
-    heroTopInfo: {
-        flex: 1,
-        minWidth: 0,
-        paddingRight: 8,
-    },
-    heroKicker: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: 'rgba(255,255,255,0.7)',
-        letterSpacing: 1.2,
-        marginBottom: 4,
-    },
-    heroTitle: {
-        fontSize: 22,
-        fontWeight: '800',
-        color: '#FFFFFF',
-    },
-    heroCtaBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flexShrink: 1,
-        gap: 5,
-        paddingVertical: 8,
-        paddingHorizontal: 14,
-        borderRadius: 20,
-    },
-    heroCtaText: {
-        flexShrink: 1,
-        color: '#FFFFFF',
-        fontWeight: '700',
-        fontSize: 13,
-    },
-    heroPillRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 10,
-    },
-    heroPill: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        maxWidth: '100%',
-        gap: 5,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        borderRadius: 20,
-        paddingVertical: 4,
-        paddingHorizontal: 10,
-    },
-    heroPillText: {
-        flexShrink: 1,
-        color: '#FFFFFF',
-        fontSize: 12,
-        fontWeight: '700',
-    },
-    /* Calendar section */
-    calendarCard: {
-        marginHorizontal: 16,
-        marginBottom: 12,
-        borderRadius: 18,
-        borderWidth: 1,
-        overflow: 'hidden',
-    },
-    /* Legend */
-    legendCard: {
-        marginHorizontal: 16,
-        marginBottom: 12,
-        borderRadius: 14,
-        borderWidth: 1,
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-    },
-    legendRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: 4,
-    },
-    legendDot: {
-        width: 9,
-        height: 9,
-        borderRadius: 5,
-    },
-    legendText: {
-        fontSize: 12,
-    },
-    /* Events */
-    eventsCard: {
-        marginHorizontal: 16,
-        marginBottom: 12,
-        borderRadius: 16,
-        borderWidth: 1,
-        padding: 16,
-    },
-    eventsTitle: {
-        fontSize: 15,
-        fontWeight: '800',
-        marginBottom: 12,
-    },
-    emptyEvents: {
-        textAlign: 'center',
-        fontSize: 14,
-        fontStyle: 'italic',
-        paddingVertical: 12,
-    },
-    eventRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-    },
-    eventDot: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-    },
-    eventLabel: {
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 0.3,
-        marginBottom: 2,
-    },
-    eventDetail: {
-        fontSize: 14,
-        fontWeight: '500',
-    },
-    eventMeta: {
-        fontSize: 12,
-        marginTop: 2,
-    },
-    eventActions: {
-        flexDirection: 'row',
-        gap: 6,
-    },
-    iconBtn: {
-        padding: 6,
-        borderRadius: 10,
-    },
+    scrollContent: { paddingBottom: 48 },
+    heroCard: { marginHorizontal: 16, borderRadius: 20, paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28, marginBottom: 16, overflow: 'hidden' },
+    heroGlowTop: { position: 'absolute', right: -28, top: -36, width: 130, height: 130, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.1)' },
+    heroGlowBottom: { position: 'absolute', left: -32, bottom: -40, width: 120, height: 120, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.08)' },
+    heroTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+    heroTopInfo: { flex: 1, minWidth: 0, paddingRight: 8 },
+    heroKicker: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.7)', letterSpacing: 1.2, marginBottom: 4 },
+    heroTitle: { fontSize: 22, fontWeight: '800', color: '#FFFFFF' },
+    heroCtaBtn: { flexDirection: 'row', alignItems: 'center', flexShrink: 1, gap: 5, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20 },
+    heroCtaText: { flexShrink: 1, color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
+    heroPillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    heroPill: { flexDirection: 'row', alignItems: 'center', maxWidth: '100%', gap: 5, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10 },
+    heroPillText: { flexShrink: 1, color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+    calendarCard: { marginHorizontal: 16, marginBottom: 12, borderRadius: 18, borderWidth: 1, overflow: 'hidden' },
+    legendCard: { marginHorizontal: 16, marginBottom: 12, borderRadius: 14, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 14 },
+    legendRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 },
+    legendDot: { width: 9, height: 9, borderRadius: 5 },
+    legendText: { fontSize: 12 },
+    eventsCard: { marginHorizontal: 16, marginBottom: 12, borderRadius: 16, borderWidth: 1, padding: 16 },
+    eventsTitle: { fontSize: 15, fontWeight: '800', marginBottom: 12 },
+    emptyEvents: { textAlign: 'center', fontSize: 14, fontStyle: 'italic', paddingVertical: 12 },
+    eventRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1 },
+    eventDot: { width: 10, height: 10, borderRadius: 5 },
+    eventLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.3, marginBottom: 2 },
+    eventDetail: { fontSize: 14, fontWeight: '500' },
+    eventMeta: { fontSize: 12, marginTop: 2 },
+    eventActions: { flexDirection: 'row', gap: 6 },
+    iconBtn: { padding: 6, borderRadius: 10 },
 });

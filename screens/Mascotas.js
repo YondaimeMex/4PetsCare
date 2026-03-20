@@ -2,11 +2,11 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, Alert } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context';
 import { ScreenWrapper, EmptyState } from '../components';
+import { supabase } from '../lib/Supabase';
 
-// Diccionario centralizado de imágenes por especie
+// ─── Imágenes por defecto según especie ──────────────────────
 const IMAGES = {
     default: 'https://images.pexels.com/photos/662417/pexels-photo-662417.jpeg',
     perro: 'https://images.pexels.com/photos/1805164/pexels-photo-1805164.jpeg',
@@ -18,7 +18,7 @@ const IMAGES = {
 };
 
 const getImageForEspecie = (m) => {
-    if (m?.image) return m.image;
+    if (m?.foto_url) return m.foto_url;
     const especie = m?.especie?.toLowerCase() || '';
     if (!especie) return IMAGES.default;
     if (especie.includes('perro') || especie.includes('dog')) return IMAGES.perro;
@@ -29,6 +29,7 @@ const getImageForEspecie = (m) => {
     return IMAGES.fallback;
 };
 
+// ─── Tarjeta de mascota ───────────────────────────────────────
 function PetCard({ mascota, theme, onPress, onDelete, onVaccine, t }) {
     return (
         <TouchableOpacity
@@ -92,6 +93,7 @@ function PetCard({ mascota, theme, onPress, onDelete, onVaccine, t }) {
     );
 }
 
+// ─── Pantalla principal ───────────────────────────────────────
 export default function Mascotas() {
     const navigation = useNavigation();
     const { colors, t } = useApp();
@@ -111,9 +113,19 @@ export default function Mascotas() {
 
     const loadMascotas = async () => {
         try {
-            const raw = await AsyncStorage.getItem('@mascotas');
-            setListaMascotas(raw ? JSON.parse(raw) : []);
-        } catch {
+            const { data, error } = await supabase
+                .from('mascotas')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('loadMascotas error:', error);
+                Alert.alert(t.error || 'Error', t.loadPetsError || 'No se pudieron cargar las mascotas.');
+                return;
+            }
+            setListaMascotas(data || []);
+        } catch (err) {
+            console.error('loadMascotas exception:', err);
             Alert.alert(t.error || 'Error', t.loadPetsError || 'No se pudieron cargar las mascotas.');
         }
     };
@@ -129,12 +141,18 @@ export default function Mascotas() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            const raw = await AsyncStorage.getItem('@mascotas');
-                            const arr = raw ? JSON.parse(raw) : [];
-                            const filtered = arr.filter(m => m.id !== mascota.id);
-                            await AsyncStorage.setItem('@mascotas', JSON.stringify(filtered));
-                            setListaMascotas(filtered);
-                        } catch {
+                            const { error } = await supabase
+                                .from('mascotas')
+                                .delete()
+                                .eq('id', mascota.id);
+
+                            if (error) {
+                                Alert.alert(t.error || 'Error', t.deletePetError || 'No se pudo eliminar la mascota.');
+                                return;
+                            }
+                            setListaMascotas((prev) => prev.filter(m => m.id !== mascota.id));
+                        } catch (err) {
+                            console.error('deleteMascota error:', err);
                             Alert.alert(t.error || 'Error', t.deletePetError || 'No se pudo eliminar la mascota.');
                         }
                     },
@@ -224,169 +242,30 @@ export default function Mascotas() {
 }
 
 const styles = StyleSheet.create({
-    /* Hero */
-    heroCard: {
-        marginHorizontal: 16,
-        marginTop: 8,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.08)',
-        paddingHorizontal: 20,
-        paddingTop: 24,
-        paddingBottom: 28,
-        marginBottom: 16,
-        overflow: 'hidden',
-    },
-    heroGlowTop: {
-        position: 'absolute',
-        top: -42,
-        right: -24,
-        width: 145,
-        height: 145,
-        borderRadius: 999,
-        backgroundColor: 'rgba(255,255,255,0.12)',
-    },
-    heroGlowBottom: {
-        position: 'absolute',
-        bottom: -56,
-        left: -22,
-        width: 130,
-        height: 130,
-        borderRadius: 999,
-        backgroundColor: 'rgba(0,0,0,0.1)',
-    },
-    heroTopRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 16,
-    },
-    heroTopInfo: {
-        flex: 1,
-        minWidth: 0,
-        paddingRight: 8,
-    },
-    heroKicker: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: 'rgba(255,255,255,0.7)',
-        letterSpacing: 1.2,
-        marginBottom: 4,
-    },
-    heroTitle: {
-        fontSize: 22,
-        fontWeight: '800',
-        color: '#FFFFFF',
-        letterSpacing: 0.2,
-    },
-    heroAddBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flexShrink: 1,
-        gap: 5,
-        paddingVertical: 8,
-        paddingHorizontal: 14,
-        borderRadius: 20,
-    },
-    heroAddText: {
-        flexShrink: 1,
-        color: '#FFFFFF',
-        fontWeight: '700',
-        fontSize: 14,
-    },
-    heroPillRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 10,
-    },
-    heroPill: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        maxWidth: '100%',
-        gap: 5,
-        backgroundColor: 'rgba(255,255,255,0.22)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.2)',
-        borderRadius: 20,
-        paddingVertical: 6,
-        paddingHorizontal: 11,
-    },
-    heroPillText: {
-        flexShrink: 1,
-        color: '#FFFFFF',
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    /* List */
-    listContent: {
-        paddingBottom: 40,
-    },
-    /* Pet card */
-    petCard: {
-        marginHorizontal: 16,
-        marginBottom: 12,
-        borderRadius: 16,
-        borderWidth: 1,
-        overflow: 'hidden',
-        flexDirection: 'row',
-    },
-    petImage: {
-        width: 110,
-        height: '100%',
-        minHeight: 140,
-    },
-    petBody: {
-        flex: 1,
-        padding: 14,
-        justifyContent: 'space-between',
-    },
-    petName: {
-        fontSize: 17,
-        fontWeight: '700',
-        marginBottom: 6,
-    },
-    chipRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 6,
-        marginBottom: 8,
-    },
-    chip: {
-        paddingVertical: 3,
-        paddingHorizontal: 8,
-        borderRadius: 8,
-    },
-    chipText: {
-        fontSize: 11,
-        fontWeight: '600',
-    },
-    metaRow: {
-        flexDirection: 'row',
-        gap: 12,
-        marginBottom: 10,
-    },
-    metaItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    metaText: {
-        fontSize: 12,
-    },
-    actionRow: {
-        flexDirection: 'row',
-        gap: 8,
-    },
-    actionBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        paddingVertical: 5,
-        paddingHorizontal: 10,
-        borderRadius: 8,
-    },
-    actionBtnText: {
-        fontSize: 12,
-        fontWeight: '600',
-    },
+    heroCard: { marginHorizontal: 16, marginTop: 8, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 20, paddingTop: 24, paddingBottom: 28, marginBottom: 16, overflow: 'hidden' },
+    heroGlowTop: { position: 'absolute', top: -42, right: -24, width: 145, height: 145, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)' },
+    heroGlowBottom: { position: 'absolute', bottom: -56, left: -22, width: 130, height: 130, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.1)' },
+    heroTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+    heroTopInfo: { flex: 1, minWidth: 0, paddingRight: 8 },
+    heroKicker: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.7)', letterSpacing: 1.2, marginBottom: 4 },
+    heroTitle: { fontSize: 22, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.2 },
+    heroAddBtn: { flexDirection: 'row', alignItems: 'center', flexShrink: 1, gap: 5, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20 },
+    heroAddText: { flexShrink: 1, color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
+    heroPillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    heroPill: { flexDirection: 'row', alignItems: 'center', maxWidth: '100%', gap: 5, backgroundColor: 'rgba(255,255,255,0.22)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 11 },
+    heroPillText: { flexShrink: 1, color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
+    listContent: { paddingBottom: 40 },
+    petCard: { marginHorizontal: 16, marginBottom: 12, borderRadius: 16, borderWidth: 1, overflow: 'hidden', flexDirection: 'row' },
+    petImage: { width: 110, height: '100%', minHeight: 140 },
+    petBody: { flex: 1, padding: 14, justifyContent: 'space-between' },
+    petName: { fontSize: 17, fontWeight: '700', marginBottom: 6 },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
+    chip: { paddingVertical: 3, paddingHorizontal: 8, borderRadius: 8 },
+    chipText: { fontSize: 11, fontWeight: '600' },
+    metaRow: { flexDirection: 'row', gap: 12, marginBottom: 10 },
+    metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    metaText: { fontSize: 12 },
+    actionRow: { flexDirection: 'row', gap: 8 },
+    actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 8 },
+    actionBtnText: { fontSize: 12, fontWeight: '600' },
 });

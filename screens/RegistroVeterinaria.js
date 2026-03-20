@@ -2,9 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenWrapper } from '../components';
 import { useApp } from '../context';
+import { supabase } from '../lib/Supabase';
 
 function Field({ label, icon, value, onChangeText, placeholder, keyboardType, maxLength, theme }) {
     return (
@@ -29,7 +29,6 @@ function Field({ label, icon, value, onChangeText, placeholder, keyboardType, ma
 export default function RegistroVeterinaria() {
     const navigation = useNavigation();
     const { colors, t } = useApp();
-
     const [nombreVeterinaria, setNombreVeterinaria] = useState('');
     const [ubiVeterinaria, setUbiVeterinaria] = useState('');
     const [numero, setNumero] = useState('');
@@ -58,30 +57,30 @@ export default function RegistroVeterinaria() {
             Alert.alert(t.missingData || 'Faltan datos', t.enterNameAndLocation || 'Ingresa el nombre y la ubicacion.');
             return;
         }
-
         if (numeroLimpio && numeroLimpio.length < 8) {
             Alert.alert(t.invalidNumberTitle || 'Numero invalido', t.invalidPhoneMessage || 'Ingresa un numero de telefono valido.');
             return;
         }
 
         try {
-            const nuevaVeterinaria = {
-                id: Date.now(),
-                label: nombreLimpio,
-                ubicacion: ubicacionLimpia,
-                numero: numeroLimpio,
-            };
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                Alert.alert(t.error || 'Error', 'No autenticado.');
+                return;
+            }
 
-            const existentesRaw = await AsyncStorage.getItem('@veterinarias');
-            const existentes = existentesRaw ? JSON.parse(existentesRaw) : [];
-
+            // Verificar duplicado
             const nombreNormalizado = normalizeTextForCompare(nombreLimpio);
             const ubicacionNormalizada = normalizeTextForCompare(ubicacionLimpia);
 
-            const alreadyExists = existentes.some((vet) => {
-                const vetName = normalizeTextForCompare(vet.label || '');
-                const vetLocation = normalizeTextForCompare(vet.ubicacion || '');
-                return vetName === nombreNormalizado && vetLocation === ubicacionNormalizada;
+            const { data: existentes } = await supabase
+                .from('veterinarias')
+                .select('nombre, ubicacion')
+                .eq('user_id', user.id);
+
+            const alreadyExists = (existentes || []).some((vet) => {
+                return normalizeTextForCompare(vet.nombre || '') === nombreNormalizado &&
+                       normalizeTextForCompare(vet.ubicacion || '') === ubicacionNormalizada;
             });
 
             if (alreadyExists) {
@@ -89,14 +88,26 @@ export default function RegistroVeterinaria() {
                 return;
             }
 
-            const actualizada = [...existentes, nuevaVeterinaria];
-            await AsyncStorage.setItem('@veterinarias', JSON.stringify(actualizada));
+            const { error } = await supabase
+                .from('veterinarias')
+                .insert({
+                    user_id: user.id,
+                    nombre: nombreLimpio,
+                    ubicacion: ubicacionLimpia,
+                    telefono: numeroLimpio || null,
+                });
+
+            if (error) {
+                console.error('RegistroVeterinaria error:', error);
+                Alert.alert(t.error || 'Error', t.saveVetError || 'No se pudo guardar la veterinaria.');
+                return;
+            }
 
             Alert.alert(t.success || 'Exito', `${t.vetRegisteredPrefix || 'Veterinaria registrada:'} ${nombreLimpio}`, [
                 { text: 'OK', onPress: () => navigation.goBack() },
             ]);
         } catch (error) {
-            console.error(error);
+            console.error('RegistroVeterinaria exception:', error);
             Alert.alert(t.error || 'Error', t.saveVetError || 'No se pudo guardar la veterinaria.');
         }
     };
@@ -132,7 +143,6 @@ export default function RegistroVeterinaria() {
                             placeholder={t.vetNameExample || 'Ej. Veterinaria Luz'}
                             theme={theme}
                         />
-
                         <Field
                             label={t.location || 'Ubicacion'}
                             icon="location-outline"
@@ -141,7 +151,6 @@ export default function RegistroVeterinaria() {
                             placeholder={t.locationExample || 'Ej. Lopez Portillo'}
                             theme={theme}
                         />
-
                         <Field
                             label={t.phoneLabel || 'Numero'}
                             icon="call-outline"
@@ -152,7 +161,6 @@ export default function RegistroVeterinaria() {
                             maxLength={15}
                             theme={theme}
                         />
-
                         <TouchableOpacity
                             style={[styles.saveButton, { backgroundColor: theme.brand }]}
                             onPress={handleSave}
@@ -161,7 +169,6 @@ export default function RegistroVeterinaria() {
                             <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
                             <Text style={styles.saveButtonText}>{t.saveVet || 'Guardar veterinaria'}</Text>
                         </TouchableOpacity>
-
                         <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
                             <Text style={[styles.cancelText, { color: theme.muted }]}>{t.cancel || 'Cancelar'}</Text>
                         </TouchableOpacity>
@@ -173,110 +180,23 @@ export default function RegistroVeterinaria() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    scrollContent: {
-        padding: 16,
-        paddingBottom: 42,
-    },
-    heroCard: {
-        borderRadius: 18,
-        paddingHorizontal: 18,
-        paddingTop: 18,
-        paddingBottom: 22,
-        marginBottom: 12,
-    },
-    heroTopRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 10,
-    },
-    heroIconWrap: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(255,255,255,0.18)',
-    },
-    heroMiniBtn: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    heroKicker: {
-        color: 'rgba(255,255,255,0.74)',
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 1,
-        marginBottom: 4,
-    },
-    heroTitle: {
-        color: '#FFFFFF',
-        fontSize: 24,
-        fontWeight: '800',
-    },
-    heroSubtitle: {
-        color: 'rgba(255,255,255,0.79)',
-        fontSize: 13,
-        lineHeight: 18,
-        marginTop: 6,
-    },
-    formCard: {
-        borderRadius: 16,
-        borderWidth: 1,
-        padding: 14,
-    },
-    fieldWrap: {
-        marginBottom: 12,
-    },
-    label: {
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 0.6,
-        marginBottom: 6,
-    },
-    inputRow: {
-        minHeight: 48,
-        borderWidth: 1,
-        borderRadius: 10,
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 10,
-    },
-    leftIcon: {
-        marginRight: 8,
-    },
-    input: {
-        flex: 1,
-        fontSize: 14,
-        paddingVertical: 11,
-    },
-    saveButton: {
-        marginTop: 6,
-        minHeight: 50,
-        borderRadius: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-    },
-    saveButtonText: {
-        color: '#FFFFFF',
-        fontSize: 15,
-        fontWeight: '700',
-    },
-    cancelButton: {
-        marginTop: 10,
-        alignItems: 'center',
-        paddingVertical: 6,
-    },
-    cancelText: {
-        fontSize: 13,
-        fontWeight: '600',
-    },
+    container: { flex: 1 },
+    scrollContent: { padding: 16, paddingBottom: 42 },
+    heroCard: { borderRadius: 18, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 22, marginBottom: 12 },
+    heroTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+    heroIconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)' },
+    heroMiniBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+    heroKicker: { color: 'rgba(255,255,255,0.74)', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
+    heroTitle: { color: '#FFFFFF', fontSize: 24, fontWeight: '800' },
+    heroSubtitle: { color: 'rgba(255,255,255,0.79)', fontSize: 13, lineHeight: 18, marginTop: 6 },
+    formCard: { borderRadius: 16, borderWidth: 1, padding: 14 },
+    fieldWrap: { marginBottom: 12 },
+    label: { fontSize: 11, fontWeight: '700', letterSpacing: 0.6, marginBottom: 6 },
+    inputRow: { minHeight: 48, borderWidth: 1, borderRadius: 10, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10 },
+    leftIcon: { marginRight: 8 },
+    input: { flex: 1, fontSize: 14, paddingVertical: 11 },
+    saveButton: { marginTop: 6, minHeight: 50, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+    saveButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+    cancelButton: { marginTop: 10, alignItems: 'center', paddingVertical: 6 },
+    cancelText: { fontSize: 13, fontWeight: '600' },
 });

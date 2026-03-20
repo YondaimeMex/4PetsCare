@@ -14,28 +14,70 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../context';
 import { ScreenWrapper } from '../components';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
-import 'react-native-get-random-values';
-import { v4 as uuidv4 } from 'uuid';
 import NotificationService from './Notificaciones';
+import { supabase } from '../lib/Supabase';
 
+// ─── Guarda mascota en Supabase ───────────────────────────────
 export async function saveMascotaToDB(mascota) {
     try {
-        const raw = await AsyncStorage.getItem('@mascotas');
-        const actuales = raw ? JSON.parse(raw) : [];
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: 'No autenticado' };
 
-        const nueva = { id: uuidv4(), ...mascota };
-        const updated = [nueva, ...actuales];
+        let foto_url = null;
 
-        await AsyncStorage.setItem('@mascotas', JSON.stringify(updated));
-        return { success: true, data: nueva };
+        if (mascota.image) {
+            const ext = mascota.image.split('.').pop().split('?')[0] || 'jpg';
+            const fileKey = `${user.id}_${Date.now()}.${ext}`;
+
+            const formData = new FormData();
+            formData.append('file', {
+                uri: mascota.image,
+                name: fileKey,
+                type: `image/${ext}`,
+            });
+
+            const { error: uploadError } = await supabase.storage
+                .from('mascotas')
+                .upload(fileKey, formData, { contentType: `image/${ext}` });
+
+            if (!uploadError) {
+                const { data: urlData } = supabase.storage
+                    .from('mascotas')
+                    .getPublicUrl(fileKey);
+                foto_url = urlData.publicUrl;
+            } else {
+                console.log('Upload error:', JSON.stringify(uploadError));
+            }
+        }
+
+        const { data, error } = await supabase
+            .from('mascotas')
+            .insert({
+                user_id: user.id,
+                nombre: mascota.nombre,
+                especie: mascota.especie,
+                raza: mascota.raza || null,
+                edad: mascota.edad || null,
+                peso: mascota.peso || null,
+                foto_url,
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('saveMascotaToDB error:', error);
+            return { success: false, error };
+        }
+
+        return { success: true, data };
     } catch (err) {
-        console.error('saveMascotaToDB - AsyncStorage error:', err);
+        console.error('saveMascotaToDB exception:', err);
         return { success: false };
     }
 }
 
+// ─── Componente Field ─────────────────────────────────────────
 function Field({ label, icon, value, onChangeText, placeholder, keyboardType, theme }) {
     return (
         <View style={styles.fieldWrap}>
@@ -55,6 +97,7 @@ function Field({ label, icon, value, onChangeText, placeholder, keyboardType, th
     );
 }
 
+// ─── Pantalla principal ───────────────────────────────────────
 export default function RegistroMascota() {
     const navigation = useNavigation();
     const { colors, t } = useApp();
@@ -100,20 +143,17 @@ export default function RegistroMascota() {
                 Alert.alert(t.permissionDenied || 'Permiso denegado', t.galleryPermissionPet || 'Necesitamos permiso para acceder a la galeria.');
                 return;
             }
-
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
                 allowsEditing: true,
                 aspect: [4, 3],
                 quality: 0.7,
             });
-
             const uri =
                 (result.assets && result.assets[0] && result.assets[0].uri) ||
                 result.uri ||
                 (result.cancelled === false && result.uri) ||
                 null;
-
             if (uri) {
                 setImageUri(uri);
                 setImageKey(Date.now());
@@ -131,20 +171,17 @@ export default function RegistroMascota() {
                 Alert.alert(t.permissionDenied || 'Permiso denegado', t.cameraPermissionPet || 'Necesitamos permiso para usar la camara.');
                 return;
             }
-
             const result = await ImagePicker.launchCameraAsync({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
                 allowsEditing: true,
                 aspect: [4, 3],
                 quality: 0.7,
             });
-
             const uri =
                 (result.assets && result.assets[0] && result.assets[0].uri) ||
                 result.uri ||
                 (result.cancelled === false && result.uri) ||
                 null;
-
             if (uri) {
                 setImageUri(uri);
                 setImageKey(Date.now());
@@ -173,7 +210,6 @@ export default function RegistroMascota() {
             edad: edad.trim(),
             peso: peso.trim(),
             image: imageUri || null,
-            imageKey: imageKey || null,
         };
 
         setLoading(true);
@@ -185,7 +221,6 @@ export default function RegistroMascota() {
                 await NotificationService.saveNotification(
                     `¡Felicidades! Se ha guardado con éxito ${mascotaData.nombre} (${mascotaData.especie}).`
                 );
-
                 setNombreMascota('');
                 setEspecie('');
                 setRaza('');
@@ -193,10 +228,9 @@ export default function RegistroMascota() {
                 setPeso('');
                 setImageUri(null);
                 setImageKey(null);
-
                 navigation.replace('Mascotas');
             } else {
-                Alert.alert(t.saveErrorTitle || 'Error al guardar', t.localSaveError || 'No se pudo guardar localmente');
+                Alert.alert(t.saveErrorTitle || 'Error al guardar', t.localSaveError || 'No se pudo guardar la mascota.');
             }
         } catch (error) {
             console.error('Error guardando mascota:', error);
@@ -371,175 +405,35 @@ export default function RegistroMascota() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    scrollContent: {
-        padding: 16,
-        paddingBottom: 44,
-    },
-    heroCard: {
-        borderRadius: 18,
-        paddingHorizontal: 18,
-        paddingTop: 18,
-        paddingBottom: 22,
-        marginBottom: 12,
-    },
-    heroTopRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 12,
-    },
-    heroIconWrap: {
-        width: 38,
-        height: 38,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    heroPill: {
-        borderRadius: 16,
-        paddingVertical: 5,
-        paddingHorizontal: 10,
-    },
-    heroPillText: {
-        color: '#FFFFFF',
-        fontSize: 12,
-        fontWeight: '700',
-    },
-    heroKicker: {
-        color: 'rgba(255,255,255,0.74)',
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 1,
-        marginBottom: 4,
-    },
-    heroTitle: {
-        color: '#FFFFFF',
-        fontSize: 24,
-        fontWeight: '800',
-    },
-    heroSubtitle: {
-        color: 'rgba(255,255,255,0.79)',
-        fontSize: 13,
-        lineHeight: 18,
-        marginTop: 6,
-    },
-    formCard: {
-        borderRadius: 16,
-        borderWidth: 1,
-        padding: 14,
-        marginBottom: 12,
-    },
-    imageCard: {
-        borderRadius: 16,
-        borderWidth: 1,
-        padding: 14,
-        marginBottom: 12,
-        alignItems: 'center',
-    },
-    fieldWrap: {
-        marginBottom: 10,
-    },
-    row2: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-    },
-    label: {
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 0.6,
-        marginBottom: 6,
-    },
-    inputRow: {
-        minHeight: 48,
-        borderWidth: 1,
-        borderRadius: 10,
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 10,
-    },
-    leftIcon: {
-        marginRight: 8,
-    },
-    input: {
-        flex: 1,
-        fontSize: 14,
-        paddingVertical: 11,
-    },
-    dropdownValue: {
-        flex: 1,
-        fontSize: 14,
-    },
-    dropdownList: {
-        borderWidth: 1,
-        borderRadius: 10,
-        marginTop: 6,
-        overflow: 'hidden',
-    },
-    dropdownItem: {
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-    },
-    dropdownText: {
-        fontSize: 13,
-    },
-    placeholderImage: {
-        width: 170,
-        height: 130,
-        borderRadius: 12,
-        borderWidth: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    previewImage: {
-        width: 170,
-        height: 130,
-        borderRadius: 12,
-        resizeMode: 'cover',
-    },
-    imageActionsRow: {
-        marginTop: 10,
-        flexDirection: 'row',
-        gap: 8,
-    },
-    primarySmallBtn: {
-        borderRadius: 10,
-        minHeight: 36,
-        paddingHorizontal: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    primarySmallBtnText: {
-        color: '#FFFFFF',
-        fontSize: 13,
-        fontWeight: '700',
-    },
-    secondarySmallBtn: {
-        borderRadius: 10,
-        minHeight: 36,
-        borderWidth: 1,
-        paddingHorizontal: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    secondarySmallBtnText: {
-        fontSize: 13,
-        fontWeight: '700',
-    },
-    saveButton: {
-        minHeight: 50,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexDirection: 'row',
-        gap: 8,
-    },
-    saveButtonText: {
-        color: '#FFFFFF',
-        fontSize: 15,
-        fontWeight: '700',
-    },
+    container: { flex: 1 },
+    scrollContent: { padding: 16, paddingBottom: 44 },
+    heroCard: { borderRadius: 18, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 22, marginBottom: 12 },
+    heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+    heroIconWrap: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    heroPill: { borderRadius: 16, paddingVertical: 5, paddingHorizontal: 10 },
+    heroPillText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+    heroKicker: { color: 'rgba(255,255,255,0.74)', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
+    heroTitle: { color: '#FFFFFF', fontSize: 24, fontWeight: '800' },
+    heroSubtitle: { color: 'rgba(255,255,255,0.79)', fontSize: 13, lineHeight: 18, marginTop: 6 },
+    formCard: { borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 12 },
+    imageCard: { borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 12, alignItems: 'center' },
+    fieldWrap: { marginBottom: 10 },
+    row2: { flexDirection: 'row', alignItems: 'flex-start' },
+    label: { fontSize: 11, fontWeight: '700', letterSpacing: 0.6, marginBottom: 6 },
+    inputRow: { minHeight: 48, borderWidth: 1, borderRadius: 10, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10 },
+    leftIcon: { marginRight: 8 },
+    input: { flex: 1, fontSize: 14, paddingVertical: 11 },
+    dropdownValue: { flex: 1, fontSize: 14 },
+    dropdownList: { borderWidth: 1, borderRadius: 10, marginTop: 6, overflow: 'hidden' },
+    dropdownItem: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1 },
+    dropdownText: { fontSize: 13 },
+    placeholderImage: { width: 170, height: 130, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+    previewImage: { width: 170, height: 130, borderRadius: 12, resizeMode: 'cover' },
+    imageActionsRow: { marginTop: 10, flexDirection: 'row', gap: 8 },
+    primarySmallBtn: { borderRadius: 10, minHeight: 36, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
+    primarySmallBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+    secondarySmallBtn: { borderRadius: 10, minHeight: 36, borderWidth: 1, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
+    secondarySmallBtnText: { fontSize: 13, fontWeight: '700' },
+    saveButton: { minHeight: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+    saveButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
 });

@@ -4,10 +4,10 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context';
 import { ScreenWrapper } from '../components';
 import NotificationService from './Notificaciones';
+import { supabase } from '../lib/Supabase';
 
 export default function ProgramarCita() {
     const navigation = useNavigation();
@@ -26,7 +26,7 @@ export default function ProgramarCita() {
     }), [colors]);
 
     const [nombreUsuario, setNombreUsuario] = useState('');
-    const [nombreVeterinaria, setVeterinaria] = useState('');
+    const [selectedVeterinaria, setSelectedVeterinaria] = useState(null); // { id, nombre }
     const [selectedDate, setSelectedDate] = useState('');
     const [selectedTime, setSelectedTime] = useState(new Date());
     const [showTimePicker, setShowTimePicker] = useState(false);
@@ -36,11 +36,16 @@ export default function ProgramarCita() {
 
     const loadVeterinarias = async () => {
         try {
-            const raw = await AsyncStorage.getItem('@veterinarias');
-            const data = raw ? JSON.parse(raw) : [];
-            data.sort((a, b) => a.label.localeCompare(b.label));
-            setVeterinarias(data);
-        } catch { /* ignore */ }
+            const { data, error } = await supabase
+                .from('veterinarias')
+                .select('id, nombre')
+                .order('nombre', { ascending: true });
+
+            if (error) { console.error('loadVeterinarias error:', error); return; }
+            setVeterinarias(data || []);
+        } catch (err) {
+            console.error('loadVeterinarias exception:', err);
+        }
     };
 
     useFocusEffect(useCallback(() => { loadVeterinarias(); }, []));
@@ -59,12 +64,11 @@ export default function ProgramarCita() {
 
     const handleSave = async () => {
         const usuario = nombreUsuario.trim();
-        const vet = nombreVeterinaria.trim();
 
-        if (!usuario || !vet || !selectedDate) {
+        if (!usuario || !selectedVeterinaria || !selectedDate) {
             Alert.alert(
                 t.missingData || 'Faltan datos',
-                `${t.completeAllFields || 'Completa todos los campos:'}\n${!usuario ? `- ${t.nameFieldLabel || 'Nombre'}\n` : ''}${!vet ? `- ${t.vetFallback || 'Veterinaria'}\n` : ''}${!selectedDate ? `- ${t.dateFieldLabel || 'Fecha'}` : ''}`
+                `${t.completeAllFields || 'Completa todos los campos:'}\n${!usuario ? `- ${t.nameFieldLabel || 'Nombre'}\n` : ''}${!selectedVeterinaria ? `- ${t.vetFallback || 'Veterinaria'}\n` : ''}${!selectedDate ? `- ${t.dateFieldLabel || 'Fecha'}` : ''}`
             );
             return;
         }
@@ -73,32 +77,56 @@ export default function ProgramarCita() {
         const horaFormateada = `${selectedTime.getHours().toString().padStart(2, '0')}:${selectedTime.getMinutes().toString().padStart(2, '0')}`;
 
         try {
-            const raw = await AsyncStorage.getItem('@citas');
-            const citas = raw ? JSON.parse(raw) : [];
-            const nuevaCita = {
-                id: Date.now().toString(),
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                Alert.alert(t.error || 'Error', 'No autenticado.');
+                setLoading(false);
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from('citas')
+                .insert({
+                    user_id: user.id,
+                    usuario,
+                    veterinaria_id: selectedVeterinaria.id,
+                    fecha: selectedDate,
+                    hora: horaFormateada,
+                    tipo: 'Cita',
+                })
+                .select()
+                .single();
+
+            if (error) {
+                console.error('ProgramarCita error:', error);
+                Alert.alert(t.error || 'Error', t.saveAppointmentError || 'No se pudo guardar la cita.');
+                setLoading(false);
+                return;
+            }
+
+            // Notificación
+            await NotificationService.scheduleAppointmentNotification({
+                id: data.id,
                 usuario,
-                veterinaria: vet,
+                veterinaria: selectedVeterinaria.nombre,
                 fecha: selectedDate,
                 hora: horaFormateada,
                 tipo: 'Cita',
-            };
-
-            await AsyncStorage.setItem('@citas', JSON.stringify([...citas, nuevaCita]));
-            await NotificationService.scheduleAppointmentNotification(nuevaCita, 24);
+            }, 24);
 
             setLoading(false);
             Alert.alert(
                 t.appointmentSavedTitle || 'Cita guardada',
-                `${vet} - ${selectedDate} ${t.atTimeConnector || 'a las'} ${formatTime(selectedTime)}`,
+                `${selectedVeterinaria.nombre} - ${selectedDate} ${t.atTimeConnector || 'a las'} ${formatTime(selectedTime)}`,
                 [{ text: 'OK', onPress: () => navigation.navigate('Calendario') }]
             );
 
             setNombreUsuario('');
-            setVeterinaria('');
+            setSelectedVeterinaria(null);
             setSelectedDate('');
             setSelectedTime(new Date());
-        } catch {
+        } catch (err) {
+            console.error('ProgramarCita exception:', err);
             setLoading(false);
             Alert.alert(t.error || 'Error', t.saveAppointmentError || 'No se pudo guardar la cita.');
         }
@@ -139,8 +167,8 @@ export default function ProgramarCita() {
                         style={[styles.dropdownTrigger, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
                         onPress={() => setIsDropdownOpen(!isDropdownOpen)}
                     >
-                        <Text style={[styles.dropdownText, { color: nombreVeterinaria ? theme.text : theme.muted }]}>
-                            {nombreVeterinaria || t.chooseVetPlaceholder || 'Elige una veterinaria'}
+                        <Text style={[styles.dropdownText, { color: selectedVeterinaria ? theme.text : theme.muted }]}>
+                            {selectedVeterinaria?.nombre || t.chooseVetPlaceholder || 'Elige una veterinaria'}
                         </Text>
                         <MaterialIcons
                             name={isDropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
@@ -166,13 +194,13 @@ export default function ProgramarCita() {
                                 </View>
                             ) : (
                                 <>
-                                    {veterinarias.map((opt, i) => (
+                                    {veterinarias.map((opt) => (
                                         <TouchableOpacity
-                                            key={i}
+                                            key={opt.id}
                                             style={[styles.dropdownItem, { borderBottomColor: theme.border }]}
-                                            onPress={() => { setVeterinaria(opt.label); setIsDropdownOpen(false); }}
+                                            onPress={() => { setSelectedVeterinaria(opt); setIsDropdownOpen(false); }}
                                         >
-                                            <Text style={[styles.dropdownItemText, { color: theme.text }]}>{opt.label}</Text>
+                                            <Text style={[styles.dropdownItemText, { color: theme.text }]}>{opt.nombre}</Text>
                                         </TouchableOpacity>
                                     ))}
                                     <TouchableOpacity
@@ -261,181 +289,31 @@ export default function ProgramarCita() {
 }
 
 const styles = StyleSheet.create({
-    scrollContent: {
-        paddingBottom: 48,
-    },
-    /* Hero */
-    heroCard: {
-        marginHorizontal: 16,
-        borderRadius: 20,
-        paddingHorizontal: 20,
-        paddingTop: 28,
-        paddingBottom: 28,
-        marginBottom: 16,
-        overflow: 'hidden',
-    },
-    heroGlowTop: {
-        position: 'absolute',
-        right: -28,
-        top: -38,
-        width: 130,
-        height: 130,
-        borderRadius: 999,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-    },
-    heroGlowBottom: {
-        position: 'absolute',
-        left: -34,
-        bottom: -40,
-        width: 120,
-        height: 120,
-        borderRadius: 999,
-        backgroundColor: 'rgba(0,0,0,0.08)',
-    },
-    heroKicker: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: 'rgba(255,255,255,0.7)',
-        letterSpacing: 1.2,
-        marginBottom: 4,
-    },
-    heroTitle: {
-        fontSize: 24,
-        fontWeight: '800',
-        color: '#FFFFFF',
-    },
-    heroSubtitle: {
-        fontSize: 13,
-        color: 'rgba(255,255,255,0.75)',
-        marginTop: 4,
-    },
-    /* Sections */
-    section: {
-        marginHorizontal: 16,
-        marginBottom: 12,
-        borderRadius: 16,
-        borderWidth: 1,
-        padding: 16,
-    },
-    label: {
-        fontSize: 12,
-        fontWeight: '700',
-        letterSpacing: 0.4,
-        marginBottom: 8,
-    },
-    input: {
-        borderWidth: 1,
-        borderRadius: 12,
-        height: 48,
-        paddingHorizontal: 14,
-        fontSize: 15,
-    },
-    /* Dropdown */
-    dropdownTrigger: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        borderWidth: 1,
-        borderRadius: 12,
-        height: 48,
-        paddingHorizontal: 14,
-    },
-    dropdownText: {
-        fontSize: 15,
-    },
-    dropdownList: {
-        marginTop: 8,
-        borderWidth: 1,
-        borderRadius: 12,
-        overflow: 'hidden',
-    },
-    dropdownItem: {
-        paddingVertical: 13,
-        paddingHorizontal: 14,
-        borderBottomWidth: 1,
-    },
-    dropdownItemText: {
-        fontSize: 15,
-    },
-    dropdownFooter: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        padding: 13,
-        borderTopWidth: 1,
-    },
-    dropdownFooterText: {
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    dropdownEmpty: {
-        padding: 20,
-        alignItems: 'center',
-        gap: 12,
-    },
-    dropdownEmptyText: {
-        fontSize: 13,
-    },
-    addVetBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingVertical: 9,
-        paddingHorizontal: 16,
-        borderRadius: 20,
-    },
-    addVetBtnText: {
-        color: '#FFF',
-        fontWeight: '700',
-        fontSize: 13,
-    },
-    /* Date pill */
-    selectedDatePill: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        marginTop: 10,
-        alignSelf: 'flex-start',
-        paddingVertical: 5,
-        paddingHorizontal: 10,
-        borderRadius: 20,
-    },
-    selectedDateText: {
-        fontSize: 13,
-        fontWeight: '600',
-    },
-    /* Time */
-    timeRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-        borderWidth: 1,
-        borderRadius: 12,
-        paddingHorizontal: 14,
-        paddingVertical: 13,
-    },
-    timeText: {
-        flex: 1,
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    /* Save */
-    saveBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        marginHorizontal: 16,
-        marginTop: 8,
-        marginBottom: 14,
-        paddingVertical: 16,
-        borderRadius: 14,
-    },
-    saveBtnText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '700',
-    },
+    scrollContent: { paddingBottom: 48 },
+    heroCard: { marginHorizontal: 16, borderRadius: 20, paddingHorizontal: 20, paddingTop: 28, paddingBottom: 28, marginBottom: 16, overflow: 'hidden' },
+    heroGlowTop: { position: 'absolute', right: -28, top: -38, width: 130, height: 130, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.1)' },
+    heroGlowBottom: { position: 'absolute', left: -34, bottom: -40, width: 120, height: 120, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.08)' },
+    heroKicker: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.7)', letterSpacing: 1.2, marginBottom: 4 },
+    heroTitle: { fontSize: 24, fontWeight: '800', color: '#FFFFFF' },
+    heroSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
+    section: { marginHorizontal: 16, marginBottom: 12, borderRadius: 16, borderWidth: 1, padding: 16 },
+    label: { fontSize: 12, fontWeight: '700', letterSpacing: 0.4, marginBottom: 8 },
+    input: { borderWidth: 1, borderRadius: 12, height: 48, paddingHorizontal: 14, fontSize: 15 },
+    dropdownTrigger: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderRadius: 12, height: 48, paddingHorizontal: 14 },
+    dropdownText: { fontSize: 15 },
+    dropdownList: { marginTop: 8, borderWidth: 1, borderRadius: 12, overflow: 'hidden' },
+    dropdownItem: { paddingVertical: 13, paddingHorizontal: 14, borderBottomWidth: 1 },
+    dropdownItemText: { fontSize: 15 },
+    dropdownFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 13, borderTopWidth: 1 },
+    dropdownFooterText: { fontSize: 14, fontWeight: '600' },
+    dropdownEmpty: { padding: 20, alignItems: 'center', gap: 12 },
+    dropdownEmptyText: { fontSize: 13 },
+    addVetBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 9, paddingHorizontal: 16, borderRadius: 20 },
+    addVetBtnText: { color: '#FFF', fontWeight: '700', fontSize: 13 },
+    selectedDatePill: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, alignSelf: 'flex-start', paddingVertical: 5, paddingHorizontal: 10, borderRadius: 20 },
+    selectedDateText: { fontSize: 13, fontWeight: '600' },
+    timeRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13 },
+    timeText: { flex: 1, fontSize: 16, fontWeight: '600' },
+    saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 16, marginTop: 8, marginBottom: 14, paddingVertical: 16, borderRadius: 14 },
+    saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 });
-

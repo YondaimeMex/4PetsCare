@@ -2,9 +2,9 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenWrapper } from '../components';
 import { useApp } from '../context';
+import { supabase } from '../lib/Supabase';
 
 function VetCard({ vet, theme, onCall, t }) {
     return (
@@ -14,32 +14,22 @@ function VetCard({ vet, theme, onCall, t }) {
                     <Ionicons name="medical-outline" size={18} color={theme.danger} />
                 </View>
                 <View style={{ flex: 1 }}>
-                    <Text style={[styles.vetName, { color: theme.text }]}>{vet.name}</Text>
-                    <Text style={[styles.vetAddress, { color: theme.muted }]}>{vet.address}</Text>
+                    <Text style={[styles.vetName, { color: theme.text }]}>{vet.nombre}</Text>
+                    <Text style={[styles.vetAddress, { color: theme.muted }]}>{vet.ubicacion || t.locationUnavailable || 'Ubicacion no disponible'}</Text>
                 </View>
             </View>
 
-            {vet.phone ? (
+            {vet.telefono ? (
                 <View style={styles.metaRow}>
                     <Ionicons name="call-outline" size={15} color={theme.muted} />
-                    <Text style={[styles.metaText, { color: theme.text }]}>{vet.phone}</Text>
-                </View>
-            ) : null}
-
-            {vet.hours ? (
-                <View style={styles.metaRow}>
-                    <Ionicons name="time-outline" size={15} color={theme.muted} />
-                    <Text style={[styles.metaText, { color: theme.text }]}>{vet.hours}</Text>
+                    <Text style={[styles.metaText, { color: theme.text }]}>{vet.telefono}</Text>
                 </View>
             ) : null}
 
             <TouchableOpacity
-                style={[
-                    styles.callBtn,
-                    { backgroundColor: vet.phone ? theme.danger : theme.border },
-                ]}
-                disabled={!vet.phone}
-                onPress={() => onCall(vet.phone)}
+                style={[styles.callBtn, { backgroundColor: vet.telefono ? theme.danger : theme.border }]}
+                disabled={!vet.telefono}
+                onPress={() => onCall(vet.telefono)}
             >
                 <Ionicons name="call" size={18} color="#FFFFFF" />
                 <Text style={styles.callBtnText}>{t.callNow || 'Llamar ahora'}</Text>
@@ -66,31 +56,24 @@ export default function Emergencias() {
 
     const loadVeterinarias = async () => {
         try {
-            const jsonValue = await AsyncStorage.getItem('@veterinarias');
-            const data = jsonValue != null ? JSON.parse(jsonValue) : [];
+            const { data, error } = await supabase
+                .from('veterinarias')
+                .select('*')
+                .order('nombre', { ascending: true });
 
-            const mapped = data
-                .map((vet, index) => ({
-                    id: vet.id ?? `${vet.label || vet.name || 'vet'}-${index}`,
-                    name: vet.label || vet.name || t.unnamedVet || 'Veterinaria sin nombre',
-                    phone: vet.numero || vet.phone || '',
-                    address: vet.ubicacion || vet.address || t.locationUnavailable || 'Ubicacion no disponible',
-                    hours: vet.hours || '',
-                }))
-                .sort((a, b) => a.name.localeCompare(b.name));
-
-            setVeterinarias(mapped);
+            if (error) {
+                console.error('Error cargando veterinarias en Emergencias:', error);
+                setVeterinarias([]);
+                return;
+            }
+            setVeterinarias(data || []);
         } catch (error) {
             console.error('Error cargando veterinarias en Emergencias:', error);
             setVeterinarias([]);
         }
     };
 
-    useFocusEffect(
-        useCallback(() => {
-            loadVeterinarias();
-        }, [])
-    );
+    useFocusEffect(useCallback(() => { loadVeterinarias(); }, []));
 
     const handleCall = (phone) => {
         if (!phone) return;
@@ -140,157 +123,33 @@ export default function Emergencias() {
                     <VetCard vet={item} theme={theme} onCall={handleCall} t={t} />
                 )}
             />
-
         </ScreenWrapper>
     );
 }
 
 const styles = StyleSheet.create({
-    scrollContent: {
-        padding: 16,
-        paddingBottom: 24,
-    },
-    heroCard: {
-        borderRadius: 18,
-        paddingHorizontal: 18,
-        paddingTop: 20,
-        paddingBottom: 22,
-        marginBottom: 14,
-        overflow: 'hidden',
-    },
-    heroGlowTop: {
-        position: 'absolute',
-        right: -30,
-        top: -35,
-        width: 125,
-        height: 125,
-        borderRadius: 999,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-    },
-    heroGlowBottom: {
-        position: 'absolute',
-        left: -32,
-        bottom: -40,
-        width: 115,
-        height: 115,
-        borderRadius: 999,
-        backgroundColor: 'rgba(0,0,0,0.08)',
-    },
-    heroKicker: {
-        color: 'rgba(255,255,255,0.74)',
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 1,
-        marginBottom: 4,
-    },
-    heroTitle: {
-        color: '#FFFFFF',
-        fontSize: 23,
-        fontWeight: '800',
-    },
-    heroSubtitle: {
-        color: 'rgba(255,255,255,0.78)',
-        fontSize: 13,
-        marginTop: 6,
-    },
-    heroPills: {
-        marginTop: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    heroPill: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 5,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        borderRadius: 16,
-        paddingVertical: 5,
-        paddingHorizontal: 10,
-    },
-    heroPillText: {
-        color: '#FFFFFF',
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    heroAddBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        borderRadius: 16,
-        paddingVertical: 6,
-        paddingHorizontal: 10,
-    },
-    heroAddText: {
-        color: '#FFFFFF',
-        fontSize: 12,
-        fontWeight: '700',
-    },
-    vetCard: {
-        borderRadius: 16,
-        borderWidth: 1,
-        padding: 14,
-        marginBottom: 10,
-    },
-    vetHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    vetIcon: {
-        width: 34,
-        height: 34,
-        borderRadius: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 10,
-    },
-    vetName: {
-        fontSize: 15,
-        fontWeight: '700',
-    },
-    vetAddress: {
-        fontSize: 12,
-        marginTop: 2,
-    },
-    metaRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 4,
-    },
-    metaText: {
-        marginLeft: 6,
-        fontSize: 13,
-    },
-    callBtn: {
-        marginTop: 10,
-        minHeight: 42,
-        borderRadius: 10,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-    },
-    callBtnText: {
-        color: '#FFFFFF',
-        fontSize: 14,
-        fontWeight: '700',
-    },
-    emptyCard: {
-        borderRadius: 16,
-        borderWidth: 1,
-        padding: 20,
-        alignItems: 'center',
-    },
-    emptyTitle: {
-        marginTop: 8,
-        fontSize: 15,
-        fontWeight: '700',
-    },
-    emptySubtitle: {
-        marginTop: 6,
-        fontSize: 13,
-        textAlign: 'center',
-        lineHeight: 18,
-    },
+    scrollContent: { padding: 16, paddingBottom: 24 },
+    heroCard: { borderRadius: 18, paddingHorizontal: 18, paddingTop: 20, paddingBottom: 22, marginBottom: 14, overflow: 'hidden' },
+    heroGlowTop: { position: 'absolute', right: -30, top: -35, width: 125, height: 125, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.1)' },
+    heroGlowBottom: { position: 'absolute', left: -32, bottom: -40, width: 115, height: 115, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.08)' },
+    heroKicker: { color: 'rgba(255,255,255,0.74)', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
+    heroTitle: { color: '#FFFFFF', fontSize: 23, fontWeight: '800' },
+    heroSubtitle: { color: 'rgba(255,255,255,0.78)', fontSize: 13, marginTop: 6 },
+    heroPills: { marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    heroPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 16, paddingVertical: 5, paddingHorizontal: 10 },
+    heroPillText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
+    heroAddBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 16, paddingVertical: 6, paddingHorizontal: 10 },
+    heroAddText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+    vetCard: { borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 10 },
+    vetHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+    vetIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+    vetName: { fontSize: 15, fontWeight: '700' },
+    vetAddress: { fontSize: 12, marginTop: 2 },
+    metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+    metaText: { marginLeft: 6, fontSize: 13 },
+    callBtn: { marginTop: 10, minHeight: 42, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+    callBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+    emptyCard: { borderRadius: 16, borderWidth: 1, padding: 20, alignItems: 'center' },
+    emptyTitle: { marginTop: 8, fontSize: 15, fontWeight: '700' },
+    emptySubtitle: { marginTop: 6, fontSize: 13, textAlign: 'center', lineHeight: 18 },
 });

@@ -1,21 +1,15 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
-    View,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    StyleSheet,
-    ScrollView,
-    Alert,
-    ActivityIndicator,
+    View, Text, TouchableOpacity,
+    StyleSheet, ScrollView, Alert, ActivityIndicator,
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenWrapper } from '../components';
 import { useApp } from '../context';
 import { buildFormTheme, getSingleSelectedMarkedDates } from '../lib/formTheme';
+import { supabase } from '../lib/Supabase';
 
 export default function EditarVacuna() {
     const navigation = useNavigation();
@@ -23,60 +17,55 @@ export default function EditarVacuna() {
     const { vacuna } = route.params || {};
     const { colors, t } = useApp();
 
-    const [nombreUsuario, setNombreUsuario] = useState('');
-    const [nombreVeterinaria, setNombreVeterinaria] = useState('');
+    const [selectedMascota, setSelectedMascota] = useState(null); // { id, nombre }
+    const [selectedVeterinaria, setSelectedVeterinaria] = useState(null); // { id, nombre }
     const [selectedDate, setSelectedDate] = useState('');
     const [loading, setLoading] = useState(false);
     const [veterinarias, setVeterinarias] = useState([]);
     const [mascotas, setMascotas] = useState([]);
-
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const [isMascotasDropdownOpen, setIsMascotasDropdownOpen] = useState(false);
+    const [isVetDropdownOpen, setIsVetDropdownOpen] = useState(false);
+    const [isMascotaDropdownOpen, setIsMascotaDropdownOpen] = useState(false);
 
     const theme = useMemo(() => buildFormTheme(colors), [colors]);
 
     useFocusEffect(
         useCallback(() => {
             if (vacuna) {
-                setNombreUsuario(vacuna.usuario || 'Mi Mascota');
-                setNombreVeterinaria(vacuna.veterinaria || '');
-                setSelectedDate(vacuna.fecha || '');
-                loadVeterinarias();
-                loadMascotas();
+                setSelectedDate(vacuna.fecha_aplicacion || vacuna.fecha || '');
+                loadData(vacuna.mascota_id, vacuna.veterinaria_id);
             }
         }, [vacuna])
     );
 
-    const loadMascotas = async () => {
+    const loadData = async (currentMascotaId, currentVetId) => {
         try {
-            const jsonValue = await AsyncStorage.getItem('@mascotas');
-            const data = jsonValue != null ? JSON.parse(jsonValue) : [];
-            data.sort((a, b) => a.nombre.localeCompare(b.nombre));
-            setMascotas(data);
-        } catch (error) {
-            console.error('Error cargando mascotas', error);
+            const [mascotasRes, vetsRes] = await Promise.all([
+                supabase.from('mascotas').select('id, nombre').order('nombre', { ascending: true }),
+                supabase.from('veterinarias').select('id, nombre').order('nombre', { ascending: true }),
+            ]);
+
+            if (!mascotasRes.error) {
+                setMascotas(mascotasRes.data || []);
+                const current = (mascotasRes.data || []).find(m => m.id === currentMascotaId);
+                if (current) setSelectedMascota(current);
+                else if (vacuna?.mascota_nombre) {
+                    const byName = (mascotasRes.data || []).find(m => m.nombre === vacuna.mascota_nombre);
+                    if (byName) setSelectedMascota(byName);
+                }
+            }
+
+            if (!vetsRes.error) {
+                setVeterinarias(vetsRes.data || []);
+                const current = (vetsRes.data || []).find(v => v.id === currentVetId);
+                if (current) setSelectedVeterinaria(current);
+                else if (vacuna?.veterinaria_nombre) {
+                    const byName = (vetsRes.data || []).find(v => v.nombre === vacuna.veterinaria_nombre);
+                    if (byName) setSelectedVeterinaria(byName);
+                }
+            }
+        } catch (err) {
+            console.error('loadData exception:', err);
         }
-    };
-
-    const loadVeterinarias = async () => {
-        try {
-            const jsonValue = await AsyncStorage.getItem('@veterinarias');
-            const data = jsonValue != null ? JSON.parse(jsonValue) : [];
-            data.sort((a, b) => a.label.localeCompare(b.label));
-            setVeterinarias(data);
-        } catch (error) {
-            console.error('Error cargando veterinarias', error);
-        }
-    };
-
-    const selectMascota = (mascota) => {
-        setNombreUsuario(mascota.nombre);
-        setIsMascotasDropdownOpen(false);
-    };
-
-    const selectVeterinaria = (option) => {
-        setNombreVeterinaria(option.label);
-        setIsDropdownOpen(false);
     };
 
     const getMarkedDates = () => getSingleSelectedMarkedDates(selectedDate, theme.brand);
@@ -86,50 +75,35 @@ export default function EditarVacuna() {
             Alert.alert(t.error || 'Error', t.vaccineNotFound || 'No se encontro la vacuna a editar.');
             return;
         }
-
-        const mascotaLimpia = nombreUsuario.trim();
-        const veterinariaLimpia = nombreVeterinaria.trim();
-
-        if (!mascotaLimpia || !veterinariaLimpia || !selectedDate) {
+        if (!selectedMascota || !selectedVeterinaria || !selectedDate) {
             Alert.alert(t.missingData || 'Faltan datos', t.fillPetVetDate || 'Ingresa mascota, veterinaria y fecha de la vacuna.');
             return;
         }
 
         setLoading(true);
         try {
-            const citasRaw = await AsyncStorage.getItem('@citas');
-            const citas = citasRaw ? JSON.parse(citasRaw) : [];
+            const { error } = await supabase
+                .from('vacunas')
+                .update({
+                    mascota_id: selectedMascota.id,
+                    veterinaria_id: selectedVeterinaria.id,
+                    fecha_aplicacion: selectedDate,
+                })
+                .eq('id', vacuna.id);
 
-            const updatedCitas = citas.filter((c) => {
-                if (vacuna.id != null && c.id != null) {
-                    return c.id !== vacuna.id;
-                }
-
-                return !(
-                    c.fecha === vacuna.fecha &&
-                    c.usuario === vacuna.usuario &&
-                    c.veterinaria === vacuna.veterinaria &&
-                    (c.tipo === 'Vacuna' || c.veterinaria === 'Vacuna Registrada')
-                );
-            });
-
-            const vacunaActualizada = {
-                ...vacuna,
-                usuario: mascotaLimpia,
-                veterinaria: veterinariaLimpia,
-                fecha: selectedDate,
-                tipo: 'Vacuna',
-            };
-
-            updatedCitas.push(vacunaActualizada);
-            await AsyncStorage.setItem('@citas', JSON.stringify(updatedCitas));
+            if (error) {
+                console.error('EditarVacuna error:', error);
+                Alert.alert(t.error || 'Error', t.saveChangesError || 'No se pudieron guardar los cambios.');
+                setLoading(false);
+                return;
+            }
 
             setLoading(false);
             Alert.alert(t.success || 'Exito', `${t.vaccineUpdated || 'Vacuna actualizada para el'} ${selectedDate}!`, [
                 { text: 'OK', onPress: () => navigation.navigate('Calendario') },
             ]);
-        } catch (error) {
-            console.error('Error guardando cambios:', error);
+        } catch (err) {
+            console.error('EditarVacuna exception:', err);
             setLoading(false);
             Alert.alert(t.error || 'Error', t.saveChangesError || 'No se pudieron guardar los cambios.');
         }
@@ -139,44 +113,45 @@ export default function EditarVacuna() {
         <ScreenWrapper showBack showMenu={false} showNotifications={false} showProfile={false}>
             <View style={[styles.container, { backgroundColor: theme.bg }]}>
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+
                     <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
                         <Text style={styles.heroKicker}>{t.vaccineKicker || 'VACUNAS'}</Text>
                         <Text style={styles.heroTitle}>{t.editVaccineTitle || 'Editar vacuna'}</Text>
                         <Text style={styles.heroSubtitle}>{t.editVaccineSubtitle || 'Ajusta mascota, veterinaria y fecha de aplicacion.'}</Text>
                     </View>
 
+                    {/* ── Mascota ── */}
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, zIndex: 101 }]}>
                         <Text style={[styles.label, { color: theme.muted }]}>{t.petLabel || 'Mascota'}</Text>
                         <TouchableOpacity
                             style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
-                            onPress={() => setIsMascotasDropdownOpen((prev) => !prev)}
+                            onPress={() => setIsMascotaDropdownOpen((prev) => !prev)}
                             activeOpacity={0.8}
                         >
                             <Ionicons name="paw-outline" size={18} color={theme.brandSoft} style={styles.leftIcon} />
-                            <Text style={[styles.dropdownValue, { color: nombreUsuario ? theme.text : theme.muted }]}>
-                                {nombreUsuario || t.selectPetPlaceholder || 'Selecciona una mascota'}
+                            <Text style={[styles.dropdownValue, { color: selectedMascota ? theme.text : theme.muted }]}>
+                                {selectedMascota?.nombre || t.selectPetPlaceholder || 'Selecciona una mascota'}
                             </Text>
                             <MaterialIcons
-                                name={isMascotasDropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                                name={isMascotaDropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
                                 size={22}
                                 color={theme.muted}
                             />
                         </TouchableOpacity>
-
-                        {isMascotasDropdownOpen ? (
+                        {isMascotaDropdownOpen ? (
                             <View style={[styles.dropdownList, { backgroundColor: theme.card, borderColor: theme.border }]}>
                                 {mascotas.length === 0 ? (
                                     <View style={styles.emptyStateBox}>
                                         <Text style={[styles.emptyStateText, { color: theme.muted }]}>{t.noRegisteredPets || 'No hay mascotas registradas.'}</Text>
                                     </View>
                                 ) : (
-                                    mascotas.map((mascota, index) => (
+                                    mascotas.map((m) => (
                                         <TouchableOpacity
-                                            key={index}
+                                            key={m.id}
                                             style={[styles.dropdownItem, { borderBottomColor: theme.border }]}
-                                            onPress={() => selectMascota(mascota)}
+                                            onPress={() => { setSelectedMascota(m); setIsMascotaDropdownOpen(false); }}
                                         >
-                                            <Text style={[styles.dropdownItemText, { color: theme.text }]}>{mascota.nombre}</Text>
+                                            <Text style={[styles.dropdownItemText, { color: theme.text }]}>{m.nombre}</Text>
                                         </TouchableOpacity>
                                     ))
                                 )}
@@ -184,38 +159,38 @@ export default function EditarVacuna() {
                         ) : null}
                     </View>
 
+                    {/* ── Veterinaria ── */}
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, zIndex: 100 }]}>
                         <Text style={[styles.label, { color: theme.muted }]}>{t.vetFallback || 'Veterinaria'}</Text>
                         <TouchableOpacity
                             style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
-                            onPress={() => setIsDropdownOpen((prev) => !prev)}
+                            onPress={() => setIsVetDropdownOpen((prev) => !prev)}
                             activeOpacity={0.8}
                         >
                             <Ionicons name="business-outline" size={18} color={theme.brandSoft} style={styles.leftIcon} />
-                            <Text style={[styles.dropdownValue, { color: nombreVeterinaria ? theme.text : theme.muted }]}>
-                                {nombreVeterinaria || t.chooseVetPlaceholder || 'Selecciona veterinaria'}
+                            <Text style={[styles.dropdownValue, { color: selectedVeterinaria ? theme.text : theme.muted }]}>
+                                {selectedVeterinaria?.nombre || t.chooseVetPlaceholder || 'Selecciona veterinaria'}
                             </Text>
                             <MaterialIcons
-                                name={isDropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                                name={isVetDropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
                                 size={22}
                                 color={theme.muted}
                             />
                         </TouchableOpacity>
-
-                        {isDropdownOpen ? (
+                        {isVetDropdownOpen ? (
                             <View style={[styles.dropdownList, { backgroundColor: theme.card, borderColor: theme.border }]}>
                                 {veterinarias.length === 0 ? (
                                     <View style={styles.emptyStateBox}>
                                         <Text style={[styles.emptyStateText, { color: theme.muted }]}>{t.noSavedVets || 'No hay veterinarias guardadas.'}</Text>
                                     </View>
                                 ) : (
-                                    veterinarias.map((option, index) => (
+                                    veterinarias.map((v) => (
                                         <TouchableOpacity
-                                            key={index}
+                                            key={v.id}
                                             style={[styles.dropdownItem, { borderBottomColor: theme.border }]}
-                                            onPress={() => selectVeterinaria(option)}
+                                            onPress={() => { setSelectedVeterinaria(v); setIsVetDropdownOpen(false); }}
                                         >
-                                            <Text style={[styles.dropdownItemText, { color: theme.text }]}>{option.label}</Text>
+                                            <Text style={[styles.dropdownItemText, { color: theme.text }]}>{v.nombre}</Text>
                                         </TouchableOpacity>
                                     ))
                                 )}
@@ -223,6 +198,7 @@ export default function EditarVacuna() {
                         ) : null}
                     </View>
 
+                    {/* ── Fecha ── */}
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <Text style={[styles.label, { color: theme.muted }]}>{t.vaccineDateLabel || 'Fecha de vacuna'}</Text>
                         <Calendar
@@ -275,118 +251,26 @@ export default function EditarVacuna() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    scrollContent: {
-        padding: 16,
-        paddingBottom: 42,
-    },
-    heroCard: {
-        borderRadius: 18,
-        paddingHorizontal: 18,
-        paddingTop: 18,
-        paddingBottom: 22,
-        marginBottom: 12,
-    },
-    heroKicker: {
-        color: 'rgba(255,255,255,0.74)',
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 1,
-        marginBottom: 4,
-    },
-    heroTitle: {
-        color: '#FFFFFF',
-        fontSize: 24,
-        fontWeight: '800',
-    },
-    heroSubtitle: {
-        color: 'rgba(255,255,255,0.79)',
-        fontSize: 13,
-        lineHeight: 18,
-        marginTop: 6,
-    },
-    card: {
-        borderRadius: 16,
-        borderWidth: 1,
-        marginBottom: 12,
-        padding: 14,
-    },
-    label: {
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 0.6,
-        marginBottom: 6,
-    },
-    inputRow: {
-        minHeight: 48,
-        borderRadius: 10,
-        borderWidth: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 10,
-    },
-    leftIcon: {
-        marginRight: 8,
-    },
-    dropdownValue: {
-        flex: 1,
-        fontSize: 14,
-    },
-    dropdownList: {
-        marginTop: 6,
-        borderWidth: 1,
-        borderRadius: 10,
-        overflow: 'hidden',
-    },
-    dropdownItem: {
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-    },
-    dropdownItemText: {
-        fontSize: 13,
-    },
-    emptyStateBox: {
-        padding: 14,
-        alignItems: 'center',
-    },
-    emptyStateText: {
-        fontSize: 13,
-    },
-    selectedDateText: {
-        marginTop: 10,
-        fontSize: 13,
-        fontWeight: '700',
-        textAlign: 'center',
-    },
-    saveButton: {
-        minHeight: 50,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexDirection: 'row',
-        gap: 8,
-    },
-    cancelButton: {
-        minHeight: 48,
-        marginTop: 10,
-        borderRadius: 12,
-        borderWidth: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    buttonDisabled: {
-        opacity: 0.7,
-    },
-    saveButtonText: {
-        color: '#fff',
-        fontSize: 15,
-        fontWeight: '700',
-    },
-    cancelButtonText: {
-        fontSize: 14,
-        fontWeight: '600',
-    },
+    container: { flex: 1 },
+    scrollContent: { padding: 16, paddingBottom: 42 },
+    heroCard: { borderRadius: 18, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 22, marginBottom: 12 },
+    heroKicker: { color: 'rgba(255,255,255,0.74)', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
+    heroTitle: { color: '#FFFFFF', fontSize: 24, fontWeight: '800' },
+    heroSubtitle: { color: 'rgba(255,255,255,0.79)', fontSize: 13, lineHeight: 18, marginTop: 6 },
+    card: { borderRadius: 16, borderWidth: 1, marginBottom: 12, padding: 14 },
+    label: { fontSize: 11, fontWeight: '700', letterSpacing: 0.6, marginBottom: 6 },
+    inputRow: { minHeight: 48, borderRadius: 10, borderWidth: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10 },
+    leftIcon: { marginRight: 8 },
+    dropdownValue: { flex: 1, fontSize: 14 },
+    dropdownList: { marginTop: 6, borderWidth: 1, borderRadius: 10, overflow: 'hidden' },
+    dropdownItem: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1 },
+    dropdownItemText: { fontSize: 13 },
+    emptyStateBox: { padding: 14, alignItems: 'center' },
+    emptyStateText: { fontSize: 13 },
+    selectedDateText: { marginTop: 10, fontSize: 13, fontWeight: '700', textAlign: 'center' },
+    saveButton: { minHeight: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+    cancelButton: { minHeight: 48, marginTop: 10, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+    buttonDisabled: { opacity: 0.7 },
+    saveButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+    cancelButtonText: { fontSize: 14, fontWeight: '600' },
 });
