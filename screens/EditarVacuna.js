@@ -1,9 +1,9 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
-    View, Text, TouchableOpacity,
+    View, Text, TouchableOpacity, TextInput,
     StyleSheet, ScrollView, Alert, ActivityIndicator,
 } from 'react-native';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
 import { ScreenWrapper } from '../components';
@@ -11,15 +11,24 @@ import { useApp } from '../context';
 import { buildFormTheme, getSingleSelectedMarkedDates } from '../lib/formTheme';
 import { supabase } from '../lib/Supabase';
 
+// Lista de vacunas comunes como sugerencias rápidas
+const VACUNAS_COMUNES = [
+    'Rabia', 'Parvovirus', 'Distemper', 'Hepatitis', 'Leptospirosis',
+    'Bordetella', 'Leucemia felina', 'Calicivirus', 'Rinotraqueítis',
+    'Polivalente', 'Desparasitación',
+];
+
 export default function EditarVacuna() {
     const navigation = useNavigation();
     const route = useRoute();
     const { vacuna } = route.params || {};
     const { colors, t } = useApp();
 
-    const [selectedMascota, setSelectedMascota] = useState(null); // { id, nombre }
-    const [selectedVeterinaria, setSelectedVeterinaria] = useState(null); // { id, nombre }
+    const [selectedMascota, setSelectedMascota] = useState(null);
+    const [selectedVeterinaria, setSelectedVeterinaria] = useState(null);
     const [selectedDate, setSelectedDate] = useState('');
+    const [nombreVacuna, setNombreVacuna] = useState('');
+    const [showSuggestions, setShowSuggestions] = useState(false);
     const [loading, setLoading] = useState(false);
     const [veterinarias, setVeterinarias] = useState([]);
     const [mascotas, setMascotas] = useState([]);
@@ -32,6 +41,8 @@ export default function EditarVacuna() {
         useCallback(() => {
             if (vacuna) {
                 setSelectedDate(vacuna.fecha_aplicacion || vacuna.fecha || '');
+                // Cargar nombre de vacuna existente si lo hay
+                setNombreVacuna(vacuna.nombre_vacuna || '');
                 loadData(vacuna.mascota_id, vacuna.veterinaria_id);
             }
         }, [vacuna])
@@ -68,11 +79,22 @@ export default function EditarVacuna() {
         }
     };
 
+    // Sugerencias filtradas según lo que escribe el usuario
+    const filteredSuggestions = useMemo(() => {
+        if (!nombreVacuna.trim()) return VACUNAS_COMUNES;
+        const q = nombreVacuna.toLowerCase();
+        return VACUNAS_COMUNES.filter(v => v.toLowerCase().includes(q));
+    }, [nombreVacuna]);
+
     const getMarkedDates = () => getSingleSelectedMarkedDates(selectedDate, theme.brand);
 
     const handleSave = async () => {
         if (!vacuna) {
             Alert.alert(t.error || 'Error', t.vaccineNotFound || 'No se encontro la vacuna a editar.');
+            return;
+        }
+        if (!nombreVacuna.trim()) {
+            Alert.alert(t.missingData || 'Faltan datos', 'Escribe el nombre de la vacuna.');
             return;
         }
         if (!selectedMascota || !selectedVeterinaria || !selectedDate) {
@@ -88,6 +110,7 @@ export default function EditarVacuna() {
                     mascota_id: selectedMascota.id,
                     veterinaria_id: selectedVeterinaria.id,
                     fecha_aplicacion: selectedDate,
+                    nombre_vacuna: nombreVacuna.trim(),
                 })
                 .eq('id', vacuna.id);
 
@@ -112,7 +135,11 @@ export default function EditarVacuna() {
     return (
         <ScreenWrapper showBack showMenu={false} showNotifications={false} showProfile={false}>
             <View style={[styles.container, { backgroundColor: theme.bg }]}>
-                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
 
                     <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
                         <Text style={styles.heroKicker}>{t.vaccineKicker || 'VACUNAS'}</Text>
@@ -120,12 +147,78 @@ export default function EditarVacuna() {
                         <Text style={styles.heroSubtitle}>{t.editVaccineSubtitle || 'Ajusta mascota, veterinaria y fecha de aplicacion.'}</Text>
                     </View>
 
+                    {/* ── Nombre de la vacuna ── */}
+                    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, zIndex: 200 }]}>
+                        <Text style={[styles.label, { color: theme.muted }]}>{'NOMBRE DE LA VACUNA'}</Text>
+                        <View
+                            style={[
+                                styles.inputRow,
+                                {
+                                    backgroundColor: theme.inputBg,
+                                    borderColor: nombreVacuna.trim() ? theme.brand : theme.border,
+                                },
+                            ]}
+                        >
+                            <FontAwesome5 name="syringe" size={15} color={theme.brandSoft} style={styles.leftIcon} />
+                            <TextInput
+                                style={[styles.vacunaInput, { color: theme.text }]}
+                                value={nombreVacuna}
+                                onChangeText={(text) => {
+                                    setNombreVacuna(text);
+                                    setShowSuggestions(true);
+                                }}
+                                onFocus={() => setShowSuggestions(true)}
+                                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                                placeholder="Ej: Rabia, Parvovirus, Polivalente..."
+                                placeholderTextColor={theme.muted}
+                                returnKeyType="done"
+                            />
+                            {nombreVacuna.length > 0 ? (
+                                <TouchableOpacity onPress={() => { setNombreVacuna(''); setShowSuggestions(false); }}>
+                                    <Ionicons name="close-circle" size={18} color={theme.muted} />
+                                </TouchableOpacity>
+                            ) : null}
+                        </View>
+
+                        {/* Sugerencias rápidas */}
+                        {showSuggestions && filteredSuggestions.length > 0 ? (
+                            <View style={[styles.suggestionsBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                                <Text style={[styles.suggestionsLabel, { color: theme.muted }]}>Sugerencias</Text>
+                                <View style={styles.suggestionsRow}>
+                                    {filteredSuggestions.slice(0, 6).map((sug) => (
+                                        <TouchableOpacity
+                                            key={sug}
+                                            style={[styles.suggestionChip, { backgroundColor: `${theme.brandSoft}18`, borderColor: `${theme.brandSoft}44` }]}
+                                            onPress={() => { setNombreVacuna(sug); setShowSuggestions(false); }}
+                                        >
+                                            <Text style={[styles.suggestionChipText, { color: theme.brandSoft }]}>{sug}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+                        ) : null}
+
+                        {/* Indicador de vacuna cargada */}
+                        {nombreVacuna.trim() ? (
+                            <View style={[styles.vacunaConfirmRow, { backgroundColor: `${theme.brandSoft}14` }]}>
+                                <Ionicons name="checkmark-circle" size={16} color={theme.brandSoft} />
+                                <Text style={[styles.vacunaConfirmText, { color: theme.brandSoft }]}>
+                                    Vacuna: <Text style={{ fontWeight: '800' }}>{nombreVacuna.trim()}</Text>
+                                </Text>
+                            </View>
+                        ) : null}
+                    </View>
+
                     {/* ── Mascota ── */}
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, zIndex: 101 }]}>
                         <Text style={[styles.label, { color: theme.muted }]}>{t.petLabel || 'Mascota'}</Text>
                         <TouchableOpacity
                             style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
-                            onPress={() => setIsMascotaDropdownOpen((prev) => !prev)}
+                            onPress={() => {
+                                setIsMascotaDropdownOpen((prev) => !prev);
+                                setIsVetDropdownOpen(false);
+                                setShowSuggestions(false);
+                            }}
                             activeOpacity={0.8}
                         >
                             <Ionicons name="paw-outline" size={18} color={theme.brandSoft} style={styles.leftIcon} />
@@ -164,7 +257,11 @@ export default function EditarVacuna() {
                         <Text style={[styles.label, { color: theme.muted }]}>{t.vetFallback || 'Veterinaria'}</Text>
                         <TouchableOpacity
                             style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
-                            onPress={() => setIsVetDropdownOpen((prev) => !prev)}
+                            onPress={() => {
+                                setIsVetDropdownOpen((prev) => !prev);
+                                setIsMascotaDropdownOpen(false);
+                                setShowSuggestions(false);
+                            }}
                             activeOpacity={0.8}
                         >
                             <Ionicons name="business-outline" size={18} color={theme.brandSoft} style={styles.leftIcon} />
@@ -273,4 +370,13 @@ const styles = StyleSheet.create({
     buttonDisabled: { opacity: 0.7 },
     saveButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
     cancelButtonText: { fontSize: 14, fontWeight: '600' },
+    // Nombre vacuna
+    vacunaInput: { flex: 1, fontSize: 14, paddingVertical: 0 },
+    suggestionsBox: { marginTop: 10, borderRadius: 10, borderWidth: 1, padding: 10 },
+    suggestionsLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 },
+    suggestionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    suggestionChip: { borderRadius: 20, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5 },
+    suggestionChipText: { fontSize: 12, fontWeight: '600' },
+    vacunaConfirmRow: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
+    vacunaConfirmText: { fontSize: 13 },
 });

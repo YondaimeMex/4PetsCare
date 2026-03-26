@@ -1,11 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, TextInput } from 'react-native';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
 import { useApp } from '../context';
 import { ScreenWrapper } from '../components';
 import { supabase } from '../lib/Supabase';
+
+// Lista de vacunas comunes como sugerencias rápidas
+const VACUNAS_COMUNES = [
+    'Rabia', 'Parvovirus', 'Distemper', 'Hepatitis', 'Leptospirosis',
+    'Bordetella', 'Leucemia felina', 'Calicivirus', 'Rinotraqueítis',
+    'Polivalente', 'Desparasitación',
+];
 
 export default function ConfirmacionVacuna() {
     const navigation = useNavigation();
@@ -22,6 +29,10 @@ export default function ConfirmacionVacuna() {
     const [selectedMascota, setSelectedMascota] = useState(mascotaParam || null);
     const [isMascotaDropdownOpen, setIsMascotaDropdownOpen] = useState(false);
 
+    // ── Nuevo: nombre de la vacuna ──────────────────────────────
+    const [nombreVacuna, setNombreVacuna] = useState('');
+    const [showSuggestions, setShowSuggestions] = useState(false);
+
     const theme = useMemo(() => ({
         brand: colors?.primaryDark || '#2F6E4F',
         brandSoft: colors?.primary || '#43A047',
@@ -32,6 +43,7 @@ export default function ConfirmacionVacuna() {
         text: colors?.text || '#22352D',
         muted: colors?.textMuted || '#5D6E64',
         inputBg: colors?.inputBackground || '#F6F8F4',
+        danger: colors?.danger || '#E53935',
     }), [colors]);
 
     const loadData = async () => {
@@ -49,9 +61,20 @@ export default function ConfirmacionVacuna() {
 
     useEffect(() => { loadData(); }, []);
 
+    // Sugerencias filtradas según lo que escribe el usuario
+    const filteredSuggestions = useMemo(() => {
+        if (!nombreVacuna.trim()) return VACUNAS_COMUNES;
+        const q = nombreVacuna.toLowerCase();
+        return VACUNAS_COMUNES.filter(v => v.toLowerCase().includes(q));
+    }, [nombreVacuna]);
+
     const handleSave = async () => {
         const mascota = selectedMascota;
 
+        if (!nombreVacuna.trim()) {
+            Alert.alert(t.error || 'Error', 'Escribe el nombre de la vacuna aplicada.');
+            return false;
+        }
         if (!selectedDate) {
             Alert.alert(t.error || 'Error', t.chooseVetRequiredDate || 'Selecciona la fecha en que la vacuna fue aplicada.');
             return false;
@@ -72,6 +95,7 @@ export default function ConfirmacionVacuna() {
                     mascota_id: mascota.id,
                     veterinaria_id: selectedVeterinaria.id,
                     fecha_aplicacion: selectedDate,
+                    nombre_vacuna: nombreVacuna.trim(),
                 });
 
             if (error) {
@@ -90,7 +114,11 @@ export default function ConfirmacionVacuna() {
     return (
         <ScreenWrapper showBack>
             <View style={[styles.container, { backgroundColor: theme.bg }]}>
-                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                <ScrollView
+                    contentContainerStyle={styles.content}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
 
                     {/* ── Hero ── */}
                     <View style={[styles.heroCard, { backgroundColor: theme.brand }]}>
@@ -109,11 +137,15 @@ export default function ConfirmacionVacuna() {
 
                     {/* ── Selector de mascota (solo si no viene en params) ── */}
                     {!mascotaParam ? (
-                        <View style={[styles.card, { zIndex: 200, backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <View style={[styles.card, { zIndex: 300, backgroundColor: theme.card, borderColor: theme.border }]}>
                             <Text style={[styles.label, { color: theme.muted }]}>{'Mascota'}</Text>
                             <TouchableOpacity
                                 style={[styles.dropdownTrigger, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
-                                onPress={() => setIsMascotaDropdownOpen(!isMascotaDropdownOpen)}
+                                onPress={() => {
+                                    setIsMascotaDropdownOpen(!isMascotaDropdownOpen);
+                                    setIsVetDropdownOpen(false);
+                                    setShowSuggestions(false);
+                                }}
                             >
                                 <Ionicons name="paw-outline" size={18} color={theme.brandSoft} style={styles.leftIcon} />
                                 <Text style={[styles.dropdownValue, { color: selectedMascota ? theme.text : theme.muted }]}>
@@ -147,6 +179,68 @@ export default function ConfirmacionVacuna() {
                         </View>
                     ) : null}
 
+                    {/* ── Nombre de la vacuna ── */}
+                    <View style={[styles.card, { zIndex: 200, backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <Text style={[styles.label, { color: theme.muted }]}>{'NOMBRE DE LA VACUNA'}</Text>
+                        <View
+                            style={[
+                                styles.dropdownTrigger,
+                                {
+                                    backgroundColor: theme.inputBg,
+                                    borderColor: nombreVacuna.trim() ? theme.brand : theme.border,
+                                },
+                            ]}
+                        >
+                            <FontAwesome5 name="syringe" size={15} color={theme.brandSoft} style={styles.leftIcon} />
+                            <TextInput
+                                style={[styles.vacunaInput, { color: theme.text }]}
+                                value={nombreVacuna}
+                                onChangeText={(text) => {
+                                    setNombreVacuna(text);
+                                    setShowSuggestions(true);
+                                }}
+                                onFocus={() => setShowSuggestions(true)}
+                                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                                placeholder="Ej: Rabia, Parvovirus, Polivalente..."
+                                placeholderTextColor={theme.muted}
+                                returnKeyType="done"
+                            />
+                            {nombreVacuna.length > 0 ? (
+                                <TouchableOpacity onPress={() => { setNombreVacuna(''); setShowSuggestions(false); }}>
+                                    <Ionicons name="close-circle" size={18} color={theme.muted} />
+                                </TouchableOpacity>
+                            ) : null}
+                        </View>
+
+                        {/* Sugerencias rápidas */}
+                        {showSuggestions && filteredSuggestions.length > 0 ? (
+                            <View style={[styles.suggestionsBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                                <Text style={[styles.suggestionsLabel, { color: theme.muted }]}>Sugerencias</Text>
+                                <View style={styles.suggestionsRow}>
+                                    {filteredSuggestions.slice(0, 6).map((sug) => (
+                                        <TouchableOpacity
+                                            key={sug}
+                                            style={[styles.suggestionChip, { backgroundColor: `${theme.brandSoft}18`, borderColor: `${theme.brandSoft}44` }]}
+                                            onPress={() => { setNombreVacuna(sug); setShowSuggestions(false); }}
+                                        >
+                                            <Text style={[styles.suggestionChipText, { color: theme.brandSoft }]}>{sug}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+                        ) : null}
+
+                        {/* Indicador de vacuna ya registrada */}
+                        {nombreVacuna.trim() ? (
+                            <View style={[styles.vacunaConfirmRow, { backgroundColor: `${theme.brandSoft}14` }]}>
+                                <Ionicons name="checkmark-circle" size={16} color={theme.brandSoft} />
+                                <Text style={[styles.vacunaConfirmText, { color: theme.brandSoft }]}>
+                                    Registrando: <Text style={{ fontWeight: '800' }}>{nombreVacuna.trim()}</Text>
+                                </Text>
+                            </View>
+                        ) : null}
+                    </View>
+
                     {/* ── Fecha ── */}
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <Text style={[styles.label, { color: theme.muted }]}>{t.appliedDateLabel || 'Fecha aplicada'}</Text>
@@ -177,7 +271,11 @@ export default function ConfirmacionVacuna() {
                         <Text style={[styles.label, { color: theme.muted }]}>{t.vetFallback || 'Veterinaria'}</Text>
                         <TouchableOpacity
                             style={[styles.dropdownTrigger, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
-                            onPress={() => setIsVetDropdownOpen(!isVetDropdownOpen)}
+                            onPress={() => {
+                                setIsVetDropdownOpen(!isVetDropdownOpen);
+                                setIsMascotaDropdownOpen(false);
+                                setShowSuggestions(false);
+                            }}
                         >
                             <Ionicons name="business-outline" size={18} color={theme.brandSoft} style={styles.leftIcon} />
                             <Text style={[styles.dropdownValue, { color: selectedVeterinaria ? theme.text : theme.muted }]}>
@@ -258,4 +356,13 @@ const styles = StyleSheet.create({
     vaccineButton: { minHeight: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
     vaccineButtonContent: { flexDirection: 'row', alignItems: 'center' },
     vaccineButtonText: { color: 'white', fontSize: 15, fontWeight: '700', marginLeft: 10, marginRight: 5 },
+    // Nombre vacuna
+    vacunaInput: { flex: 1, fontSize: 14, paddingVertical: 0 },
+    suggestionsBox: { marginTop: 10, borderRadius: 10, borderWidth: 1, padding: 10 },
+    suggestionsLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 },
+    suggestionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    suggestionChip: { borderRadius: 20, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5 },
+    suggestionChipText: { fontSize: 12, fontWeight: '600' },
+    vacunaConfirmRow: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
+    vacunaConfirmText: { fontSize: 13 },
 });
