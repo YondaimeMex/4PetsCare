@@ -80,7 +80,7 @@ export default function EditarPerfil() {
                     telefono: data.telefono || userData?.phone || '',
                     address: data.address || userData?.address || '',
                 });
-                setAvatar(data.foto_url || userData?.avatar || 'https://i.pravatar.cc/300');
+                setAvatar(data.foto_url || userData?.avatar || 'https://vttcrwwrmkhlislqaayd.supabase.co/storage/v1/object/public/mascotas/spayki.jpg');
             } else {
                 // No existe aún, usar datos del contexto
                 setFormData({
@@ -89,7 +89,7 @@ export default function EditarPerfil() {
                     telefono: userData?.phone || '',
                     address: userData?.address || '',
                 });
-                setAvatar(userData?.avatar || 'https://i.pravatar.cc/300');
+                setAvatar(userData?.avatar || 'https://vttcrwwrmkhlislqaayd.supabase.co/storage/v1/object/public/mascotas/spayki.jpg');
             }
         } catch (err) {
             console.error('loadProfile exception:', err);
@@ -229,7 +229,7 @@ export default function EditarPerfil() {
                     {/* ── Avatar ── */}
                     <View style={[styles.avatarCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <View style={styles.avatarWrap}>
-                            <Image source={{ uri: avatar || 'https://i.pravatar.cc/300' }} style={[styles.avatar, { borderColor: theme.brandSoft }]} />
+                            <Image source={{ uri: avatar || 'https://vttcrwwrmkhlislqaayd.supabase.co/storage/v1/object/public/mascotas/spayki.jpg' }} style={[styles.avatar, { borderColor: theme.brandSoft }]} />
                             <TouchableOpacity
                                 style={[styles.cameraButton, { backgroundColor: theme.accent }]}
                                 onPress={handleChangePhoto}

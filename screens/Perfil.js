@@ -8,16 +8,10 @@ import { supabase } from '../lib/Supabase';
 
 export default function Perfil() {
   const navigation = useNavigation();
-  const { colors, t, language } = useApp();
+  const { colors, t, language, userData } = useApp();
 
   const [petsCount, setPetsCount] = useState(0);
   const [memberSince, setMemberSince] = useState('');
-  const [profileData, setProfileData] = useState({
-    nombre: '',
-    email: '',
-    telefono: '',
-    foto_url: '',
-  });
 
   const theme = useMemo(() => ({
     brand: colors?.primaryDark || '#2F6E4F',
@@ -40,39 +34,14 @@ export default function Perfil() {
     return formatted.charAt(0).toUpperCase() + formatted.slice(1);
   }, [language]);
 
-  const loadProfileData = useCallback(async () => {
+  const loadExtraData = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
       if (!user) return;
 
-      // Fecha de registro
       setMemberSince(formatMemberSince(user.created_at));
 
-      // Datos del perfil desde tabla perfiles
-      const { data: perfil } = await supabase
-        .from('perfiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (perfil) {
-        setProfileData({
-          nombre: perfil.nombre || user.email || '',
-          email: perfil.email || user.email || '',
-          telefono: perfil.telefono || '',
-          foto_url: perfil.foto_url || '',
-        });
-      } else {
-        setProfileData({
-          nombre: user.email || '',
-          email: user.email || '',
-          telefono: '',
-          foto_url: '',
-        });
-      }
-
-      // Conteo de mascotas desde Supabase
       const { count } = await supabase
         .from('mascotas')
         .select('*', { count: 'exact', head: true })
@@ -80,11 +49,11 @@ export default function Perfil() {
 
       setPetsCount(count || 0);
     } catch (err) {
-      console.error('loadProfileData error:', err);
+      console.error('loadExtraData error:', err);
     }
   }, [formatMemberSince]);
 
-  useFocusEffect(useCallback(() => { loadProfileData(); }, [loadProfileData]));
+  useFocusEffect(useCallback(() => { loadExtraData(); }, [loadExtraData]));
 
   const menuOptions = [
     { icon: 'person-outline', label: t.editProfile || 'Editar perfil', screen: 'EditarPerfil' },
@@ -114,7 +83,7 @@ export default function Perfil() {
             <View style={styles.avatarOuterRing}>
               <View style={styles.avatarInnerRing}>
                 <Image
-                  source={{ uri: profileData.foto_url || 'https://i.pravatar.cc/150' }}
+                  source={{ uri: userData?.avatar || 'https://vttcrwwrmkhlislqaayd.supabase.co/storage/v1/object/public/mascotas/spayki.jpg' }}
                   style={[styles.avatar, { borderColor: 'rgba(255,255,255,0.4)' }]}
                 />
               </View>
@@ -126,8 +95,8 @@ export default function Perfil() {
               <Ionicons name="camera-outline" size={16} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
-          <Text style={styles.heroName}>{profileData.nombre || t.myProfile || 'Mi perfil'}</Text>
-          <Text style={styles.heroEmail}>{profileData.email}</Text>
+          <Text style={styles.heroName}>{userData?.name || t.myProfile || 'Mi perfil'}</Text>
+          <Text style={styles.heroEmail}>{userData?.email || ''}</Text>
           <View style={styles.pillRow}>
             <View style={styles.pill}>
               <Ionicons name="paw" size={13} color="#FFFFFF" />
@@ -145,14 +114,14 @@ export default function Perfil() {
         {/* ── Datos de contacto ── */}
         <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.muted }]}>{t.contactInfoTitle || 'INFORMACION DE CONTACTO'}</Text>
-          {profileData.telefono ? (
+          {userData?.phone ? (
             <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
               <View style={[styles.infoIcon, { backgroundColor: `${theme.brandSoft}18` }]}>
                 <Ionicons name="call-outline" size={18} color={theme.brandSoft} />
               </View>
               <View>
                 <Text style={[styles.infoLabel, { color: theme.muted }]}>{t.phoneLabel || 'Telefono'}</Text>
-                <Text style={[styles.infoValue, { color: theme.text }]}>{profileData.telefono}</Text>
+                <Text style={[styles.infoValue, { color: theme.text }]}>{userData?.phone}</Text>
               </View>
             </View>
           ) : null}
@@ -162,7 +131,7 @@ export default function Perfil() {
             </View>
             <View>
               <Text style={[styles.infoLabel, { color: theme.muted }]}>{t.emailWord || 'Correo'}</Text>
-              <Text style={[styles.infoValue, { color: theme.text }]}>{profileData.email}</Text>
+              <Text style={[styles.infoValue, { color: theme.text }]}>{userData?.email || ''}</Text>
             </View>
           </View>
         </View>

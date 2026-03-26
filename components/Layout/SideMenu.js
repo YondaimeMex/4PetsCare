@@ -1,52 +1,15 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../../context';
 import { lightTheme } from '../../constants';
-import { supabase } from '../../lib/Supabase';
 
 export default function SideMenu() {
     const navigation = useNavigation();
-    const { isMenuOpen, closeMenu, colors: contextColors, t, registerTutorialTarget } = useApp();
+    const { isMenuOpen, closeMenu, colors: contextColors, t, userData, registerTutorialTarget } = useApp();
     const colors = contextColors || lightTheme;
     const tipsItemRef = useRef(null);
-
-    const [perfil, setPerfil] = useState({ nombre: '', email: '', foto_url: '' });
-
-    // Cargar perfil desde Supabase cada vez que se abre el menú
-    useEffect(() => {
-        if (!isMenuOpen) return;
-        const loadPerfil = async () => {
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (!session?.user) return;
-
-                const { data } = await supabase
-                    .from('perfiles')
-                    .select('nombre, email, foto_url')
-                    .eq('id', session.user.id)
-                    .single();
-
-                if (data) {
-                    setPerfil({
-                        nombre: data.nombre || session.user.email || '',
-                        email: data.email || session.user.email || '',
-                        foto_url: data.foto_url || '',
-                    });
-                } else {
-                    setPerfil({
-                        nombre: session.user.email || '',
-                        email: session.user.email || '',
-                        foto_url: '',
-                    });
-                }
-            } catch (err) {
-                console.error('SideMenu loadPerfil error:', err);
-            }
-        };
-        loadPerfil();
-    }, [isMenuOpen]);
 
     const measureTarget = useCallback((key, ref) => {
         setTimeout(() => {
@@ -106,15 +69,15 @@ export default function SideMenu() {
             <View style={styles.menuHeader}>
                 <View style={styles.userBlock}>
                     <Image
-                        source={{ uri: perfil.foto_url || 'https://i.pravatar.cc/150' }}
+                        source={{ uri: userData?.avatar || 'https://vttcrwwrmkhlislqaayd.supabase.co/storage/v1/object/public/mascotas/spayki.jpg' }}
                         style={[styles.avatar, { borderColor: `${theme.brand}33` }]}
                     />
                     <View style={styles.userMeta}>
                         <Text style={[styles.userName, { color: theme.text }]} numberOfLines={1}>
-                            {perfil.nombre || t.user || 'Usuario'}
+                            {userData?.name || t.user || 'Usuario'}
                         </Text>
                         <Text style={[styles.userEmail, { color: theme.muted }]} numberOfLines={1}>
-                            {perfil.email}
+                            {userData?.email || ''}
                         </Text>
                     </View>
                 </View>
