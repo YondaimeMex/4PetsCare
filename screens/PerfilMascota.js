@@ -7,6 +7,7 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Calendar } from 'react-native-calendars';
 import { useApp } from '../context';
 import { ScreenWrapper } from '../components';
 import { supabase } from '../lib/Supabase';
@@ -356,13 +357,29 @@ export default function PerfilMascota() {
                             onChangeText={(text) => setVacunaActual({ ...vacunaActual, nombre: text })}
                         />
                         <Text style={[styles.modalLabel, { color: theme.text }]}>{t.applicationDateLabel || 'Fecha de aplicacion'}</Text>
-                        <TextInput
-                            style={[styles.modalInput, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
-                            placeholder={t.dateFormatPlaceholder || 'YYYY-MM-DD'}
-                            placeholderTextColor={theme.muted}
-                            value={vacunaActual.fechaAplicacion}
-                            onChangeText={(text) => setVacunaActual({ ...vacunaActual, fechaAplicacion: text })}
+                        <Calendar
+                            onDayPress={(day) => setVacunaActual({ ...vacunaActual, fechaAplicacion: day.dateString })}
+                            markedDates={vacunaActual.fechaAplicacion ? {
+                                [vacunaActual.fechaAplicacion]: { selected: true, selectedColor: theme.brand }
+                            } : {}}
+                            theme={{
+                                backgroundColor: theme.bg,
+                                calendarBackground: theme.bg,
+                                textSectionTitleColor: theme.muted,
+                                dayTextColor: theme.text,
+                                monthTextColor: theme.text,
+                                todayTextColor: theme.accent,
+                                arrowColor: theme.brand,
+                                textDisabledColor: theme.border,
+                                textDayFontWeight: '500',
+                            }}
+                            style={{ borderRadius: 10, overflow: 'hidden' }}
                         />
+                        {vacunaActual.fechaAplicacion ? (
+                            <Text style={[styles.selectedDateText, { color: theme.brand }]}>
+                                Fecha: {vacunaActual.fechaAplicacion}
+                            </Text>
+                        ) : null}
                         <View style={styles.modalActions}>
                             <TouchableOpacity style={[styles.modalBtnGhost, { borderColor: theme.border }]} onPress={cerrarModal}>
                                 <Text style={[styles.modalBtnGhostText, { color: theme.text }]}>{t.cancel || 'Cancelar'}</Text>
@@ -432,4 +449,5 @@ const styles = StyleSheet.create({
     modalBtnGhostText: { fontSize: 13, fontWeight: '700' },
     modalBtnPrimary: { borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
     modalBtnPrimaryText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+    selectedDateText: { marginTop: 6, fontSize: 12, fontWeight: '700', textAlign: 'center' },
 });
