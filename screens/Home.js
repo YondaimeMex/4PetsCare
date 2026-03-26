@@ -95,6 +95,7 @@ export default function HomeScreen() {
                 fecha: v.fecha_aplicacion,
                 veterinaria: v.veterinarias?.nombre || '',
                 usuario: v.mascotas?.nombre || '',
+                nombre_vacuna: v.nombre_vacuna || '',
                 category: 'Vacuna',
             })));
 
@@ -292,7 +293,9 @@ export default function HomeScreen() {
                                     </View>
                                     <View style={styles.eventContent}>
                                         <Text style={[styles.eventTitle, { color: textMain }]}>
-                                            {isVaccine ? (t.pendingVaccine || 'Vacuna pendiente') : (t.pendingAppointment || 'Cita pendiente')}
+                                            {isVaccine
+                                                ? (event.nombre_vacuna || t.pendingVaccine || 'Vacuna pendiente')
+                                                : (t.pendingAppointment || 'Cita pendiente')}
                                         </Text>
                                         <Text style={[styles.eventMeta, { color: textMuted }]} numberOfLines={1}>
                                             {event.usuario || t.petFallback || 'Mascota'} — {event.veterinaria || t.vetFallback || 'Veterinaria'}
