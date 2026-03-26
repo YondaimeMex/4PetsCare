@@ -32,6 +32,7 @@ export default function ConfirmacionVacuna() {
     // ── Nuevo: nombre de la vacuna ──────────────────────────────
     const [nombreVacuna, setNombreVacuna] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [descripcion, setDescripcion] = useState('');
 
     const theme = useMemo(() => ({
         brand: colors?.primaryDark || '#2F6E4F',
@@ -96,6 +97,7 @@ export default function ConfirmacionVacuna() {
                     veterinaria_id: selectedVeterinaria.id,
                     fecha_aplicacion: selectedDate,
                     nombre_vacuna: nombreVacuna.trim(),
+                    descripcion: descripcion.trim() || null,
                 });
 
             if (error) {
@@ -241,6 +243,21 @@ export default function ConfirmacionVacuna() {
                         ) : null}
                     </View>
 
+                    {/* ── Descripción ── */}
+                    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <Text style={[styles.label, { color: theme.muted }]}>{'DESCRIPCIÓN (OPCIONAL)'}</Text>
+                        <View style={[styles.dropdownTrigger, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+                            <Ionicons name="document-text-outline" size={18} color={theme.brandSoft} style={styles.leftIcon} />
+                            <TextInput
+                                style={[styles.vacunaInput, { color: theme.text }]}
+                                value={descripcion}
+                                onChangeText={setDescripcion}
+                                placeholder="Ej: Dosis anual, refuerzo, reacción leve..."
+                                placeholderTextColor={theme.muted}
+                                multiline
+                            />
+                        </View>
+                    </View>
                     {/* ── Fecha ── */}
                     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <Text style={[styles.label, { color: theme.muted }]}>{t.appliedDateLabel || 'Fecha aplicada'}</Text>

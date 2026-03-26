@@ -47,7 +47,7 @@ export default function PerfilMascota() {
 
     const [vacunas, setVacunas] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
-    const [vacunaActual, setVacunaActual] = useState({ id: null, nombre: '', fechaAplicacion: '' });
+    const [vacunaActual, setVacunaActual] = useState({ id: null, nombre_vacuna: '', fechaAplicacion: '', descripcion: '' });
     const [isEditingVacuna, setIsEditingVacuna] = useState(false);
 
     const theme = useMemo(() => ({
@@ -81,7 +81,7 @@ export default function PerfilMascota() {
     };
 
     const abrirModalAgregar = () => {
-        setVacunaActual({ id: null, nombre: '', fechaAplicacion: '' });
+        setVacunaActual({ id: null, nombre_vacuna: '', fechaAplicacion: '', descripcion: '' });
         setIsEditingVacuna(false);
         setModalVisible(true);
     };
@@ -89,8 +89,9 @@ export default function PerfilMascota() {
     const abrirModalEditar = (vacuna) => {
         setVacunaActual({
             id: vacuna.id,
-            nombre: vacuna.nombre || '',
+            nombre_vacuna: vacuna.nombre_vacuna || vacuna.nombre || '',
             fechaAplicacion: vacuna.fecha_aplicacion || '',
+            descripcion: vacuna.descripcion || '',
         });
         setIsEditingVacuna(true);
         setModalVisible(true);
@@ -98,11 +99,11 @@ export default function PerfilMascota() {
 
     const cerrarModal = () => {
         setModalVisible(false);
-        setVacunaActual({ id: null, nombre: '', fechaAplicacion: '' });
+        setVacunaActual({ id: null, nombre_vacuna: '', fechaAplicacion: '', descripcion: '' });
     };
 
     const guardarVacuna = async () => {
-        if (!vacunaActual.nombre.trim() || !vacunaActual.fechaAplicacion.trim()) {
+        if (!vacunaActual.nombre_vacuna.trim() || !vacunaActual.fechaAplicacion.trim()) {
             Alert.alert(t.error || 'Error', t.completeAllFieldsShort || 'Completa todos los campos.');
             return;
         }
@@ -112,8 +113,9 @@ export default function PerfilMascota() {
                 const { error } = await supabase
                     .from('vacunas')
                     .update({
-                        nombre: vacunaActual.nombre.trim(),
+                        nombre_vacuna: vacunaActual.nombre_vacuna.trim(),
                         fecha_aplicacion: vacunaActual.fechaAplicacion.trim(),
+                        descripcion: vacunaActual.descripcion.trim() || null,
                     })
                     .eq('id', vacunaActual.id);
 
@@ -123,8 +125,9 @@ export default function PerfilMascota() {
                     .from('vacunas')
                     .insert({
                         mascota_id: mascota.id,
-                        nombre: vacunaActual.nombre.trim(),
+                        nombre_vacuna: vacunaActual.nombre_vacuna.trim(),
                         fecha_aplicacion: vacunaActual.fechaAplicacion.trim(),
+                        descripcion: vacunaActual.descripcion.trim() || null,
                     });
 
                 if (error) { console.error('insert vacuna error:', error); throw error; }
@@ -317,7 +320,10 @@ export default function PerfilMascota() {
                                             <Ionicons name="medkit-outline" size={16} color={theme.brandSoft} />
                                         </View>
                                         <View style={styles.vacunaInfo}>
-                                            <Text style={[styles.vacunaNombre, { color: theme.text }]}>{vacuna.nombre || 'Vacuna'}</Text>
+                                            <Text style={[styles.vacunaNombre, { color: theme.text }]}>{vacuna.nombre_vacuna || vacuna.nombre || 'Vacuna'}</Text>
+                                            {vacuna.descripcion ? (
+                                                <Text style={[styles.vacunaFecha, { color: theme.muted }]}>{vacuna.descripcion}</Text>
+                                            ) : null}
                                             <Text style={[styles.vacunaFecha, { color: theme.muted }]}>{vacuna.fecha_aplicacion}</Text>
                                         </View>
                                     </View>
@@ -353,8 +359,8 @@ export default function PerfilMascota() {
                             style={[styles.modalInput, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
                             placeholder={t.rabiesExample || 'Ej: Rabia'}
                             placeholderTextColor={theme.muted}
-                            value={vacunaActual.nombre}
-                            onChangeText={(text) => setVacunaActual({ ...vacunaActual, nombre: text })}
+                            value={vacunaActual.nombre_vacuna}
+                            onChangeText={(text) => setVacunaActual({ ...vacunaActual, nombre_vacuna: text })}
                         />
                         <Text style={[styles.modalLabel, { color: theme.text }]}>{t.applicationDateLabel || 'Fecha de aplicacion'}</Text>
                         <Calendar
@@ -380,6 +386,15 @@ export default function PerfilMascota() {
                                 Fecha: {vacunaActual.fechaAplicacion}
                             </Text>
                         ) : null}
+                        <Text style={[styles.modalLabel, { color: theme.text }]}>{'Descripción (opcional)'}</Text>
+                        <TextInput
+                            style={[styles.modalInput, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
+                            placeholder="Ej: Dosis anual, refuerzo..."
+                            placeholderTextColor={theme.muted}
+                            value={vacunaActual.descripcion}
+                            onChangeText={(text) => setVacunaActual({ ...vacunaActual, descripcion: text })}
+                            multiline
+                        />
                         <View style={styles.modalActions}>
                             <TouchableOpacity style={[styles.modalBtnGhost, { borderColor: theme.border }]} onPress={cerrarModal}>
                                 <Text style={[styles.modalBtnGhostText, { color: theme.text }]}>{t.cancel || 'Cancelar'}</Text>

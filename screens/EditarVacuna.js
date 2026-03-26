@@ -28,6 +28,7 @@ export default function EditarVacuna() {
     const [selectedVeterinaria, setSelectedVeterinaria] = useState(null);
     const [selectedDate, setSelectedDate] = useState('');
     const [nombreVacuna, setNombreVacuna] = useState('');
+    const [descripcion, setDescripcion] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [loading, setLoading] = useState(false);
     const [veterinarias, setVeterinarias] = useState([]);
@@ -43,6 +44,7 @@ export default function EditarVacuna() {
                 setSelectedDate(vacuna.fecha_aplicacion || vacuna.fecha || '');
                 // Cargar nombre de vacuna existente si lo hay
                 setNombreVacuna(vacuna.nombre_vacuna || '');
+                setDescripcion(vacuna.descripcion || '');
                 loadData(vacuna.mascota_id, vacuna.veterinaria_id);
             }
         }, [vacuna])
@@ -111,6 +113,7 @@ export default function EditarVacuna() {
                     veterinaria_id: selectedVeterinaria.id,
                     fecha_aplicacion: selectedDate,
                     nombre_vacuna: nombreVacuna.trim(),
+                    descripcion: descripcion.trim() || null,
                 })
                 .eq('id', vacuna.id);
 
@@ -319,6 +322,21 @@ export default function EditarVacuna() {
                         ) : null}
                     </View>
 
+                    {/* ── Descripción ── */}
+                    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <Text style={[styles.label, { color: theme.muted }]}>{'DESCRIPCIÓN (OPCIONAL)'}</Text>
+                        <View style={[styles.inputRow, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+                            <Ionicons name="document-text-outline" size={18} color={theme.brandSoft} style={styles.leftIcon} />
+                            <TextInput
+                                style={[styles.vacunaInput, { color: theme.text }]}
+                                value={descripcion}
+                                onChangeText={setDescripcion}
+                                placeholder="Ej: Dosis anual, refuerzo, reacción leve..."
+                                placeholderTextColor={theme.muted}
+                                multiline
+                            />
+                        </View>
+                    </View>
                     <TouchableOpacity
                         style={[styles.saveButton, { backgroundColor: theme.brand }, loading && styles.buttonDisabled]}
                         onPress={handleSave}
