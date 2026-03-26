@@ -261,6 +261,124 @@ export default function Calendario() {
                     </View>
                 </View>
 
+
+                {/* ── Todas las citas ── */}
+                {allCitas.filter(e => e.tipo === 'cita').length > 0 ? (
+                    <View style={[styles.eventsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <View style={styles.sectionHeaderRow}>
+                            <View style={[styles.sectionIconWrap, { backgroundColor: `${theme.brandSoft}18` }]}>
+                                <Ionicons name="calendar-outline" size={16} color={theme.brandSoft} />
+                            </View>
+                            <Text style={[styles.eventsTitle, { color: theme.text, marginBottom: 0 }]}>
+                                {t.scheduledAppointmentsLegend || 'Citas programadas'}
+                            </Text>
+                            <View style={[styles.countPill, { backgroundColor: `${theme.brandSoft}18` }]}>
+                                <Text style={[styles.countPillText, { color: theme.brandSoft }]}>
+                                    {allCitas.filter(e => e.tipo === 'cita').length}
+                                </Text>
+                            </View>
+                        </View>
+                        {allCitas.filter(e => e.tipo === 'cita').map((event, i, arr) => (
+                            <View
+                                key={`all-cita-${event.id || i}`}
+                                style={[
+                                    styles.listRow,
+                                    { borderColor: theme.border },
+                                    i === arr.length - 1 && styles.listRowLast,
+                                ]}
+                            >
+                                <View style={[styles.listDateBadge, { backgroundColor: `${theme.brandSoft}14` }]}>
+                                    <Text style={[styles.listDateText, { color: theme.brandSoft }]}>
+                                        {event.fecha ? event.fecha.slice(5).replace('-', '/') : '—'}
+                                    </Text>
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.listTitle, { color: theme.text }]} numberOfLines={1}>
+                                        {event.veterinaria_nombre || t.vetFallback || 'Veterinaria'}
+                                    </Text>
+                                    {event.hora ? (
+                                        <Text style={[styles.listMeta, { color: theme.muted }]}>
+                                            {formatTimeDisplay(event.hora)}
+                                        </Text>
+                                    ) : null}
+                                </View>
+                                <View style={styles.eventActions}>
+                                    <TouchableOpacity
+                                        style={[styles.iconBtn, { backgroundColor: `${theme.brandSoft}18` }]}
+                                        onPress={() => navigation.navigate('EditarCita', { cita: event })}
+                                    >
+                                        <MaterialIcons name="edit" size={16} color={theme.brandSoft} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.iconBtn, { backgroundColor: `${theme.danger}18` }]}
+                                        onPress={() => deleteCita(event)}
+                                    >
+                                        <MaterialIcons name="delete" size={16} color={theme.danger} />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        ))}
+                    </View>
+                ) : null}
+
+                {/* ── Todas las vacunas ── */}
+                {allCitas.filter(e => e.tipo === 'vacuna').length > 0 ? (
+                    <View style={[styles.eventsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <View style={styles.sectionHeaderRow}>
+                            <View style={[styles.sectionIconWrap, { backgroundColor: `${theme.success}18` }]}>
+                                <FontAwesome5 name="syringe" size={14} color={theme.success} />
+                            </View>
+                            <Text style={[styles.eventsTitle, { color: theme.text, marginBottom: 0 }]}>
+                                {t.appliedVaccinesLegend || 'Vacunas registradas'}
+                            </Text>
+                            <View style={[styles.countPill, { backgroundColor: `${theme.success}18` }]}>
+                                <Text style={[styles.countPillText, { color: theme.success }]}>
+                                    {allCitas.filter(e => e.tipo === 'vacuna').length}
+                                </Text>
+                            </View>
+                        </View>
+                        {allCitas.filter(e => e.tipo === 'vacuna').map((event, i, arr) => (
+                            <View
+                                key={`all-vac-${event.id || i}`}
+                                style={[
+                                    styles.listRow,
+                                    { borderColor: theme.border },
+                                    i === arr.length - 1 && styles.listRowLast,
+                                ]}
+                            >
+                                <View style={[styles.listDateBadge, { backgroundColor: `${theme.success}14` }]}>
+                                    <Text style={[styles.listDateText, { color: theme.success }]}>
+                                        {event.fecha ? event.fecha.slice(5).replace('-', '/') : '—'}
+                                    </Text>
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.listTitle, { color: theme.text }]} numberOfLines={1}>
+                                        {event.nombre_vacuna || t.pendingVaccine || 'Vacuna'}
+                                    </Text>
+                                    <Text style={[styles.listMeta, { color: theme.muted }]} numberOfLines={1}>
+                                        {event.mascota_nombre || t.petFallback || 'Mascota'}
+                                        {event.veterinaria_nombre ? ` · ${event.veterinaria_nombre}` : ''}
+                                    </Text>
+                                </View>
+                                <View style={styles.eventActions}>
+                                    <TouchableOpacity
+                                        style={[styles.iconBtn, { backgroundColor: `${theme.success}18` }]}
+                                        onPress={() => navigation.navigate('EditarVacuna', { vacuna: event })}
+                                    >
+                                        <MaterialIcons name="edit" size={16} color={theme.success} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.iconBtn, { backgroundColor: `${theme.danger}18` }]}
+                                        onPress={() => deleteVacuna(event)}
+                                    >
+                                        <MaterialIcons name="delete" size={16} color={theme.danger} />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        ))}
+                    </View>
+                ) : null}
+
                 {/* ── Eventos del día ── */}
                 {selectedDate ? (
                     <View style={[styles.eventsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -377,4 +495,15 @@ const styles = StyleSheet.create({
     eventMeta: { fontSize: 12, marginTop: 2 },
     eventActions: { flexDirection: 'row', gap: 6 },
     iconBtn: { padding: 6, borderRadius: 10 },
+    // Secciones de lista completa
+    sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+    sectionIconWrap: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+    countPill: { marginLeft: 'auto', minWidth: 24, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7 },
+    countPillText: { fontSize: 12, fontWeight: '700' },
+    listRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1 },
+    listRowLast: { borderBottomWidth: 0 },
+    listDateBadge: { minWidth: 42, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 5, alignItems: 'center' },
+    listDateText: { fontSize: 12, fontWeight: '800' },
+    listTitle: { fontSize: 14, fontWeight: '600' },
+    listMeta: { fontSize: 12, marginTop: 2 },
 });
