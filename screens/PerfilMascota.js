@@ -163,33 +163,43 @@ export default function PerfilMascota() {
     };
 
     // ─── Mascota ──────────────────────────────────────────────
+    const [newImageUri, setNewImageUri] = useState(null);
+
     const pickImage = async () => {
         if (!isEditable) return;
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: ['images'],
             allowsEditing: true,
             quality: 0.9,
         });
-        if (!result.canceled) setImage(result.assets[0].uri);
+        console.log('result.canceled:', result.canceled);
+        console.log('uri:', result.assets?.[0]?.uri);
+        if (!result.canceled && result.assets?.[0]?.uri) {
+            setNewImageUri(result.assets[0].uri);
+            setImage(result.assets[0].uri);
+        }
     };
 
     const guardarCambios = async () => {
         try {
             let foto_url = mascota.foto_url || null;
 
-            // Subir imagen si cambió
-            if (image && image !== mascota.foto_url && image !== mascota.image) {
+            // Subir imagen si el usuario seleccionó una nueva
+            if (newImageUri) {
                 const { data: { user } } = await supabase.auth.getUser();
-                const ext = image.split('.').pop() || 'jpg';
-                const fileName = `${user.id}/${mascota.id}_${Date.now()}.${ext}`;
+                const ext = newImageUri.split('.').pop().split('?')[0].toLowerCase() || 'jpg';
+                const fileName = `${user.id}_${mascota.id}_${Date.now()}.${ext}`;
+                console.log('Subiendo:', fileName);
                 const formDataImg = new FormData();
-                formDataImg.append('file', { uri: image, name: fileName, type: `image/${ext}` });
+                formDataImg.append('file', { uri: newImageUri, name: fileName, type: `image/${ext}` });
                 const { error: uploadError } = await supabase.storage
                     .from('mascotas')
                     .upload(fileName, formDataImg, { contentType: `image/${ext}`, upsert: true });
+                console.log('uploadError:', JSON.stringify(uploadError));
                 if (!uploadError) {
                     const { data: urlData } = supabase.storage.from('mascotas').getPublicUrl(fileName);
                     foto_url = urlData.publicUrl;
+                    console.log('foto_url:', foto_url);
                 }
             }
 
